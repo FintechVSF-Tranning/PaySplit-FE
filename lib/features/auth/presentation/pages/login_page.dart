@@ -37,12 +37,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final isLoading = authState.isLoading;
 
     ref.listen(authControllerProvider, (previous, next) {
-      final failure = next.hasError ? next.error : null;
-      if (failure is Failure) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(failure.message)));
-      }
+      if (!next.hasError) return;
+      final error = next.error;
+      final message = error is Failure ? error.message : 'Đã xảy ra lỗi, vui lòng thử lại';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
     });
 
     return Scaffold(

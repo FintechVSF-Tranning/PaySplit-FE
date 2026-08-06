@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/failures.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/bill_entity.dart';
 import '../providers/bills_provider.dart';
@@ -19,14 +20,27 @@ class BillsPage extends ConsumerWidget {
         child: billsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
               const SizedBox(height: 80),
-              Center(child: Text('Không tải được hoá đơn: $error')),
+              Center(
+                child: Text(
+                  error is Failure ? error.message : 'Không tải được hoá đơn, vui lòng thử lại',
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: OutlinedButton(
+                  onPressed: () => ref.invalidate(billsProvider),
+                  child: const Text('Thử lại'),
+                ),
+              ),
             ],
           ),
           data: (bills) {
             if (bills.isEmpty) {
               return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
                   SizedBox(height: 80),
                   Center(child: Text('Chưa có hoá đơn nào')),
@@ -34,6 +48,7 @@ class BillsPage extends ConsumerWidget {
               );
             }
             return ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               itemCount: bills.length,
               separatorBuilder: (_, _) => const SizedBox(height: 12),

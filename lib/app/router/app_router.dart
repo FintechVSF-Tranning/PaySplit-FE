@@ -38,7 +38,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final goingToSplash = state.matchedLocation == AppRoutes.splash;
       final goingToLogin = state.matchedLocation == AppRoutes.login;
 
-      if (isLoading) return goingToSplash ? null : AppRoutes.splash;
+      // Only bounce to splash for loading states that start there (initial
+      // session restore). A login/register submission starts on the Login
+      // page and must stay there so its failure listener can observe the
+      // AsyncLoading -> AsyncError transition.
+      if (isLoading) return (goingToSplash || goingToLogin) ? null : AppRoutes.splash;
       if (!isLoggedIn) return goingToLogin ? null : AppRoutes.login;
       if (goingToLogin || goingToSplash) return AppRoutes.home;
       return null;

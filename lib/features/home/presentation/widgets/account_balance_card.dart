@@ -44,18 +44,25 @@ class _AccountBalanceCardState extends State<AccountBalanceCard> {
         children: [
           Row(
             children: [
-              Text(
-                'Tài khoản thanh toán',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              Flexible(
+                child: Text(
+                  'Tài khoản thanh toán',
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               const Spacer(),
-              Text(
-                _mockAccountNumber,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  letterSpacing: 0.5,
+              Flexible(
+                child: Text(
+                  _mockAccountNumber,
+                  textAlign: TextAlign.end,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],

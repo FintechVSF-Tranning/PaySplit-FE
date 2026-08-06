@@ -28,22 +28,20 @@ class AuthController extends _$AuthController {
 
   Future<void> login({required String email, required String password}) async {
     state = const AsyncLoading();
-    final result = await getIt<LoginUseCase>().call(LoginParams(email: email, password: password));
-    state = result.match(
-      (failure) => AsyncError(failure, StackTrace.current),
-      (user) => AsyncData(user),
-    );
+    state = await AsyncValue.guard(() async {
+      final result = await getIt<LoginUseCase>().call(LoginParams(email: email, password: password));
+      return result.match((failure) => throw failure, (user) => user);
+    });
   }
 
   Future<void> register({required String name, required String email, required String password}) async {
     state = const AsyncLoading();
-    final result = await getIt<RegisterUseCase>().call(
-      RegisterParams(name: name, email: email, password: password),
-    );
-    state = result.match(
-      (failure) => AsyncError(failure, StackTrace.current),
-      (user) => AsyncData(user),
-    );
+    state = await AsyncValue.guard(() async {
+      final result = await getIt<RegisterUseCase>().call(
+        RegisterParams(name: name, email: email, password: password),
+      );
+      return result.match((failure) => throw failure, (user) => user);
+    });
   }
 
   /// Debug-only shortcut that fakes a session so the post-login screens can

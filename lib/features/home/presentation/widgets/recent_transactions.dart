@@ -52,11 +52,13 @@ class RecentTransactions extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                'Giao dịch gần đây',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Giao dịch gần đây',
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
               ),
-              const Spacer(),
               TextButton(
                 onPressed: () => showComingSoonSnackBar(context, 'Lịch sử giao dịch'),
                 child: const Text('Xem tất cả'),
