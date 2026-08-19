@@ -44,7 +44,7 @@ Thiết kế loại bỏ hoàn toàn các biểu đồ trang trí phức tạp (
 
 - **AC-UI-4 (Active Groups Carousel & Badge Summary)**:
   - Hiển thị danh sách nhóm mà người dùng đang tham gia dưới dạng card nằm ngang hoặc danh sách dọc tinh gọn.
-  - Mỗi thẻ nhóm hiển thị: Tên nhóm, Emoji đại diện, Số lượng thành viên, và Số dư riêng trong nhóm đó (Ví dụ: `Nợ 120.000 đ` hoặc `Được nhận 350.000 đ`).
+  - Mỗi thẻ nhóm hiển thị: Monogram đại diện (2 chữ cái đầu), Tên nhóm, Số lượng thành viên, và Số dư riêng trong nhóm đó (Ví dụ: `Nợ 120.000 đ` hoặc `Được nhận 350.000 đ`).
 
 - **AC-UI-5 (Recent Activity Stream & Live Status)**:
   - Hiển thị dòng thời gian các hoạt động gần nhất (hóa đơn mới tạo, thanh toán đã duyệt, nhắc nợ).
@@ -53,7 +53,7 @@ Thiết kế loại bỏ hoàn toàn các biểu đồ trang trí phức tạp (
 - **AC-UI-6 (Zero-State Onboarding for New Users & Join Group Flow)**:
   - Khi người dùng mới chưa có nhóm và chưa có số dư (Số dư = 0đ, Groups = 0): Hiển thị Card hướng dẫn 3 bước thực dụng kèm nút bấm `[ + Tạo nhóm đầu tiên ]` và `[ Nhập mã mời nhóm ]`.
   - Khi bấm `[ Nhập mã mời nhóm ]`: Mở Bottom Sheet 2 bước:
-    1. *Bước 1*: Nhập mã mời 6-8 ký tự viết hoa (Mono font) $\rightarrow$ gọi `GET /api/v1/groups/invites/{code}` để kiểm tra và xem trước thông tin nhóm (Tên nhóm, Emoji, Captain, số lượng TV, thời hạn mã).
+    1. *Bước 1*: Nhập mã mời gồm đúng 8 ký tự chữ và số, phân biệt hoa thường (Mono font), hoặc mở Deep Link `https://paysplit.app/join/{code}`. Cả hai đường đều gọi `GET /api/v1/groups/invites/{code}` để kiểm tra và xem trước thông tin nhóm (Tên nhóm, Captain, số lượng TV, thời hạn mã).
     2. *Bước 2*: Hiển thị Preview Card $\rightarrow$ bấm `[ Xác nhận tham gia nhóm ]` (`POST /api/v1/groups/join`) để gia nhập và chuyển sang trạng thái Home chính thức.
 
 - **AC-UI-7 (Pull-to-Refresh & Optimistic Microinteractions)**:
@@ -157,7 +157,7 @@ Khu vực hiển thị danh sách các khoản nợ cần thanh toán hoặc c�
 - **Tiêu đề mục**: `Nhóm của tôi` (`Newsreader SemiBold 18px`) + Nút `Xem tất cả` (`Roboto Slab Regular 13px, #0F766E`).
 - **Thẻ nhóm (Group Card)**:
   - Kích thước cố định `180px x 115px`, trượt ngang mượt mà (`ListView.separated` horizontal).
-  - Emoji đại diện nhóm + Tên nhóm (`Roboto Slab SemiBold 14px`, 1 dòng cắt ngắn ellipsis).
+  - Monogram đại diện nhóm (khung tròn 2 chữ cái đầu) + Tên nhóm (`Roboto Slab SemiBold 14px`, 1 dòng cắt ngắn ellipsis).
   - Số lượng thành viên (`HugeIcons.strokeRoundedUserGroup` 12px + `"5 người"`).
   - Dòng trạng thái số dư riêng trong nhóm:
     - `+350.000 đ` (Màu xanh nếu nhóm đó mình đang có dư).
@@ -193,7 +193,7 @@ Thanh điều hướng cố định dưới đáy màn hình với nền trắng
 
 | Endpoint BE (Thực tế) | Phương thức | Mục đích trên Home Screen | Spec BE |
 | :--- | :--- | :--- | :--- |
-| `/api/v1/groups` | `GET` | Lấy danh sách nhóm hoạt động kèm emoji, member_count. | `0002-group-management-v1` |
+| `/api/v1/groups` | `GET` | Lấy danh sách nhóm hoạt động kèm member_count. | `0002-group-management-v1` |
 | `/api/v1/groups/{groupId}/debts` | `GET` | Lấy danh sách nợ per-group (`caller_payable`, `caller_receivable`, `net_matrix`). FE fan-out tất cả groups → aggregate thành tổng `net_balance`. | `0004-split-settlement-v1` AC-2 |
 | `/api/v1/groups/{groupId}/payments/qr` | `POST` | Sinh mã VietQR động 1-chạm khi bấm nút `[ Trả QR ]`. | `0004-split-settlement-v1` AC-3 |
 | `/api/v1/notifications/unread-count` | `GET` | Lấy số lượng thông báo chưa đọc cho chuông thông báo. | `0006-notification-queue-v1` AC-6 |
@@ -254,7 +254,6 @@ class GroupBalanceEntity with _$GroupBalanceEntity {
   const factory GroupBalanceEntity({
     required String groupId,
     required String name,
-    required String emoji,
     required int memberCount,
     required int myNetBalance,        // From v_member_balances view via debts endpoint
   }) = _GroupBalanceEntity;
