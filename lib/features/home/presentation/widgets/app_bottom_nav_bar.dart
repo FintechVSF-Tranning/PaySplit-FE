@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// DTO cấu hình cho mỗi mục trong Bottom Navigation Bar
 class BottomNavItemData {
@@ -124,16 +125,15 @@ class _BottomNavItemWidget extends StatelessWidget {
             // 2. Nhãn text
             Text(
               item.label,
-              style: TextStyle(
-                fontFamily: 'Roboto Slab',
-                fontSize: 10,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected ? activeColor : inactiveColor,
               ),
             ),
             const SizedBox(height: 2),
 
-            // 3. Dấu chấm Active Dot Indicator (Chỉ hiển thị màu khi active, giữ trong suốt khi inactive để cố định layout 4px)
+            // 3. Dấu chấm Active Dot Indicator
             Container(
               width: 4,
               height: 4,
