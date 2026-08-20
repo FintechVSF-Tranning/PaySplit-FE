@@ -1,9 +1,11 @@
-/// Centralized route paths. Referencing these constants instead of raw
-/// strings keeps `context.go`/`context.push` calls in sync with the
-/// definitions in [AppRouter].
 abstract class AppRoutes {
   static const String splash = '/splash';
+  static const String welcome = '/welcome';
   static const String login = '/login';
-  static const String home = '/';
+  static const String register = '/register';
+  static const String verifyOtp = '/verify-otp';
+  static const String forgotPassword = '/forgot-password';
+  static const String resetPassword = '/reset-password';
+  static const String home = '/home';
   static const String bills = '/bills';
 }

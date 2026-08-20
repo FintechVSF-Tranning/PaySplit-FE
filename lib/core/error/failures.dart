@@ -1,44 +1,50 @@
 import 'package:equatable/equatable.dart';
 
 /// Base class for all domain-level failures returned via `Either<Failure, T>`.
-///
-/// Data sources throw [Exception]s; repositories catch them and map to a
-/// [Failure] so the domain/presentation layers never depend on Dio or any
-/// other data-layer type.
 abstract class Failure extends Equatable {
-  const Failure(this.message);
+  const Failure(this.message, {this.code});
 
   final String message;
+  final String? code;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, code];
 }
 
 class ServerFailure extends Failure {
-  const ServerFailure(super.message, {this.statusCode});
+  const ServerFailure(super.message, {super.code, this.statusCode});
 
   final int? statusCode;
 
   @override
-  List<Object?> get props => [message, statusCode];
+  List<Object?> get props => [message, code, statusCode];
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure([super.message = 'No internet connection']);
+  const NetworkFailure([super.message = 'Không có kết nối mạng', String? code])
+      : super(code: code ?? 'NETWORK_ERROR');
 }
 
 class CacheFailure extends Failure {
-  const CacheFailure([super.message = 'Local cache error']);
+  const CacheFailure([super.message = 'Lỗi bộ nhớ đệm', String? code])
+      : super(code: code ?? 'CACHE_ERROR');
 }
 
 class UnauthorizedFailure extends Failure {
-  const UnauthorizedFailure([super.message = 'Unauthorized']);
+  const UnauthorizedFailure([super.message = 'Phiên đăng nhập hết hạn', String? code])
+      : super(code: code ?? 'UNAUTHORIZED');
 }
 
 class ValidationFailure extends Failure {
-  const ValidationFailure(super.message);
+  const ValidationFailure(super.message, {super.code, this.fields});
+
+  final Map<String, String>? fields;
+
+  @override
+  List<Object?> get props => [message, code, fields];
 }
 
 class UnexpectedFailure extends Failure {
-  const UnexpectedFailure([super.message = 'Unexpected error occurred']);
+  const UnexpectedFailure([super.message = 'Đã có lỗi xảy ra, vui lòng thử lại', String? code])
+      : super(code: code ?? 'UNEXPECTED_ERROR');
 }

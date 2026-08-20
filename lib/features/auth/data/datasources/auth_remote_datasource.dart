@@ -4,14 +4,9 @@ import 'package:retrofit/retrofit.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
 import '../models/auth_response_model.dart';
-import '../models/user_model.dart';
 
 part 'auth_remote_datasource.g.dart';
 
-/// Retrofit generates the HTTP implementation of this interface at build
-/// time (`auth_remote_datasource.g.dart`). Errors surface to callers as
-/// [DioException] — the repository is responsible for catching those and
-/// mapping them to [Failure]s via `mapDioError`.
 @RestApi()
 @injectable
 abstract class AuthRemoteDataSource {
@@ -22,8 +17,20 @@ abstract class AuthRemoteDataSource {
   Future<AuthResponseModel> login(@Body() Map<String, dynamic> body);
 
   @POST(ApiEndpoints.register)
-  Future<AuthResponseModel> register(@Body() Map<String, dynamic> body);
+  Future<dynamic> register(@Body() Map<String, dynamic> body);
+
+  @POST(ApiEndpoints.verifyEmail)
+  Future<dynamic> verifyEmail(@Body() Map<String, dynamic> body);
+
+  @POST(ApiEndpoints.resendVerification)
+  Future<dynamic> resendVerification(@Body() Map<String, dynamic> body);
+
+  @POST(ApiEndpoints.forgotPassword)
+  Future<dynamic> forgotPassword(@Body() Map<String, dynamic> body);
+
+  @POST(ApiEndpoints.resetPassword)
+  Future<void> resetPassword(@Body() Map<String, dynamic> body);
 
   @GET(ApiEndpoints.me)
-  Future<UserModel> getCurrentUser();
+  Future<dynamic> getCurrentUser();
 }

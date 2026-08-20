@@ -1,10 +1,15 @@
 /// Central registry of REST endpoints (relative to [EnvConfig.apiBaseUrl]).
 /// Keeping paths here avoids magic strings scattered across datasources.
 abstract class ApiEndpoints {
-  static const String login = '/auth/login';
-  static const String register = '/auth/register';
+  static const String login = '/auth/sign-in';
+  static const String register = '/auth/sign-up';
+  static const String verifyEmail = '/auth/verify-email';
+  static const String resendVerification = '/auth/resend-verification';
+  static const String forgotPassword = '/auth/forgot-password';
+  static const String resetPassword = '/auth/reset-password';
   static const String refreshToken = '/auth/refresh';
-  static const String me = '/auth/me';
+  static const String signOut = '/auth/sign-out';
+  static const String me = '/users/me';
 
   static const String bills = '/bills';
   static String billById(String id) => '/bills/$id';

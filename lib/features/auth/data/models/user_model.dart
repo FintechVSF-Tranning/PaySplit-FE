@@ -11,7 +11,8 @@ class UserModel with _$UserModel {
 
   const factory UserModel({
     required String id,
-    required String name,
+    @JsonKey(name: 'display_name') String? displayName,
+    String? name,
     required String email,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     @JsonKey(name: 'phone_number') String? phoneNumber,
@@ -19,6 +20,11 @@ class UserModel with _$UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) => _$UserModelFromJson(json);
 
-  UserEntity toEntity() =>
-      UserEntity(id: id, name: name, email: email, avatarUrl: avatarUrl, phoneNumber: phoneNumber);
+  UserEntity toEntity() => UserEntity(
+        id: id,
+        name: displayName ?? name ?? email.split('@').first,
+        email: email,
+        avatarUrl: avatarUrl,
+        phoneNumber: phoneNumber,
+      );
 }
