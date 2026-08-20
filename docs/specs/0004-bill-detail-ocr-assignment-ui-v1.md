@@ -22,12 +22,15 @@ Màn hình **Chi Tiết OCR Hóa Đơn & Gán Món Ăn (Smart OCR & Item Assignm
   - Hiển thị thẻ phiếu thu (`Receipt Card`) viền răng cưa nhẹ, chứa Tên quán/Merchant (`Newsreader Medium 18px`), Ngày hóa đơn, Người trả trước (Creditor Monogram + Tên), và Tổng tiền hóa đơn (`Newsreader Bold 24px`).
   - Thumbnail ảnh hóa đơn gốc (tải từ Cloudinary Signed URL 5 phút) có nút phóng to mở `ImageViewerDialog` hỗ trợ pinch to zoom, xoay ảnh 90° và xem nhiều trang ảnh biên lai (1-5 ảnh).
 
-- **AC-UI-2 (Realtime OCR Status & Candidate Review / Edit)**:
+- **AC-UI-2 (Realtime OCR Status & Candidate Review / Edit & Item-Specific Discount Preprocessing)**:
   - Khi hóa đơn ở trạng thái OCR (`queued` hoặc `processing`), màn hình hiển thị banner hiệu ứng quét động (Shimmer Pulse Amber `#FEF3C7`), kết nối Server-Sent Events (SSE) `GET /api/v1/bills/{id}/events`.
   - Khi SSE phát sự kiện `ocr.updated` (`status = succeeded`):
     - Hiển thị thông báo Toast và Card duyệt kết quả OCR (`OCRCandidateReviewCard`).
-    - Cho phép người dùng kiểm tra danh sách món do AI trích xuất song song với ảnh biên lai gốc.
-    - **Cho phép chỉnh sửa, thêm hoặc xóa các món trong kết quả OCR trước khi áp dụng** (sửa tên, số lượng, đơn giá, xóa món AI đọc rác/thừa).
+    - **Tiền xử lý khuyến mãi từng món (Item-Specific Discount Preprocessing)**:
+      - Tự động quét mảng items từ LlamaExtract: Nếu gặp dòng khuyến mãi có tên chứa `"KM"`, `"Khuyen mai"`, `"Chiet khau"`, `"Giam gia"` hoặc `line_total < 0` (quantity `null`/0), giá trị khuyến mãi (chuyển số dương) sẽ gộp dồn vào `discount_amount` của món ngay trước đó, và tính `final_price = line_total - discount_amount`. Dòng "KM" bị loại bỏ khỏi danh sách món chính thức.
+      - Nếu dòng KM đứng trước không có món (Orphan KM line), chuyển giá trị vào `general_discount` kèm cảnh báo `OCR_ORPHAN_ITEM_DISCOUNT`.
+    - Cho phép người dùng kiểm tra danh sách món sạch do AI trích xuất song song với ảnh biên lai gốc.
+    - **Cho phép chỉnh sửa, thêm hoặc xóa các món trong kết quả OCR trước khi áp dụng** (sửa tên, số lượng, đơn giá, chiết khấu riêng món `discount_amount`, giá thực `final_price`, xóa món AI đọc rác/thừa).
     - Nút `[ Áp dụng kết quả OCR vào bản nháp ]` gọi `POST /api/v1/bills/{id}/apply-candidate` kèm `version`.
   - Nếu OCR thất bại (`failed`): Hiển thị thông báo thân thiện kèm nút `[ 🔄 Quét lại OCR ]` (`POST /api/v1/bills/{id}/ocr-retry`) và nút chuyển sang nhập tay hoàn toàn.
 
@@ -39,13 +42,15 @@ Màn hình **Chi Tiết OCR Hóa Đơn & Gán Món Ăn (Smart OCR & Item Assignm
 - **AC-UI-4 (Line Items Management & Multi-Member Avatar Assignment Bar)**:
   - Danh sách tối đa 100 món ăn/dịch vụ trong bản nháp (`draft`):
     - **Quản lý & Chỉnh sửa Món (CRUD Items in Draft)**:
-      - Mỗi món có nút `[ ✏️ Sửa ]` hoặc chạm vào thông tin món để mở `EditItemDialog`/`EditItemBottomSheet`.
-      - Cho phép chỉnh sửa: Tên món (`name`), Số lượng (`quantity` - hỗ trợ số thập phân), Đơn giá (`unit_price`), và Thành tiền (`line_total` - độc lập với `qty × price` để hỗ trợ chiết khấu từng món).
+      - **Tương tác Thẻ Món Ăn (`BillItemCard`)**: Bấm vào bất kỳ vị trí nào trên thẻ món ăn để mở `EditItemDialog`/`EditItemBottomSheet`. Các phần tử tương tác bên trong (nút avatar, nút chọn tất cả) gọi `event.stopPropagation()` để tránh mở nhầm Modal.
+      - **Bố cục Hiển thị Giá Xếp Chồng (Stacked Price Layout)**: Dòng góc trên bên phải thẻ món ăn hiển thị giá thực tế sau giảm giá (`final_price`) chữ màu xanh lục đậm nổi bật ở dòng trên, giá gốc có gạch ngang (`line_total`) chữ xám nhỏ xếp ngay bên dưới.
+      - **Thanh Tiêu Đề Thẻ Tinh Gọn**: Loại bỏ nút sửa rườm rà trên dòng tiêu đề; giữ lại nút xóa món màu đỏ (`.line-item-btn--danger`) sử dụng icon Hugeicons `delete-02` vát nét 1.8px (nền hồng nhạt `#FEF2F2`, viền đỏ `#FECACA`, icon đỏ `#DC2626`).
+      - Cho phép chỉnh sửa trong Modal: Tên món (`name`), Số lượng (`quantity`), Đơn giá (`unit_price`), Thành tiền gốc (`line_total`), Khuyến mãi riêng món (`discount_amount`), và Giá thực sau giảm (`final_price = line_total - discount_amount`).
+      - **Nút Xóa Món Nổi Bật Trong Modal (Destructive Full Button)**: Trong Modal Chỉnh sửa món ăn, nút `[ 🗑️ Xóa món này khỏi hóa đơn ]` được thiết kế dạng nút bấm rộng toàn chiều ngang (full-width button) nổi bật với viền đỏ, nền hồng nhạt và icon Hugeicons `delete-02`.
       - **Phần Chọn Thành Viên Tham Gia (Member Assignment Section in Modal)**:
         - Hiển thị danh sách đầy đủ tất cả thành viên trong nhóm kèm avatar, tên, checkbox chọn.
         - Nút tiện ích: `[ Chọn tất cả ]` / `[ Bỏ chọn ]`.
-        - Tự động hiển thị số tiền tạm tính mỗi người gánh (`Tạm tính: X đ / người`).
-      - Nút `[ 🗑️ Xóa ]` món (kèm xác nhận nếu món đã gán người).
+        - Tự động hiển thị số tiền tạm tính mỗi người gánh dựa trên **Giá thực `final_price`** (`Tạm tính: final_price / N đ / người`). Người ăn món nhận 100% ưu đãi khuyến mãi riêng của món đó.
       - Nút `[ + Thêm món thủ công ]` cho phép thêm món ăn mới phát sinh.
     - **Thanh Gán Người Ăn Thông Minh (Smart Avatar Assignment Bar on Item Card)**:
       - **Sắp xếp ưu tiên (Smart Sort)**: Tự động sắp xếp các thành viên **đã được chọn (assigned)** lên đầu hàng avatar.
@@ -53,22 +58,26 @@ Màn hình **Chi Tiết OCR Hóa Đơn & Gán Món Ăn (Smart OCR & Item Assignm
         - Nếu nhóm có $> 4$ thành viên: Hiển thị tối đa 4 avatar đầu tiên.
         - Avatar thứ 5 hiển thị dạng badge tràn `+N` (với $N = \text{tổng thành viên} - 4$).
         - Chạm vào badge `+N` sẽ mở ngay Modal Chỉnh sửa món để người dùng chọn/bỏ chọn thành viên trong danh sách mở rộng.
-      - Thành viên được chọn: Viền đậm Deep Teal `#0F766E`, nền nhạt, hiển thị số tiền mỗi người gánh dưới tên (ví dụ: `87.500 đ / người`).
+      - Thành viên được chọn: Viền đậm Deep Teal `#0F766E`, nền nhạt, hiển thị số tiền mỗi người gánh dưới tên dựa trên `final_price` (ví dụ: `42.750 đ / người`).
       - Thành viên chưa chọn: Mờ nhạt (`opacity 0.45`), viền xám hairline `1px`.
       - Nút `[ Tất cả ]`: Chọn nhanh toàn bộ thành viên cho món dùng chung.
 
 - **AC-UI-5 (Taxes, Surcharges & Discounts Management - `EditAdjustmentsDialog`)**:
-  - Tiêu đề mục có nút `[ ✏️ Chỉnh sửa ]` hoặc chạm trực tiếp vào thẻ Phụ phí & Thuế để mở Modal `EditAdjustmentsDialog`:
+  - Thẻ Phụ phí & Thuế có nhãn hiển thị gọn gàng: `Tổng KM từng món`, `Voucher giảm giá chung`, và dòng tổng kết `= Tổng cộng thanh toán`. Chạm trực tiếp vào thẻ hoặc nút `[ ✏️ Chỉnh sửa ]` để mở Modal `EditAdjustmentsDialog`:
     - **Phí dịch vụ** (`service_charge`): Nhập số tiền trực tiếp (VND) hoặc chọn nhanh chip `0đ`, `5%`, `10%` theo tiền món gốc.
     - **Thuế VAT** (`vat`): Nhập số tiền trực tiếp hoặc chọn nhanh chip `0%`, `8%`, `10%`.
-    - **Giảm giá Voucher / Khuyến mãi** (`discount`): Nhập số tiền trừ trực tiếp hoặc chọn chip `0đ`, `50k`, `10%`.
-    - **Khung xem trước trực tiếp (Live Preview)**: Hiển thị ngay Tổng tiền món gốc và Tổng tiền sau thuế phí trước khi nhấn `[ Lưu áp dụng ]`.
-  - Hiển thị công thức phân bổ tỷ lệ rõ ràng: Thuế, phí và giảm giá được phân bổ tự động theo tỷ trọng % tiền món ăn của từng người (`item_subtotal / bill_subtotal`).
+    - **Tách bạch 2 trường Khuyến mãi (Separated Discount Fields)**:
+      1. **`Tổng KM từng món (VND)`**: Ô chỉ đọc (`readonly`/`disabled`, nền xám nhạt `#F5F6F1`) tự động gộp tổng `discount_amount` từ tất cả các món ăn (`total_item_discount = Σ item.discount_amount`).
+      2. **`Voucher giảm giá chung (VND)`**: Ô cho phép người dùng tự điền giảm giá Voucher toàn bill (`general_discount`). Các chip chọn nhanh `0đ`, `50k`, `10%` áp dụng riêng cho ô này.
+    - **Khung xem trước trực tiếp (Live Preview)**: Hiển thị minh bạch từng bước tính toán: Tổng tiền món gốc (`gross_subtotal`), Trừ tổng KM từng món (`total_item_discount`), Tiền món thực tế (`net_items_total`), Phí dịch vụ, VAT, Voucher giảm giá chung (`general_discount`) và `= Tổng cộng thanh toán` trước khi nhấn `[ Lưu áp dụng ]`.
+  - **Công thức phân bổ tỷ lệ**: `general_discount` (Voucher chung) được phân bổ tự động theo tỷ trọng % tiền món ăn thực tế của từng người (`user_net_subtotal / net_items_total`). Khuyến mãi riêng từng món (`discount_amount`) đã được trừ trực tiếp vào món đó và không bị phân bổ lại.
 
 - **AC-UI-6 (Explicit Mismatch Calculation & Exact Delta Display)**:
   - Hệ thống tự động tính toán tổng các món và đối chiếu liên tục với số liệu hóa đơn:
-    - `computed_subtotal = Σ line_total`
-    - `computed_total = computed_subtotal + service_charge + vat - discount`
+    - `computed_gross_subtotal = Σ line_total`
+    - `total_item_discount = Σ discount_amount`
+    - `net_items_total = computed_gross_subtotal - total_item_discount = Σ final_price`
+    - `computed_total = net_items_total + service_charge + vat - general_discount`
     - `delta_total = computed_total - reported_total`
   - **Hiển thị rõ ràng số tiền chênh lệch (Exact Delta)**:
     - **Trường hợp Khớp 100% (Xanh Emerald `#ECFDF5`)**:
@@ -150,12 +159,12 @@ Màn hình **Chi Tiết OCR Hóa Đơn & Gán Món Ăn (Smart OCR & Item Assignm
 lib/features/bills/
 ├── domain/
 │   ├── entities/
-│   │   ├── bill_detail_entity.dart        # Thông tin chi tiết hóa đơn, trạng thái, version
-│   │   ├── bill_item_entity.dart          # Dòng món ăn (id, name, qty, price, line_total)
+│   │   ├── bill_detail_entity.dart        # Thông tin chi tiết hóa đơn (subtotal, total_item_discount, general_discount, total, version)
+│   │   ├── bill_item_entity.dart          # Dòng món ăn (id, name, qty, price, line_total, discount_amount, final_price)
 │   │   ├── item_assignment_entity.dart    # Gán món (member_id, weight)
 │   │   ├── bill_image_entity.dart         # Ảnh biên lai (id, position, signed_url)
-│   │   ├── ocr_candidate_entity.dart      # Dữ liệu candidate từ LlamaExtract
-│   │   └── bill_share_breakdown_entity.dart # Số tiền phân bổ từng người
+│   │   ├── ocr_candidate_entity.dart      # Dữ liệu candidate từ LlamaExtract (đã gộp dòng KM vào preceding item)
+│   │   └── bill_share_breakdown_entity.dart # Số tiền phân bổ từng người (tính dựa trên item final_price + general_discount share)
 │   └── usecases/
 │       ├── get_bill_detail_usecase.dart
 │       ├── update_bill_draft_usecase.dart
@@ -176,18 +185,18 @@ lib/features/bills/
 │       └── bill_repository_impl.dart
 └── presentation/
     ├── notifiers/
-    │   ├── bill_detail_notifier.dart      # Quản lý State chi tiết hóa đơn, live math
+    │   ├── bill_detail_notifier.dart      # Quản lý State chi tiết hóa đơn, live math & normalization
     │   └── bill_sse_notifier.dart         # Quản lý luồng SSE OCR status
     ├── pages/
     │   └── bill_detail_page.dart          # Màn hình chính
     └── widgets/
         ├── receipt_header_card.dart       # Header phiếu thu + ảnh thumbnail
         ├── split_mode_selector.dart       # Toggle Chia theo món vs Chia đều
-        ├── bill_item_card.dart            # Thẻ từng món ăn kèm nút Sửa/Xóa và thanh Avatar
-        ├── edit_item_dialog.dart          # Modal thêm/sửa món ăn (Tên, Số lượng, Đơn giá, Thành tiền)
-        ├── ocr_candidate_review_card.dart # Card xem và chỉnh sửa kết quả OCR trước khi apply
+        ├── bill_item_card.dart            # Thẻ từng món ăn kèm badge KM, giá gốc line_total vs final_price và thanh Avatar
+        ├── edit_item_dialog.dart          # Modal thêm/sửa món ăn (Tên, Qty, UnitPrice, LineTotal, DiscountAmount, FinalPrice)
+        ├── ocr_candidate_review_card.dart # Card xem và chỉnh sửa kết quả OCR trước khi apply (đã tiền xử lý KM)
         ├── avatar_assignment_bar.dart     # Danh sách avatar tròn bấm chọn người ăn
-        ├── bill_adjustments_section.dart  # Mục Phí dịch vụ, VAT, Giảm giá
+        ├── bill_adjustments_section.dart  # Mục Phí dịch vụ, VAT, Khuyến mãi (phân tách TotalItemDiscount vs GeneralDiscount)
         ├── reconciliation_warning_bar.dart# Thanh cảnh báo và hiển thị chi tiết số tiền sai lệch
         ├── bill_sticky_bottom_bar.dart    # Thanh chốt sổ dưới đáy màn hình
         ├── image_viewer_dialog.dart       # Modal zoom ảnh hóa đơn full size kèm xoay 90°
@@ -203,15 +212,20 @@ lib/features/bills/
 1. Khi người dùng bấm chọn avatar gán món:
    - Cập nhật danh sách `assignments` của `item` đó.
    - Tính lại `weight = 1 / số_người_chọn`.
-   - Tính lại `item_subtotal` của từng người tham gia.
-2. Phân bổ Phụ phí, VAT, Giảm giá theo tỷ trọng:
-   - `service_share = service_charge * (user_subtotal / bill_subtotal)`
-   - `vat_share = vat * (user_subtotal / bill_subtotal)`
-   - `discount_share = discount * (user_subtotal / bill_subtotal)`
-   - `user_final_amount = floor(user_subtotal + service_share + vat_share - discount_share)`
+   - Tính lại `user_net_item_subtotal` của từng người tham gia dựa trên giá thực của từng món:
+     $$\text{user\_net\_item\_subtotal} = \sum \lfloor \text{item.final\_price} \times \text{weight} \rfloor$$
+2. Phân bổ Phụ phí, VAT, Giảm giá Voucher chung theo tỷ trọng:
+   - `net_items_total = Σ item.final_price = gross_subtotal - total_item_discount`
+   - `service_share = floor(service_charge * (user_net_item_subtotal / net_items_total))`
+   - `vat_share = floor(vat * (user_net_item_subtotal / net_items_total))`
+   - `general_discount_share = floor(general_discount * (user_net_item_subtotal / net_items_total))`
+   - `user_final_amount = user_net_item_subtotal + service_share + vat_share - general_discount_share`
    - Phần dư lẻ số nguyên VND được cộng dồn cho Creditor (khớp 100% với thuật toán `CalculateFloorAllocation` ở Backend).
 3. Tính toán chênh lệch (Delta calculation):
-   - `delta_total = (computed_subtotal + service_charge + vat - discount) - reported_total`
+   - `total_item_discount = Σ item.discount_amount`
+   - `general_discount = max(0, reported_discount - total_item_discount)`
+   - `computed_total = net_items_total + service_charge + vat - general_discount`
+   - `delta_total = computed_total - reported_total`
    - Cập nhật màu sắc và nút hành động của `ReconciliationWarningBar` ngay trong milliseconds.
 
 ---
