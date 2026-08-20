@@ -10,5 +10,8 @@ class UserEntity with _$UserEntity {
     required String email,
     String? avatarUrl,
     String? phoneNumber,
+    String? bankCode,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
   }) = _UserEntity;
 }

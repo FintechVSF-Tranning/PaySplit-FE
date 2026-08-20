@@ -10,6 +10,8 @@ abstract class ApiEndpoints {
   static const String refreshToken = '/auth/refresh';
   static const String signOut = '/auth/sign-out';
   static const String me = '/users/me';
+  static const String changePassword = '/users/me/password';
+  static const String avatar = '/users/me/avatar';
 
   static const String bills = '/bills';
   static String billById(String id) => '/bills/$id';

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import 'package:retrofit/retrofit.dart';
@@ -33,4 +35,17 @@ abstract class AuthRemoteDataSource {
 
   @GET(ApiEndpoints.me)
   Future<dynamic> getCurrentUser();
+
+  @PATCH(ApiEndpoints.me)
+  Future<dynamic> patchProfile(@Body() Map<String, dynamic> body);
+
+  @PUT(ApiEndpoints.changePassword)
+  Future<void> changePassword(@Body() Map<String, dynamic> body);
+
+  @PUT(ApiEndpoints.avatar)
+  @MultiPart()
+  Future<dynamic> uploadAvatar(@Part(name: 'avatar') File avatar);
+
+  @DELETE(ApiEndpoints.avatar)
+  Future<void> deleteAvatar();
 }

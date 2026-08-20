@@ -8,3 +8,25 @@ void showComingSoonSnackBar(BuildContext context, String feature) {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text('$feature đang được phát triển')));
 }
+
+void showSuccessSnackBar(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFF059669),
+      ),
+    );
+}
+
+void showErrorSnackBar(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFEF4444),
+      ),
+    );
+}

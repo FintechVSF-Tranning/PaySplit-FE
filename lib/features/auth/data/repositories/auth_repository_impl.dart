@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:injectable/injectable.dart';
@@ -130,6 +132,70 @@ class AuthRepositoryImpl implements AuthRepository {
       final userJson = response['user'] as Map<String, dynamic>? ?? response;
       final model = UserModel.fromJson(userJson);
       return Right(model.toEntity());
+    } on DioException catch (e) {
+      return Left(mapDioError(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _remoteDataSource.changePassword({
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      });
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(mapDioError(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, UserEntity>> updateProfile({
+    String? name,
+    String? phoneNumber,
+    String? bankCode,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (name != null) body['display_name'] = name;
+      if (phoneNumber != null) body['phone_number'] = phoneNumber;
+      if (bankCode != null) body['bank_code'] = bankCode;
+      if (bankAccountNumber != null) body['bank_account_number'] = bankAccountNumber;
+      if (bankAccountHolder != null) body['bank_account_holder'] = bankAccountHolder;
+
+      final response = await _remoteDataSource.patchProfile(body);
+      final userJson = response['user'] as Map<String, dynamic>? ?? response;
+      final model = UserModel.fromJson(userJson);
+      return Right(model.toEntity());
+    } on DioException catch (e) {
+      return Left(mapDioError(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> uploadAvatar(File avatar) async {
+    try {
+      final response = await _remoteDataSource.uploadAvatar(avatar);
+      final avatarUrl = (response is Map<String, dynamic>)
+          ? response['avatar_url'] as String? ?? ''
+          : response.toString();
+      return Right(avatarUrl);
+    } on DioException catch (e) {
+      return Left(mapDioError(e));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteAvatar() async {
+    try {
+      await _remoteDataSource.deleteAvatar();
+      return const Right(null);
     } on DioException catch (e) {
       return Left(mapDioError(e));
     }

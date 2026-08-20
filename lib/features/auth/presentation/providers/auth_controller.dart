@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -6,6 +7,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/usecase/usecase.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/user_entity.dart';
+import '../../domain/usecases/change_password_usecase.dart';
+import '../../domain/usecases/delete_avatar_usecase.dart';
 import '../../domain/usecases/forgot_password_usecase.dart';
 import '../../domain/usecases/get_current_user_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
@@ -13,6 +16,8 @@ import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/resend_verification_usecase.dart';
 import '../../domain/usecases/reset_password_usecase.dart';
+import '../../domain/usecases/update_profile_usecase.dart';
+import '../../domain/usecases/upload_avatar_usecase.dart';
 import '../../domain/usecases/verify_email_usecase.dart';
 
 part 'auth_controller.g.dart';
@@ -79,6 +84,73 @@ class AuthController extends _$AuthController {
       ResetPasswordParams(email: email, otp: otp, newPassword: newPassword),
     );
     result.match((failure) => throw failure, (_) => null);
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final result = await getIt<ChangePasswordUseCase>().call(
+      ChangePasswordParams(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      ),
+    );
+    result.match((failure) => throw failure, (_) => null);
+  }
+
+  Future<UserEntity> updateProfile({
+    String? name,
+    String? phoneNumber,
+    String? bankCode,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
+  }) async {
+    final result = await getIt<UpdateProfileUseCase>().call(
+      UpdateProfileParams(
+        name: name,
+        phoneNumber: phoneNumber,
+        bankCode: bankCode,
+        bankAccountNumber: bankAccountNumber,
+        bankAccountHolder: bankAccountHolder,
+      ),
+    );
+    return result.match(
+      (failure) => throw failure,
+      (user) {
+        state = AsyncData(user);
+        return user;
+      },
+    );
+  }
+
+  Future<String> uploadAvatar(File avatar) async {
+    final result = await getIt<UploadAvatarUseCase>().call(
+      UploadAvatarParams(avatar: avatar),
+    );
+    return result.match(
+      (failure) => throw failure,
+      (avatarUrl) {
+        final currentUser = state.valueOrNull;
+        if (currentUser != null) {
+          state = AsyncData(currentUser.copyWith(avatarUrl: avatarUrl));
+        }
+        return avatarUrl;
+      },
+    );
+  }
+
+  Future<void> deleteAvatar() async {
+    final result = await getIt<DeleteAvatarUseCase>().call(const NoParams());
+    return result.match(
+      (failure) => throw failure,
+      (_) {
+        final currentUser = state.valueOrNull;
+        if (currentUser != null) {
+          state = AsyncData(currentUser.copyWith(avatarUrl: null));
+        }
+      },
+    );
   }
 
   void devSignIn() {

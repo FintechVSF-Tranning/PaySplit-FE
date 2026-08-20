@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fpdart/fpdart.dart';
 
 import '../../../../core/error/failures.dart';
@@ -36,6 +38,23 @@ abstract class AuthRepository {
   });
 
   Future<Either<Failure, UserEntity>> getCurrentUser();
+
+  Future<Either<Failure, void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  Future<Either<Failure, UserEntity>> updateProfile({
+    String? name,
+    String? phoneNumber,
+    String? bankCode,
+    String? bankAccountNumber,
+    String? bankAccountHolder,
+  });
+
+  Future<Either<Failure, String>> uploadAvatar(File avatar);
+
+  Future<Either<Failure, void>> deleteAvatar();
 
   Future<Either<Failure, void>> logout();
 }

@@ -61,35 +61,39 @@ class _HomePageState extends ConsumerState<HomePage> {
                       // User Avatar & Greeting
                       Row(
                         children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF14B8A6), Color(0xFF0D9488)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                          InkWell(
+                            onTap: () => context.push(AppRoutes.profile),
+                            borderRadius: BorderRadius.circular(50),
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF14B8A6), Color(0xFF0D9488)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                _getInitials(displayName),
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _getInitials(displayName),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
@@ -214,12 +218,11 @@ class _HomePageState extends ConsumerState<HomePage> {
                   setState(() => _currentNavIndex = 0);
                 } else if (index == 2) {
                   context.push(AppRoutes.bills);
+                } else if (index == 3) {
+                  context.push(AppRoutes.profile);
                 } else {
                   setState(() => _currentNavIndex = index);
-                  showComingSoonSnackBar(
-                    context,
-                    index == 1 ? 'Quản lý Nhóm' : 'Cài đặt',
-                  );
+                  showComingSoonSnackBar(context, 'Quản lý Nhóm');
                 }
               },
             ),
