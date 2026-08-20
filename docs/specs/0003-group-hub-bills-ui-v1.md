@@ -37,11 +37,11 @@ Thiết kế tuân thủ nghiêm ngặt tinh thần **Tally x Hallmark**: bố c
   - Màu nền trang là **`Warm Olive Paper (#F5F6F1)`**, thẻ `FCard` nền trắng (`#FFFFFF`) viền `1px solid #DBE0CE`, bo góc `10px`.
   - Icon sử dụng độc quyền bộ **`Hugeicons`** nét mảnh `1.5px`.
 
-- **AC-UI-2 (Group Header & Instant Invite Code)**:
+- **AC-UI-2 (Group Header & Governance Integration)**:
   - Header hiển thị nút Back, Monogram Avatar đại diện nhóm (2 chữ cái đầu, ví dụ `ĐL` trên nền Teal `#F0FDFA`), Tên nhóm, và số lượng thành viên (`"8 thành viên"`).
   - Có huy hiệu vương miện 👑 nếu người dùng hiện tại là **Captain** (Trưởng nhóm).
-  - **Invite Code Chip**: Thành viên active thấy mã mời còn hiệu lực gần nhất gồm đúng 8 ký tự chữ và số, phân biệt hoa thường. Người nhận có thể nhập chính mã này hoặc mở Deep Link `https://paysplit.app/join/{code}` từ thao tác copy và QR. Nếu chưa có mã nào, nút `Tạo mã mời` gọi API tạo mã. Captain vẫn là người duy nhất có thể tái tạo hoặc thu hồi mã.
-  - Nút bánh răng Cài đặt nhóm (Settings) mở menu tùy chọn quản trị.
+  - Nút bánh răng Cài đặt nhóm (Settings) mở Modal Bottom Sheet **`GroupSettingsBottomSheet`** quản trị thông tin nhóm, phân quyền thành viên, chuyển Trưởng nhóm, và vùng nguy hiểm (Rời nhóm / Giải tán nhóm).
+  - Toàn bộ tính năng xem, tạo, sao chép và thu hồi mã mời được chuyển vào Modal Bottom Sheet **`InviteCodeBottomSheet`** được kích hoạt từ nút `[ + Thêm thành viên ]` trong Tab Thành viên.
 
 - **AC-UI-3 (Group Balance Banner)**:
   - Hiển thị số dư riêng của người dùng trong nhóm với 3 trạng thái màu:
@@ -116,9 +116,6 @@ Thiết kế tuân thủ nghiêm ngặt tinh thần **Tally x Hallmark**: bố c
 │  [TOP APP BAR]                                                   │
 │  [← Back]  [ĐL] Du lịch Đà Lạt 2026  👑  (8 TV)    [⚙️ Settings] │
 ├──────────────────────────────────────────────────────────────────┤
-│  [INVITE CODE CHIP]                                              │
-│  Mã mời: 4AHRjDTj [📋 Copy]   [📲 QR Code]     (Hết hạn: 23h)    │
-├──────────────────────────────────────────────────────────────────┤
 │  [GROUP NET BALANCE BANNER]                                      │
 │  Số dư của bạn trong nhóm:  +350.000 đ    [ Bạn được nhận lại ]  │
 │  (Đang cho nợ: +470.000 đ  │  Đang nợ: -120.000 đ)               │
@@ -165,14 +162,24 @@ Thiết kế tuân thủ nghiêm ngặt tinh thần **Tally x Hallmark**: bố c
 
 ---
 
-### 4.2. Invite Code Quick Bar (`GroupInviteBar.dart`)
-- Khung nhỏ đặt dưới Header, nền `#FFFFFF`, bo góc `8px`, viền `1px dashed #DBE0CE`:
-  - **Quyền xem và tạo**: Mọi thành viên active được xem danh sách mã mời còn hiệu lực và tạo hoặc lấy lại mã hiện hành. Khi không có mã hợp lệ, hiển thị nút `[ Tạo mã mời ]`.
-  - **Mã mời**: Hiển thị đúng 8 ký tự Base62, phân biệt hoa thường (`JetBrains Mono Bold 14px, #0F766E`, ví dụ `4AHRjDTj`). Người nhận có thể nhập chính code này trong luồng tham gia nhóm.
-  - **Nút Copy 1-chạm**: Bấm sao chép link mời `https://paysplit.app/join/4AHRjDTj`. Deep Link mở app tại route `/join/:code`, giữ lại code nếu cần đăng nhập, sau đó hiển thị preview trước khi gọi `POST /api/v1/groups/join`.
-  - **Nút QR Code**: Mở Popup hiển thị mã QR kèm tên nhóm để quét trực tiếp tại chỗ.
-  - **Thời hạn & Giới hạn mã**: Hiển thị thời gian còn lại và lượt dùng (ví dụ: `"Còn 23 giờ • 12/50 lượt"` hoặc `"Còn 23 giờ • Không giới hạn"` khi `maxUses == null`).
-  - **Quyền Captain**: Chỉ Captain thấy thao tác tái tạo với cấu hình thời hạn, giới hạn lượt dùng, và thu hồi mã.
+### 4.2. Modal Quản Lý Mã Mời (`InviteCodeBottomSheet.dart`)
+- **Khởi chạy**: Mở khi người dùng bấm nút `[ + Thêm thành viên ]` ở góc trên của **Tab 3: Thành viên** (`showModalBottomSheet` với `isScrollControlled: true` và `StatefulBuilder`).
+- **Cấu trúc giao diện**:
+  1. **Header**:
+     - Tiêu đề `"Quản lý mã mời"` được căn giữa (`Newsreader SemiBold 18px, #1C2118`).
+     - Nút IconButton đóng `"X"` ở góc phải (`Navigator.pop(context)`).
+  2. **Mô tả hướng dẫn**:
+     - `"Chia sẻ mã mời hoặc liên kết để thêm bạn bè vào nhóm."` (`Roboto Slab Regular 12px, #676E5F`, căn giữa).
+  3. **Danh sách mã mời đang hoạt động (`Active Invites List`)**:
+     - Hiển thị danh sách mã mời từ `GET /api/v1/groups/{id}/invites`.
+     - Mỗi card item gồm:
+       - Chuỗi mã mời được highlight nổi bật: `4AHRjDTj` (`JetBrains Mono Bold 15px`, nền `#F0FDFA`, viền `1px solid #CCFBF1`, chữ `#0F766E`).
+       - Dòng phụ hiển thị trạng thái: `"Còn 23 giờ • 12/50 lượt"` (hoặc `"Không giới hạn"`).
+       - Hàng 2 nút thao tác nhanh (Action Row):
+         - Nút `[ 📋 Sao chép ]`: Sao chép link `https://paysplit.app/join/{code}` qua `Clipboard.setData` kèm thông báo Toast/SnackBar.
+         - Nút `[ 🗑 Thu hồi ]`: Nút viền đỏ outline cảnh báo (`#EF4444` / `#DC2626`), bấm gửi request `DELETE /api/v1/groups/{id}/invites/{inviteId}` và cập nhật trực tiếp danh sách trong Modal qua `StatefulBuilder`.
+  4. **Nút tạo mã mới (Bottom Action)**:
+     - Nút `[ + Tạo mã mời mới ]` chiếm trọn 100% chiều ngang (Full-width `ElevatedButton` / `FButton.primary`) đặt ở đáy sheet. Bấm gọi `POST /api/v1/groups/{id}/invites` và tự động bổ sung mã mới vào danh sách.
 
 #### Deep Link Delivery Note
 
@@ -202,8 +209,9 @@ Khi ứng dụng chưa được cài, URL mở trang web fallback tại cùng đ
   - **Trạng thái & Tiến độ**:
     - Badge trạng thái Forui (`FBadge.success` cho Đã chốt, `FBadge.warning` cho Đang quét OCR, `FBadge.outline` cho Chờ phân bổ món, `FBadge.destructive` cho Đã hủy).
     - Thanh tiến độ thanh toán (`ProgressBar` 3px màu Teal: `settledMemberCount / totalMemberCount`).
-- **Nút Tạo Hóa Đơn (`CreateBillFAB`)**:
-  - Bấm mở menu 2 lựa chọn:
+- **Nút Tạo Hóa Đơn (`CreateBillSpeedDialFAB` / `ExpandableBillFab`)**:
+  - Dạng nút tròn (Circular FAB tiêu chuẩn) đặt tại `FloatingActionButtonLocation.endFloat`, nằm ngay sát trên thanh Bottom Navigation Dock.
+  - Khi bấm, icon dấu `+` xoay mượt 45 độ thành dấu `×` kết hợp lớp phủ mờ (backdrop overlay), bung ra menu 2 nút con (Speed Dial) với hiệu ứng Scale + Slide:
     1. `[ 📸 Quét hóa đơn AI OCR ]`: Mở camera/thư viện chọn tối đa 5 ảnh $\rightarrow$ gọi `POST /bills` (multipart) $\rightarrow$ chuyển đến màn hình Review OCR theo dõi qua SSE stream.
     2. `[ ✍️ Nhập tay ]`: Mở form nhập thủ công món ăn và số tiền $\rightarrow$ gọi `POST /bills` (JSON).
 
@@ -220,15 +228,14 @@ Khi ứng dụng chưa được cài, URL mở trang web fallback tại cùng đ
 ---
 
 ### 4.6. Tab 3: Quản Lý Thành Viên & Phân Quyền (`GroupMembersTab.dart`)
+- **Header Tab & Nút Hành Động**:
+  - Tiêu đề mục: `"Thành viên (5)"` (`Roboto Slab SemiBold 16px`).
+  - Nút **`[ + Thêm thành viên ]`**: Nút bo tròn nhỏ (`FButton.outline` hoặc `group-state-toggle`), khi ấn gọi `showModalBottomSheet` mở **`InviteCodeBottomSheet`**.
 - **Danh sách thành viên (Active Members)**:
   - Mỗi dòng: Avatar tròn, Tên hiển thị, Vai trò (`Captain 👑` hoặc `Thành viên`), Số dư riêng của thành viên đó trong nhóm (được ghép từ `balances[]`).
   - **Menu thao tác của Captain**:
     - `Chuyển quyền Trưởng nhóm (Transfer Captain)`: Mở hộp thoại xác nhận $\rightarrow$ gọi `PUT /members/{memberId}/role`.
     - `Mời ra khỏi nhóm (Kick Member)`: Kiểm tra ràng buộc không còn nợ trước khi xóa $\rightarrow$ gọi `DELETE /members/{memberId}`.
-- **Quản lý mã mời (Active Member View)**:
-  - Mọi thành viên active có nút `[ Tạo mã mời ]` để tạo hoặc lấy lại mã mời còn hiệu lực theo chính sách mặc định của Backend.
-  - Danh sách mã mời còn hiệu lực lấy từ `GET /api/v1/groups/{id}/invites`.
-  - Captain có thêm thao tác tái tạo với thời hạn (1 - 168 giờ), giới hạn lượt dùng (1 - 50 hoặc không giới hạn), và nút `[ Thu hồi mã ]`.
 - **Nút Rời Nhóm (`LeaveGroupButton`)**:
   - Đặt dưới đáy màn hình, màu đỏ outline. Hiển thị cảnh báo và bị khóa nếu còn nợ chưa thanh toán (`409 GROUP_MEMBER_HAS_OPEN_DEBTS`).
 
@@ -238,6 +245,21 @@ Khi ứng dụng chưa được cài, URL mở trang web fallback tại cùng đ
 - Dòng thời gian phân trang bằng Cursor (`GET /api/v1/groups/{id}/activities`):
   - Sự kiện: Tạo hóa đơn mới, Duyệt OCR, Chốt chia tiền, Nộp biên lai, Xác nhận nhận tiền, Chuyển quyền Captain, Gia nhập nhóm...
   - Mỗi dòng gồm Icon loại hoạt động, mô tả tiếng Việt tự nhiên do BE sinh và thời gian tương đối (`"5 phút trước"`).
+
+---
+
+### 4.8. Modal Cài Đặt Nhóm (`GroupSettingsBottomSheet.dart`)
+Modal Bottom Sheet trượt lên khi bấm nút bánh răng `⚙️` trên Header của Group Hub:
+- **Header**: Tiêu đề `"Cài đặt nhóm"` căn giữa kèm nút icon `'X'` đóng modal.
+- **Section 1: Thông tin nhóm**:
+  - Avatar Monogram 2 chữ cái, Tên nhóm, Tiền tệ VND, Ngày tạo và Tên Captain.
+  - Nút `[ Đổi tên ]` (Chỉ hiển thị cho Captain, gọi `PATCH /api/v1/groups/{id}`).
+- **Section 2: Quản trị thành viên & Vai trò**:
+  - Nút `[ Chuyển Trưởng nhóm ]`: Mở popup chọn thành viên mới $\rightarrow$ gọi `PUT /members/{memberId}/role`.
+  - Danh sách thành viên: Hiển thị avatar, tên, huy hiệu vai trò và nút `[ Xóa ]` (Chỉ Captain thấy).
+- **Section 3: Vùng nguy hiểm (Danger Zone)**:
+  - Nút `[ Rời nhóm ]`: Kiểm tra số dư nợ `currentUserNetBalance == 0` và vai trò `!isCaptain` trước khi cho phép rời (`DELETE /members/{memberId}`). Nếu còn nợ, hiển thị dialog cảnh báo nợ dở dang.
+  - Nút `[ Giải tán nhóm ]` (Chỉ Captain): Xác nhận giải tán toàn bộ nhóm khi sạch 100% công nợ (`DELETE /groups/{id}`).
 
 ---
 
@@ -476,7 +498,6 @@ class GroupHubController extends _$GroupHubController {
 
 ### Slice 2: Group Header, Net Balance Banner & FTabs Navigation
 - [ ] Implement `GroupHeaderWidget` with Back button, Monogram Avatar, Name, Member count, and Settings icon.
-- [ ] Implement `GroupInviteBarWidget` with 1-tap Copy and QR Popup.
 - [ ] Implement `GroupBalanceBannerWidget` with 3 color states (+, -, 0đ).
 - [ ] Setup `FTabs` navigation with smooth swipe and state persistence.
 
@@ -491,10 +512,10 @@ class GroupHubController extends _$GroupHubController {
 - [ ] Implement Full Group Debt Matrix breakdown.
 - [ ] Wire VietQR Bottom Sheet and Proof Review Bottom Sheet.
 
-### Slice 5: Tab 3 (Members & Invites) & Tab 4 (Activity Stream)
+### Slice 5: Tab 3 (Members & Invites), Governance & Tab 4 (Activity Stream)
 - [ ] Implement Member list with Captain Crown and Net Balance per member.
-- [ ] Implement Captain Invite Management (Create code, set expiration, revoke).
-- [ ] Implement Captain Transfer dialog and Leave Group validation (`409 GROUP_MEMBER_HAS_OPEN_DEBTS`).
+- [ ] Implement `InviteCodeBottomSheet` (`showModalBottomSheet` with `StatefulBuilder`, copy & revoke actions, 100% width create button).
+- [ ] Implement `GroupSettingsBottomSheet` (Thông tin nhóm + Đổi tên, Quản trị thành viên + Chuyển Trưởng nhóm + Xóa thành viên, Vùng nguy hiểm Rời nhóm với kiểm tra nợ + Giải tán nhóm cho Captain).
 - [ ] Implement Activity Timeline with Cursor Pagination.
 
 ---

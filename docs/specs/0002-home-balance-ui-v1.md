@@ -177,11 +177,17 @@ Khu vực hiển thị danh sách các khoản nợ cần thanh toán hoặc c�
 ---
 
 ### 4.6. Bottom Navigation Dock (`AppBottomNavBar.dart`)
-Thanh điều hướng cố định dưới đáy màn hình với nền trắng, viền trên `1px solid #DBE0CE`:
+Thanh điều hướng cố định dưới đáy màn hình với nền trắng, viền trên `1px solid #DBE0CE`, chiều cao chuẩn `60px`:
 1. `🏠 Tổng quan` (`HugeIcons.strokeRoundedHome01`) - Tab hiện tại.
 2. `👥 Nhóm` (`HugeIcons.strokeRoundedUserGroup`) - Danh sách tất cả nhóm và số dư chi tiết.
 3. `🧾 Hóa đơn` (`HugeIcons.strokeRoundedInvoice01`) - Lịch sử hóa đơn, bộ lọc OCR.
 4. `⚙️ Cài đặt` (`HugeIcons.strokeRoundedSettings01`) - Tài khoản, Quản lý tài khoản ngân hàng thụ hưởng (VietQR bank profile).
+
+**Quy tắc hiển thị Dấu chấm Active (Active Dot Indicator)**:
+- Mỗi tab gồm: Icon (`20px`) + Nhãn chữ (`Roboto Slab 10px`) + Dấu chấm tròn (`4px`).
+- Dấu chấm tròn (Indicator) **chỉ hiển thị màu xanh ngọc Deep Teal (`#0F766E`)** khi `index == currentIndex` (tab đang được chọn).
+- Khi tab ở trạng thái inactive, dấu chấm được đặt màu trong suốt (`Colors.transparent` / `background: transparent`) với kích thước cố định `4px` nhằm giữ nguyên chiều cao layout giữa các tab, loại bỏ triệt để hiện tượng giật khung hình (layout shift) khi chuyển trang.
+- Sự kiện `onTap(index)` cập nhật trạng thái `currentIndex` và điều hướng mượt mà.
 
 ---
 
