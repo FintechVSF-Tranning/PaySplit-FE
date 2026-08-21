@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
@@ -73,13 +74,13 @@ class HomeHeader extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: () => showComingSoonSnackBar(context, 'Thông báo'),
-                    icon: const Icon(Icons.notifications_none),
+                    icon: const Icon(HugeIcons.strokeRoundedNotification01, size: 20),
                     color: Colors.white,
                     tooltip: 'Thông báo',
                   ),
                   IconButton(
                     onPressed: onLogout,
-                    icon: const Icon(Icons.logout),
+                    icon: const Icon(HugeIcons.strokeRoundedLogout01, size: 20),
                     color: Colors.white,
                     tooltip: 'Đăng xuất',
                   ),

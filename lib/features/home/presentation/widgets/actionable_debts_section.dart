@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 class ActionableDebtsSection extends StatefulWidget {
   const ActionableDebtsSection({
@@ -301,15 +302,22 @@ class _DebtCardItem extends StatelessWidget {
                     child: InkWell(
                       onTap: onAction,
                       borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        child: Text(
-                          'Trả QR ⚡',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(HugeIcons.strokeRoundedQrCode, size: 12, color: Colors.white),
+                            SizedBox(width: 4),
+                            Text(
+                              'Trả QR',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -320,19 +328,26 @@ class _DebtCardItem extends StatelessWidget {
                   onTap: onAction,
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF3C7),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFFDE68A)),
                     ),
-                    child: Text(
-                      'Duyệt proof',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFB45309),
-                      ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(HugeIcons.strokeRoundedInvoice02, size: 12, color: Color(0xFFB45309)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Duyệt proof',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFB45309),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 )
@@ -347,13 +362,20 @@ class _DebtCardItem extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: border),
                     ),
-                    child: Text(
-                      '🔔 Nhắc nợ',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: textMuted,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(HugeIcons.strokeRoundedNotification03, size: 12, color: textMuted),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Nhắc nợ',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -82,7 +83,7 @@ class ProfilePage extends ConsumerWidget {
                             border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                           ),
                           child: const Icon(
-                            Icons.arrow_back_rounded,
+                            HugeIcons.strokeRoundedArrowLeft01,
                             color: Colors.white,
                             size: 20,
                           ),
@@ -179,7 +180,7 @@ class ProfilePage extends ConsumerWidget {
                             ),
                             child: const Center(
                               child: Icon(
-                                Icons.camera_alt_rounded,
+                                HugeIcons.strokeRoundedCamera01,
                                 size: 13,
                                 color: Colors.white,
                               ),
@@ -508,7 +509,7 @@ class ProfilePage extends ConsumerWidget {
 
                         // Item 1: Chỉnh sửa thông tin cá nhân
                         _ProfileMenuItem(
-                          icon: Icons.person_outline_rounded,
+                          icon: HugeIcons.strokeRoundedUser,
                           title: 'Chỉnh sửa thông tin cá nhân',
                           onTap: () => context.push(AppRoutes.editProfile),
                           isDark: isDark,
@@ -517,7 +518,7 @@ class ProfilePage extends ConsumerWidget {
 
                         // Item 2: Đổi mật khẩu
                         _ProfileMenuItem(
-                          icon: Icons.lock_outline_rounded,
+                          icon: HugeIcons.strokeRoundedLockPassword,
                           title: 'Đổi mật khẩu',
                           onTap: () => context.push(AppRoutes.changePassword),
                           isDark: isDark,
@@ -873,7 +874,7 @@ class _ProfileMenuItem extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: textMuted, size: 20),
+            Icon(HugeIcons.strokeRoundedArrowRight01, color: textMuted, size: 18),
           ],
         ),
       ),

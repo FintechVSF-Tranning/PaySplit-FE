@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:pinput/pinput.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -215,7 +216,7 @@ class _VerifyOtpPageState extends ConsumerState<VerifyOtpPage> {
                   // Header Back button
                   IconButton(
                     onPressed: () => context.pop(),
-                    icon: const Icon(Icons.arrow_back_rounded, size: 24),
+                    icon: const Icon(HugeIcons.strokeRoundedArrowLeft01, size: 24),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -241,7 +242,7 @@ class _VerifyOtpPageState extends ConsumerState<VerifyOtpPage> {
                       ],
                     ),
                     child: Icon(
-                      Icons.mark_email_read_outlined,
+                      HugeIcons.strokeRoundedMail01,
                       size: 28,
                       color: primary,
                     ),
@@ -285,7 +286,7 @@ class _VerifyOtpPageState extends ConsumerState<VerifyOtpPage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.alternate_email_rounded, size: 16, color: primary),
+                        Icon(HugeIcons.strokeRoundedMailAtSign01, size: 16, color: primary),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
@@ -328,7 +329,7 @@ class _VerifyOtpPageState extends ConsumerState<VerifyOtpPage> {
                         if (_countdown > 0)
                           Row(
                             children: [
-                              Icon(Icons.timer_outlined, size: 16, color: textMuted),
+                              Icon(HugeIcons.strokeRoundedTime04, size: 16, color: textMuted),
                               const SizedBox(width: 6),
                               Text(
                                 'Gửi lại mã sau (${_countdown}s)',
@@ -345,7 +346,7 @@ class _VerifyOtpPageState extends ConsumerState<VerifyOtpPage> {
                             onTap: _isResending ? null : _resendOtp,
                             child: Row(
                               children: [
-                                Icon(Icons.refresh_rounded, size: 16, color: primary),
+                                Icon(HugeIcons.strokeRoundedReload, size: 16, color: primary),
                                 const SizedBox(width: 6),
                                 Text(
                                   _isResending ? 'Đang gửi mã...' : 'Gửi lại mã OTP',
@@ -381,7 +382,7 @@ class _VerifyOtpPageState extends ConsumerState<VerifyOtpPage> {
                     label: 'Xác nhận & Kích hoạt',
                     variant: AppButtonVariant.gradient,
                     height: 54,
-                    trailingIcon: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
+                    trailingIcon: const Icon(HugeIcons.strokeRoundedCheckmarkCircle02, color: Colors.white, size: 18),
                     isLoading: _isLoading,
                     onPressed: _isLoading ? null : () => _verifyOtp(),
                   ).animate().fadeIn(delay: 450.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),

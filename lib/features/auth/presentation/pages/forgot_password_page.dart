@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -90,7 +91,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                     // Back button
                     IconButton(
                       onPressed: () => context.pop(),
-                      icon: const Icon(Icons.arrow_back_rounded, size: 24),
+                      icon: const Icon(HugeIcons.strokeRoundedArrowLeft01, size: 24),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -104,7 +105,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                         color: primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: primary.withValues(alpha: 0.2),
+                           color: primary.withValues(alpha: 0.2),
                           width: 1.5,
                         ),
                         boxShadow: [
@@ -116,7 +117,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                         ],
                       ),
                       child: Icon(
-                        Icons.lock_reset_rounded,
+                        HugeIcons.strokeRoundedLockPassword,
                         size: 28,
                         color: primary,
                       ),
@@ -152,7 +153,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                       controller: _emailController,
                       label: 'Email tài khoản',
                       hintText: 'user@example.com',
-                      icon: Icons.mail_outline_rounded,
+                      icon: HugeIcons.strokeRoundedMail01,
                       keyboardType: TextInputType.emailAddress,
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -172,7 +173,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                       label: 'Gửi mã khôi phục',
                       variant: AppButtonVariant.gradient,
                       height: 54,
-                      trailingIcon: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                      trailingIcon: const Icon(HugeIcons.strokeRoundedArrowRight01, color: Colors.white, size: 18),
                       isLoading: _isLoading,
                       onPressed: _isLoading ? null : _submit,
                     ).animate().fadeIn(delay: 350.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),

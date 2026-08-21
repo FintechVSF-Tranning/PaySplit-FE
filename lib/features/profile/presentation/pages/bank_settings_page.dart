@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/error/failures.dart';
@@ -194,7 +195,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                             child: Padding(
                               padding: const EdgeInsets.all(4),
                               child: Icon(
-                                Icons.close_rounded,
+                                HugeIcons.strokeRoundedCancel01,
                                 size: 20,
                                 color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                               ),
@@ -225,7 +226,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                               fontSize: 13.5,
                               color: const Color(0xFF94A3B8),
                             ),
-                            prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 20),
+                            prefixIcon: const Icon(HugeIcons.strokeRoundedSearch01, color: Color(0xFF94A3B8), size: 18),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -344,7 +345,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: textMain),
+          icon: Icon(HugeIcons.strokeRoundedArrowLeft01, color: textMain),
           onPressed: () => context.pop(),
         ),
         title: Text(
@@ -466,7 +467,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                             ),
                             const SizedBox(width: 8),
                             const Icon(
-                              Icons.qr_code_2_rounded,
+                              HugeIcons.strokeRoundedQrCode,
                               color: Colors.white,
                               size: 26,
                             ),

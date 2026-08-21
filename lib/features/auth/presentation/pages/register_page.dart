@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -146,7 +147,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       controller: _nameController,
                       label: 'Họ và tên',
                       hintText: 'Nguyễn Văn A',
-                      icon: Icons.person_outline_rounded,
+                      icon: HugeIcons.strokeRoundedUser,
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) return 'Vui lòng nhập họ và tên';
                         if (val.trim().length < 2) return 'Họ tên quá ngắn';
@@ -161,7 +162,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       controller: _emailController,
                       label: 'Email',
                       hintText: 'user@example.com',
-                      icon: Icons.mail_outline_rounded,
+                      icon: HugeIcons.strokeRoundedMail01,
                       keyboardType: TextInputType.emailAddress,
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) return 'Vui lòng nhập email';
@@ -180,7 +181,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           controller: _passwordController,
                           label: 'Mật khẩu',
                           hintText: '••••••••',
-                          icon: Icons.lock_outline_rounded,
+                          icon: HugeIcons.strokeRoundedLockPassword,
                           isPassword: true,
                           onChanged: (val) {
                             setState(() {
@@ -210,7 +211,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       controller: _phoneController,
                       label: 'Số điện thoại',
                       hintText: '0901234567',
-                      icon: Icons.phone_outlined,
+                      icon: HugeIcons.strokeRoundedCall,
                       keyboardType: TextInputType.phone,
                       maxLength: 11,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -248,25 +249,44 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            'Tôi đồng ý với Điều khoản dịch vụ và Chính sách bảo mật',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              color: textMuted,
+                          child: Text.rich(
+                            TextSpan(
+                              text: 'Tôi đồng ý với ',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                color: textMuted,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: 'Điều khoản dịch vụ',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.w600,
+                                    color: primary,
+                                  ),
+                                ),
+                                const TextSpan(text: ' & '),
+                                TextSpan(
+                                  text: 'Chính sách bảo mật',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.w600,
+                                    color: primary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ],
-                    ).animate().fadeIn(delay: 500.ms),
+                    ).animate().fadeIn(delay: 500.ms, duration: 400.ms),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
                     // Glowing Gradient Pill CTA Button
                     AppButton(
-                      label: 'Đăng ký',
+                      label: 'Đăng ký tài khoản',
                       variant: AppButtonVariant.gradient,
                       height: 54,
-                      trailingIcon: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                      trailingIcon: const Icon(HugeIcons.strokeRoundedArrowRight01, color: Colors.white, size: 18),
                       isLoading: _isLoading,
                       onPressed: _submit,
                     ).animate().fadeIn(delay: 550.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),

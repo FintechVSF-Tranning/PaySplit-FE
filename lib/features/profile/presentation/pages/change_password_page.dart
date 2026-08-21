@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/error/failures.dart';
@@ -110,7 +111,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: textMain),
+          icon: Icon(HugeIcons.strokeRoundedArrowLeft01, color: textMain),
           onPressed: () => context.pop(),
         ),
         title: Text(
@@ -160,8 +161,8 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                         isDark: isDark,
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscureCurrent ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                            size: 20,
+                            _obscureCurrent ? HugeIcons.strokeRoundedViewOffSlash : HugeIcons.strokeRoundedView,
+                            size: 19,
                             color: textMuted,
                           ),
                           onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent),
@@ -182,8 +183,8 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                         isDark: isDark,
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                            size: 20,
+                            _obscureNew ? HugeIcons.strokeRoundedViewOffSlash : HugeIcons.strokeRoundedView,
+                            size: 19,
                             color: textMuted,
                           ),
                           onPressed: () => setState(() => _obscureNew = !_obscureNew),
@@ -224,8 +225,8 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                         isDark: isDark,
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                            size: 20,
+                            _obscureConfirm ? HugeIcons.strokeRoundedViewOffSlash : HugeIcons.strokeRoundedView,
+                            size: 19,
                             color: textMuted,
                           ),
                           onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
@@ -338,8 +339,8 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
           ),
           child: Center(
             child: Icon(
-              Icons.check,
-              size: 11,
+              HugeIcons.strokeRoundedTick01,
+              size: 10,
               color: isValid ? Colors.white : Colors.transparent,
             ),
           ),

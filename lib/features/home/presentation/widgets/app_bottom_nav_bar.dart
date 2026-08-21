@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 /// DTO cấu hình cho mỗi mục trong Bottom Navigation Bar
 class BottomNavItemData {
@@ -33,22 +34,22 @@ class AppBottomNavBar extends StatelessWidget {
 
   static const defaultItems = [
     BottomNavItemData(
-      icon: Icons.home_rounded,
+      icon: HugeIcons.strokeRoundedHome01,
       label: 'Tổng quan',
       route: '/home',
     ),
     BottomNavItemData(
-      icon: Icons.group_rounded,
+      icon: HugeIcons.strokeRoundedUserGroup,
       label: 'Nhóm',
       route: '/groups',
     ),
     BottomNavItemData(
-      icon: Icons.receipt_long_rounded,
+      icon: HugeIcons.strokeRoundedInvoice01,
       label: 'Hóa đơn',
       route: '/bills',
     ),
     BottomNavItemData(
-      icon: Icons.settings_rounded,
+      icon: HugeIcons.strokeRoundedSettings01,
       label: 'Cài đặt',
       route: '/settings',
     ),

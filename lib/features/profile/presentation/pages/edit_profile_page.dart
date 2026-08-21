@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/error/failures.dart';
@@ -100,7 +101,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: textMain),
+          icon: Icon(HugeIcons.strokeRoundedArrowLeft01, color: textMain),
           onPressed: () => context.pop(),
         ),
         title: Text(

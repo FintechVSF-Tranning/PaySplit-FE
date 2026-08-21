@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -102,7 +103,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                     // Back button
                     IconButton(
                       onPressed: () => context.pop(),
-                      icon: const Icon(Icons.arrow_back_rounded, size: 24),
+                      icon: const Icon(HugeIcons.strokeRoundedArrowLeft01, size: 24),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -128,7 +129,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                         ],
                       ),
                       child: Icon(
-                        Icons.vpn_key_rounded,
+                        HugeIcons.strokeRoundedLockPassword,
                         size: 28,
                         color: primary,
                       ),
@@ -173,7 +174,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.account_circle_outlined, size: 16, color: primary),
+                            Icon(HugeIcons.strokeRoundedUser, size: 16, color: primary),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
@@ -197,7 +198,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                       controller: _otpController,
                       label: 'Mã OTP 6 số',
                       hintText: '123456',
-                      icon: Icons.pin_outlined,
+                      icon: HugeIcons.strokeRoundedDialpadCircle01,
                       maxLength: 6,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -219,7 +220,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                           controller: _passwordController,
                           label: 'Mật khẩu mới',
                           hintText: '••••••••',
-                          icon: Icons.lock_outline_rounded,
+                          icon: HugeIcons.strokeRoundedLockPassword,
                           isPassword: true,
                           onChanged: (val) {
                             setState(() {
@@ -253,7 +254,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                       controller: _confirmPasswordController,
                       label: 'Xác nhận mật khẩu mới',
                       hintText: '••••••••',
-                      icon: Icons.lock_reset_rounded,
+                      icon: HugeIcons.strokeRoundedLockPassword,
                       isPassword: true,
                       validator: (val) {
                         if (val == null || val.isEmpty) {
@@ -273,7 +274,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                       label: 'Lưu mật khẩu mới & Đăng nhập',
                       variant: AppButtonVariant.gradient,
                       height: 54,
-                      trailingIcon: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                      trailingIcon: const Icon(HugeIcons.strokeRoundedArrowRight01, color: Colors.white, size: 18),
                       isLoading: _isLoading,
                       onPressed: _isLoading ? null : _submit,
                     ).animate().fadeIn(delay: 550.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),

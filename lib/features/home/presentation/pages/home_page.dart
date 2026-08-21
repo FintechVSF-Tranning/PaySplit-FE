@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -142,9 +143,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                             alignment: Alignment.center,
                             children: [
                               const Icon(
-                                Icons.notifications_none_rounded,
+                                HugeIcons.strokeRoundedNotification01,
                                 color: Colors.white,
-                                size: 22,
+                                size: 20,
                               ),
                               Positioned(
                                 top: 9,

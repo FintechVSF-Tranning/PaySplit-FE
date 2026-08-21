@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 class NetBalanceHeroCard extends StatelessWidget {
   const NetBalanceHeroCard({
@@ -83,7 +84,7 @@ class NetBalanceHeroCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      isPositive ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                      isPositive ? HugeIcons.strokeRoundedCheckmarkCircle02 : HugeIcons.strokeRoundedAlertCircle,
                       size: 13,
                       color: isPositive ? const Color(0xFF059669) : dangerRed,
                     ),
@@ -215,8 +216,12 @@ class NetBalanceHeroCard extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('⚡', style: TextStyle(fontSize: 15)),
-                            const SizedBox(height: 3),
+                            const Icon(
+                              HugeIcons.strokeRoundedQrCode,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(height: 4),
                             Text(
                               'Trả VietQR',
                               style: GoogleFonts.plusJakartaSans(
@@ -237,7 +242,7 @@ class NetBalanceHeroCard extends StatelessWidget {
               // 2. Quét bill OCR
               Expanded(
                 child: _QuickActionButton(
-                  icon: '📸',
+                  icon: HugeIcons.strokeRoundedCamera01,
                   label: 'Quét bill',
                   onTap: onScanBill,
                   isDark: isDark,
@@ -248,7 +253,7 @@ class NetBalanceHeroCard extends StatelessWidget {
               // 3. Tạo nhóm
               Expanded(
                 child: _QuickActionButton(
-                  icon: '👥',
+                  icon: HugeIcons.strokeRoundedUserGroup,
                   label: 'Tạo nhóm',
                   onTap: onCreateGroup,
                   isDark: isDark,
@@ -270,7 +275,7 @@ class _QuickActionButton extends StatelessWidget {
     this.onTap,
   });
 
-  final String icon;
+  final IconData icon;
   final String label;
   final bool isDark;
   final VoidCallback? onTap;
@@ -280,6 +285,7 @@ class _QuickActionButton extends StatelessWidget {
     final bg = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
     final border = isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0);
     final text = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
+    final iconColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF0F766E);
 
     return Container(
       decoration: BoxDecoration(
@@ -297,8 +303,8 @@ class _QuickActionButton extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(icon, style: const TextStyle(fontSize: 15)),
-                const SizedBox(height: 3),
+                Icon(icon, size: 18, color: iconColor),
+                const SizedBox(height: 4),
                 Text(
                   label,
                   style: GoogleFonts.plusJakartaSans(

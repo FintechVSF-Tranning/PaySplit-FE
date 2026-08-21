@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/utils/currency_formatter.dart';
 
@@ -80,7 +81,10 @@ class _AccountBalanceCardState extends State<AccountBalanceCard> {
               ),
               IconButton(
                 onPressed: () => setState(() => _hidden = !_hidden),
-                icon: Icon(_hidden ? Icons.visibility_off : Icons.visibility),
+                icon: Icon(
+                  _hidden ? HugeIcons.strokeRoundedViewOffSlash : HugeIcons.strokeRoundedView,
+                  size: 20,
+                ),
                 color: theme.colorScheme.onSurfaceVariant,
                 tooltip: _hidden ? 'Hiện số dư' : 'Ẩn số dư',
               ),

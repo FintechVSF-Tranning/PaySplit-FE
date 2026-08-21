@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../app/theme/app_colors.dart';
 
@@ -169,8 +170,8 @@ class _FloatingInputCardState extends State<FloatingInputCard> {
                       child: Padding(
                         padding: const EdgeInsets.only(left: 8),
                         child: Icon(
-                          _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          size: 20,
+                          _obscureText ? HugeIcons.strokeRoundedViewOffSlash : HugeIcons.strokeRoundedView,
+                          size: 19,
                           color: textMuted,
                         ),
                       ),

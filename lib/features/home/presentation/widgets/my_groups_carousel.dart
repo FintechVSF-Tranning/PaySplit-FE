@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 class MyGroupsCarousel extends StatelessWidget {
   const MyGroupsCarousel({
@@ -233,8 +234,8 @@ class _AddGroupCard extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: primaryTeal.withValues(alpha: 0.15),
               ),
-              child: Center(
-                child: Icon(Icons.add, size: 18, color: primaryTeal),
+              child: const Center(
+                child: Icon(HugeIcons.strokeRoundedAdd01, size: 18, color: Color(0xFF0F766E)),
               ),
             ),
             const SizedBox(height: 6),

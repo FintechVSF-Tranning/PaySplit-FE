@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -203,7 +204,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.check_circle_outline, size: 20, color: AppColors.success),
+                            const Icon(HugeIcons.strokeRoundedCheckmarkCircle02, size: 20, color: AppColors.success),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -229,7 +230,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.warning_amber_rounded, size: 20, color: AppColors.warning),
+                            const Icon(HugeIcons.strokeRoundedAlertCircle, size: 20, color: AppColors.warning),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
@@ -273,7 +274,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.lock_clock_outlined, size: 20, color: AppColors.danger),
+                            const Icon(HugeIcons.strokeRoundedTime04, size: 20, color: AppColors.danger),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -291,7 +292,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       controller: _emailController,
                       label: 'Email',
                       hintText: 'user@email.com',
-                      icon: Icons.mail_outline_rounded,
+                      icon: HugeIcons.strokeRoundedMail01,
                       keyboardType: TextInputType.emailAddress,
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) return 'Vui lòng nhập email';
@@ -307,7 +308,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       controller: _passwordController,
                       label: 'Mật khẩu',
                       hintText: '••••••••',
-                      icon: Icons.lock_outline_rounded,
+                      icon: HugeIcons.strokeRoundedLockPassword,
                       isPassword: true,
                       validator: (val) {
                         if (val == null || val.isEmpty) return 'Vui lòng nhập mật khẩu';
@@ -340,7 +341,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       label: 'Đăng nhập',
                       variant: AppButtonVariant.gradient,
                       height: 54,
-                      trailingIcon: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                      trailingIcon: const Icon(HugeIcons.strokeRoundedArrowRight01, color: Colors.white, size: 18),
                       isLoading: isLoading,
                       onPressed: _rateLimitSeconds > 0 ? null : _submit,
                     ).animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
