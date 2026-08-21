@@ -1,0 +1,26 @@
+targets:
+  $default:
+    builders:
+      riverpod_generator:
+        generate_for:
+          - lib/features/**/presentation/providers/*.dart
+      retrofit_generator:
+        generate_for:
+          - lib/features/**/data/datasources/*.dart
+      freezed:
+        generate_for:
+          - lib/features/**/data/models/*.dart
+          - lib/features/**/domain/entities/*.dart
+      json_serializable:
+        generate_for:
+          - lib/features/**/data/models/*.dart
+      injectable_generator:injectable_builder:
+        generate_for:
+          - lib/core/network/*.dart
+          - lib/di/injection.dart
+          - lib/features/*/data/datasources/*.dart
+          - lib/features/*/data/repositories/*.dart
+          - lib/features/*/domain/usecases/*.dart
+      injectable_generator:injectable_config_builder:
+        generate_for:
+          - lib/di/injection.dart

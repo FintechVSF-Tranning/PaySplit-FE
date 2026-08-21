@@ -26,7 +26,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authControllerProvider).valueOrNull;
+    final user = ref.watch(authControllerProvider).value;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final displayName = (user?.name != null && user!.name.isNotEmpty) ? user.name : 'Hoàng Nam';
 

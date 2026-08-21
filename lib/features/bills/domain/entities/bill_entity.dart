@@ -5,7 +5,7 @@ part 'bill_entity.freezed.dart';
 enum BillStatus { pending, settled }
 
 @freezed
-class BillEntity with _$BillEntity {
+abstract class BillEntity with _$BillEntity {
   const factory BillEntity({
     required String id,
     required String title,

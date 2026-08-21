@@ -6,7 +6,7 @@ part 'bill_model.freezed.dart';
 part 'bill_model.g.dart';
 
 @freezed
-class BillModel with _$BillModel {
+abstract class BillModel with _$BillModel {
   const BillModel._();
 
   const factory BillModel({

@@ -6,7 +6,7 @@ part 'auth_response_model.freezed.dart';
 part 'auth_response_model.g.dart';
 
 @freezed
-class AuthResponseModel with _$AuthResponseModel {
+abstract class AuthResponseModel with _$AuthResponseModel {
   const factory AuthResponseModel({
     @JsonKey(name: 'access_token') required String accessToken,
     @JsonKey(name: 'refresh_token') required String refreshToken,

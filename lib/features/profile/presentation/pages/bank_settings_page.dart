@@ -66,7 +66,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
   @override
   void initState() {
     super.initState();
-    final user = ref.read(authControllerProvider).valueOrNull;
+    final user = ref.read(authControllerProvider).value;
 
     if (user?.bankCode != null && user!.bankCode!.isNotEmpty) {
       try {
@@ -107,7 +107,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() => _isLoading = true);
       try {
-        final user = ref.read(authControllerProvider).valueOrNull;
+        final user = ref.read(authControllerProvider).value;
         final holder = VietnameseUtils.toBankHolderFormat(_holderController.text);
         await ref.read(authControllerProvider.notifier).updateProfile(
               name: user?.name,

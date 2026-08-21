@@ -8,7 +8,7 @@ import '../../domain/usecases/get_bills_usecase.dart';
 part 'bills_provider.g.dart';
 
 @riverpod
-Future<List<BillEntity>> bills(BillsRef ref) async {
+Future<List<BillEntity>> bills(Ref ref) async {
   final result = await getIt<GetBillsUseCase>().call(const NoParams());
   return result.match((failure) => throw failure, (bills) => bills);
 }

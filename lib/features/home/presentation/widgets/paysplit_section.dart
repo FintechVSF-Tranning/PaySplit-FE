@@ -9,16 +9,25 @@ import '../../../../core/utils/ui_feedback.dart';
 /// The PaySplit feature block — this is our surface inside the bank app, so
 /// it gets a highlighted banner rather than blending into the generic
 /// services grid above it.
+class _PaySplitEntry {
+  final IconData icon;
+  final String label;
+  final String? route;
+
+  const _PaySplitEntry({required this.icon, required this.label, this.route});
+}
+
 class PaySplitSection extends StatelessWidget {
   const PaySplitSection({super.key});
 
   /// `route` is null for entries whose screen does not exist yet.
-  static const List<({IconData icon, String label, String? route})> _entries = [
-    (icon: HugeIcons.strokeRoundedInvoice01, label: 'Hoá đơn\ncủa tôi', route: AppRoutes.bills),
-    (icon: HugeIcons.strokeRoundedUserGroup, label: 'Nhóm\nchi tiêu', route: null),
-    (icon: HugeIcons.strokeRoundedNotification03, label: 'Nhắc\nthanh toán', route: null),
-    (icon: HugeIcons.strokeRoundedTime04, label: 'Lịch sử\nchia', route: null),
+  static const List<_PaySplitEntry> _entries = [
+    _PaySplitEntry(icon: HugeIcons.strokeRoundedInvoice01, label: 'Hoá đơn\ncủa tôi', route: AppRoutes.bills),
+    _PaySplitEntry(icon: HugeIcons.strokeRoundedUserGroup, label: 'Nhóm\nchi tiêu'),
+    _PaySplitEntry(icon: HugeIcons.strokeRoundedNotification03, label: 'Nhắc\nthanh toán'),
+    _PaySplitEntry(icon: HugeIcons.strokeRoundedTime04, label: 'Lịch sử\nchia'),
   ];
+
 
   @override
   Widget build(BuildContext context) {

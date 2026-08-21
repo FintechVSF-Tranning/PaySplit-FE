@@ -273,8 +273,8 @@ Modal Bottom Sheet trượt lên khi bấm nút bánh răng `⚙️` trên Heade
 | `/api/v1/groups/{id}/debts` | `GET` | Lấy danh sách nợ nội bộ nhóm, `caller_payable`, `caller_receivable`, và `net_matrix`. | `0004-split-settlement-v1` AC-2 |
 | `/api/v1/groups/{id}/bills` | `GET` | Lấy danh sách hóa đơn theo phân trang cursor và lọc theo trạng thái (`status`). | `0003-bill-ocr-v1` AC-8, AC-12 |
 | `/api/v1/groups/{id}/activities` | `GET` | Lấy dòng thời gian hoạt động của nhóm theo cursor pagination. | `0002-group-management-v1` AC-8 |
-| `/api/v1/groups/{id}/invites` | `GET` | Thành viên active lấy danh sách mã mời còn hiệu lực để hiển thị, copy và mở QR. **API cần bổ sung ở BE.** | `api-change-request-member-invites.md` |
-| `/api/v1/groups/{id}/invites` | `POST` | Thành viên active tạo hoặc lấy lại mã mời theo mặc định. Captain có thể gửi cấu hình tái tạo. **Phân quyền cần đổi ở BE.** | `api-change-request-member-invites.md` |
+| `/api/v1/groups/{id}/invites` | `GET` | Thành viên active lấy danh sách mã mời còn hiệu lực để hiển thị, copy và mở QR. **API cần bổ sung ở BE.** | `PaySplit-BE/docs/change-req/api-change-request-01.md` |
+| `/api/v1/groups/{id}/invites` | `POST` | Thành viên active tạo hoặc lấy lại mã mời theo mặc định. Captain có thể gửi cấu hình tái tạo. **Phân quyền cần đổi ở BE.** | `PaySplit-BE/docs/change-req/api-change-request-01.md` |
 | `/api/v1/groups/{id}/invites/{inviteId}` | `DELETE` | Captain thu hồi mã mời. | `0002-group-management-v1` AC-3 |
 | `/api/v1/groups/{id}/members/{memberId}` | `DELETE` | Thành viên tự rời nhóm hoặc Captain xóa thành viên (chỉ khi sạch nợ). | `0002-group-management-v1` AC-6 |
 | `/api/v1/groups/{id}/members/{memberId}/role` | `PUT` | Captain chuyển giao quyền Trưởng nhóm cho thành viên khác. | `0002-group-management-v1` AC-7 |

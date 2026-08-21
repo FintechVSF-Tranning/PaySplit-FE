@@ -131,7 +131,7 @@ class AuthController extends _$AuthController {
     return result.match(
       (failure) => throw failure,
       (avatarUrl) {
-        final currentUser = state.valueOrNull;
+        final currentUser = state.value;
         if (currentUser != null) {
           state = AsyncData(currentUser.copyWith(avatarUrl: avatarUrl));
         }
@@ -145,7 +145,7 @@ class AuthController extends _$AuthController {
     return result.match(
       (failure) => throw failure,
       (_) {
-        final currentUser = state.valueOrNull;
+        final currentUser = state.value;
         if (currentUser != null) {
           state = AsyncData(currentUser.copyWith(avatarUrl: null));
         }

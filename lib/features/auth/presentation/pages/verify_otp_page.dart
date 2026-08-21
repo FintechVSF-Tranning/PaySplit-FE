@@ -44,7 +44,7 @@ class _VerifyOtpPageState extends ConsumerState<VerifyOtpPage> {
   void dispose() {
     _pinController.dispose();
     _focusNode.dispose();
-    _timer?.cancel();
+    if (_timer != null) _timer!.cancel();
     super.dispose();
   }
 
@@ -52,7 +52,7 @@ class _VerifyOtpPageState extends ConsumerState<VerifyOtpPage> {
     setState(() {
       _countdown = 60;
     });
-    _timer?.cancel();
+    if (_timer != null) _timer!.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_countdown <= 1) {
         timer.cancel();

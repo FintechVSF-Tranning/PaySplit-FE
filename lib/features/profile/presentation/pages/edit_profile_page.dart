@@ -30,7 +30,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   @override
   void initState() {
     super.initState();
-    final user = ref.read(authControllerProvider).valueOrNull;
+    final user = ref.read(authControllerProvider).value;
 
     _initialName = user?.name ?? '';
     _initialPhone = PhoneFormatter.formatForDisplay(user?.phoneNumber);
@@ -82,7 +82,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authControllerProvider).valueOrNull;
+    final user = ref.watch(authControllerProvider).value;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final email = (user?.email != null && user!.email.isNotEmpty) ? user.email : '';

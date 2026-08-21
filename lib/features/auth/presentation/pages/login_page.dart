@@ -38,7 +38,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _rateLimitTimer?.cancel();
+    if (_rateLimitTimer != null) _rateLimitTimer!.cancel();
     super.dispose();
   }
 
@@ -46,7 +46,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() {
       _rateLimitSeconds = seconds;
     });
-    _rateLimitTimer?.cancel();
+    if (_rateLimitTimer != null) _rateLimitTimer!.cancel();
     _rateLimitTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_rateLimitSeconds <= 1) {
         timer.cancel();
