@@ -17,7 +17,8 @@ class BillRepositoryImpl implements BillRepository {
   @override
   Future<Either<Failure, List<BillEntity>>> getBills() async {
     try {
-      final models = await _remoteDataSource.getBills();
+      final response = await _remoteDataSource.getBills();
+      final models = response.data ?? const [];
       return Right(models.map((m) => m.toEntity()).toList());
     } on DioException catch (e) {
       return Left(mapDioError(e));

@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:retrofit/retrofit.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/network/api_response.dart';
 import '../models/bill_model.dart';
 
 part 'bill_remote_datasource.g.dart';
@@ -14,5 +15,5 @@ abstract class BillRemoteDataSource {
   factory BillRemoteDataSource(Dio dio) = _BillRemoteDataSource;
 
   @GET(ApiEndpoints.bills)
-  Future<List<BillModel>> getBills();
+  Future<ApiResponse<List<BillModel>>> getBills();
 }
