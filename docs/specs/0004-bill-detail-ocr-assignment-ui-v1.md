@@ -6,6 +6,8 @@
 **Feature Area**: `PaySplit-FE/lib/features/bills/`  
 **Design System**: Tally x Hallmark (Editorial Warm Olive `#F5F6F1`, Deep Teal `#0F766E`, 1px Hairline `#DBE0CE`, Typography: `Newsreader` + `Roboto Slab` + `JetBrains Mono`)
 
+> **V1 group close amendment**: [`0006-group-bill-close-ui-v1.md`](0006-group-bill-close-ui-v1.md) làm rõ rằng khóa nhóm chỉ chặn bill mới. Draft hiện có vẫn chỉnh sửa và review được, nhưng chỉ current Captain được finalize. Creditor không phải Captain không có quyền finalize bill của mình. Finalized bill luôn read only. Debtor consent trong spec 0005 được để sang V2.
+
 ---
 
 ## 1. Summary & User Experience Goals
@@ -98,7 +100,9 @@ Màn hình **Chi Tiết OCR Hóa Đơn & Gán Món Ăn (Smart OCR & Item Assignm
     - **Tóm tắt cá nhân**: Hiển thị phần tiền của người đang đăng nhập (`Phần của bạn: 349.500 đ`). Bấm vào mở Bottom Sheet xem bảng phân bổ chi tiết toàn nhóm (`BreakdownBottomSheet`).
     - **Nút Thao tác**:
       - Nếu là Creditor/Captain & Trạng thái Draft: Nút `[ Lưu nháp ]` (`PUT /api/v1/bills/{id}`) và `[ Xét duyệt (Review) ]` (`POST /api/v1/bills/{id}/review`).
-      - Nếu là Captain & Đã Review: Nút `[ Xác nhận & Chốt hóa đơn (Finalize) ⚡ ]` (`POST /api/v1/bills/{id}/finalize`).
+      - Nếu là Captain và bill vẫn là `draft` nhưng version hiện tại đã review: Nút `[ Xác nhận & Chốt hóa đơn (Finalize) ⚡ ]` (`POST /api/v1/bills/{id}/finalize`).
+      - Nếu là Creditor nhưng không phải current Captain: Không hiển thị nút Finalize, kể cả với bill do chính họ tạo và đã review.
+      - Nếu bill `finalized`: Chỉ hiển thị immutable breakdown và settlement progress. Mọi edit, OCR, save, review, delete và finalize action đều bị ẩn.
       - Nếu là Member thường: Nút `[ Xem chi tiết phần chia ]`.
 
 - **AC-UI-8 (Optimistic Locking & Conflict Resolution)**:
@@ -147,7 +151,7 @@ Màn hình **Chi Tiết OCR Hóa Đơn & Gán Món Ăn (Smart OCR & Item Assignm
 ├────────────────────────────────────────────────────────┤
 │  STICKY BOTTOM BAR:                                    │
 │  Phần của bạn: 349.500 đ     [ Xem bảng phân bổ ▾ ]   │
-│  [ Lưu nháp ]         [ Xác nhận & Chốt hóa đơn ⚡ ]   │
+│  [ Lưu nháp ]         [ Xét duyệt hóa đơn ]            │
 └────────────────────────────────────────────────────────┘
 ```
 

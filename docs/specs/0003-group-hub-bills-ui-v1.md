@@ -14,6 +14,8 @@
 - [`PaySplit-FE/docs/specs/0001-auth-ui-v1.md`](0001-auth-ui-v1.md) (Xác thực, đăng ký, đăng nhập ngầm & deep link)
 - [`PaySplit-FE/docs/specs/0002-home-balance-ui-v1.md`](0002-home-balance-ui-v1.md) (Trang chủ, tổng quan số dư, danh sách nhóm, nộp/duyệt proof)
 
+> **V1 group close amendment**: [`0006-group-bill-close-ui-v1.md`](0006-group-bill-close-ui-v1.md) bổ sung trạng thái khóa nhận bill, action Captain `Khóa gửi hóa đơn mới`, `Chốt toàn bộ` và batch progress. Debtor consent trong spec 0005 được để sang V2.
+
 ---
 
 ## 1. Executive Summary & Goals

@@ -10,6 +10,8 @@
 - [`PaySplit-BE/docs/specs/0002-group-management-v1/index.md`](../../../PaySplit-BE/docs/specs/0002-group-management-v1/index.md) (Danh sách nhóm, thành viên)
 - [`PaySplit-BE/docs/specs/0003-bill-ocr-v1/index.md`](../../../PaySplit-BE/docs/specs/0003-bill-ocr-v1/index.md) (Hóa đơn gần đây, OCR)
 
+> **V1 group close amendment**: [`0006-group-bill-close-ui-v1.md`](0006-group-bill-close-ui-v1.md) yêu cầu Home scan group picker disable mọi group đã khóa nhận bill. Debtor consent trong spec 0005 được để sang V2.
+
 ---
 
 ## 1. Executive Summary & Goals
