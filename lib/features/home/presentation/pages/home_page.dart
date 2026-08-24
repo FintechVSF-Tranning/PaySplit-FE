@@ -175,7 +175,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   NetBalanceHeroCard(
                     onPayVietQr: () => showComingSoonSnackBar(context, 'Thanh toán VietQR'),
                     onScanBill: () => context.push(AppRoutes.bills),
-                    onCreateGroup: () => showComingSoonSnackBar(context, 'Tạo nhóm'),
+                    onCreateGroup: () => context.push(AppRoutes.groups),
                   ),
                   const SizedBox(height: 22),
 
@@ -193,10 +193,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   // 3. My Groups Carousel
                   MyGroupsCarousel(
-                    onViewAll: () => showComingSoonSnackBar(context, 'Tất cả nhóm'),
+                    onViewAll: () => context.push(AppRoutes.groups),
                     onTapGroup: (groupName) =>
                         showComingSoonSnackBar(context, 'Mở nhóm $groupName'),
-                    onCreateGroup: () => showComingSoonSnackBar(context, 'Tạo nhóm mới'),
+                    onCreateGroup: () => context.push(AppRoutes.groups),
                   ),
                   const SizedBox(height: 22),
 
@@ -217,13 +217,12 @@ class _HomePageState extends ConsumerState<HomePage> {
               onTap: (index) {
                 if (index == 0) {
                   setState(() => _currentNavIndex = 0);
+                } else if (index == 1) {
+                  context.push(AppRoutes.groups);
                 } else if (index == 2) {
                   context.push(AppRoutes.bills);
                 } else if (index == 3) {
                   context.push(AppRoutes.profile);
-                } else {
-                  setState(() => _currentNavIndex = index);
-                  showComingSoonSnackBar(context, 'Quản lý Nhóm');
                 }
               },
             ),
