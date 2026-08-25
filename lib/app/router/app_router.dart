@@ -18,6 +18,7 @@ import '../../features/groups/presentation/pages/add_members_page.dart';
 import '../../features/groups/presentation/pages/group_detail_page.dart';
 import '../../features/groups/presentation/pages/groups_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/profile/presentation/pages/bank_settings_page.dart';
 import '../../features/profile/presentation/pages/change_password_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
@@ -241,7 +242,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: ':groupId',
-            builder: (context, state) => GroupDetailPage(group: state.extra! as GroupEntity),
+            builder: (context, state) {
+              if (state.extra is GroupEntity) {
+                return GroupDetailPage(group: state.extra! as GroupEntity);
+              }
+              final groupId = state.pathParameters['groupId'] ?? '';
+              final fallbackGroup = GroupEntity(
+                id: groupId,
+                name: 'Chi tiết nhóm',
+                emoji: '👥',
+                memberCount: 1,
+                myBalance: 0,
+                inviteCode: '',
+                isCaptain: false,
+                lastActivity: 'Đang tải thông tin...',
+                lastActivityAt: DateTime.now(),
+              );
+              return GroupDetailPage(group: fallbackGroup);
+            },
             routes: [
               GoRoute(
                 path: 'add-members',
@@ -251,6 +269,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationsPage(),
       ),
       GoRoute(
         path: AppRoutes.profile,
