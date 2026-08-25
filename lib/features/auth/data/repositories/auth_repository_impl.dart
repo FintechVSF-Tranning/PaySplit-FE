@@ -40,6 +40,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(auth.user.toEntity());
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 
@@ -51,40 +53,26 @@ class AuthRepositoryImpl implements AuthRepository {
     String? phoneNumber,
   }) async {
     try {
-      final body = <String, dynamic>{
-        'display_name': name,
-        'email': email,
-        'password': password,
-      };
+      final body = <String, dynamic>{'display_name': name, 'email': email, 'password': password};
       if (phoneNumber != null && phoneNumber.isNotEmpty) {
         body['phone_number'] = phoneNumber;
       }
       final response = await _remoteDataSource.register(body);
-      final userJson =
-          (response.data as Map<String, dynamic>?)?['user']
-              as Map<String, dynamic>?;
+      final userJson = (response.data as Map<String, dynamic>?)?['user'] as Map<String, dynamic>?;
       if (userJson != null) {
         final userModel = UserModel.fromJson(userJson);
         return Right(userModel.toEntity());
       }
-      return Right(
-        UserEntity(
-          id: 'temp',
-          name: name,
-          email: email,
-          phoneNumber: phoneNumber,
-        ),
-      );
+      return Right(UserEntity(id: 'temp', name: name, email: email, phoneNumber: phoneNumber));
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 
   @override
-  Future<Either<Failure, void>> verifyEmail({
-    required String email,
-    required String otp,
-  }) async {
+  Future<Either<Failure, void>> verifyEmail({required String email, required String otp}) async {
     try {
       await _remoteDataSource.verifyEmail({'email': email, 'otp': otp});
       return const Right(null);
@@ -94,9 +82,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> resendVerification({
-    required String email,
-  }) async {
+  Future<Either<Failure, void>> resendVerification({required String email}) async {
     try {
       await _remoteDataSource.resendVerification({'email': email});
       return const Right(null);
@@ -139,14 +125,14 @@ class AuthRepositoryImpl implements AuthRepository {
       final response = await _remoteDataSource.getCurrentUser();
       final data = response.data;
       final userJson =
-          (data is Map<String, dynamic>
-              ? data['user'] as Map<String, dynamic>?
-              : null) ??
+          (data is Map<String, dynamic> ? data['user'] as Map<String, dynamic>? : null) ??
           data as Map<String, dynamic>;
       final model = UserModel.fromJson(userJson);
       return Right(model.toEntity());
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 
@@ -179,22 +165,24 @@ class AuthRepositoryImpl implements AuthRepository {
       if (name != null) body['display_name'] = name;
       if (phoneNumber != null) body['phone_number'] = phoneNumber;
       if (bankCode != null) body['bank_code'] = bankCode;
-      if (bankAccountNumber != null)
+      if (bankAccountNumber != null) {
         body['bank_account_number'] = bankAccountNumber;
-      if (bankAccountHolder != null)
+      }
+      if (bankAccountHolder != null) {
         body['bank_account_holder'] = bankAccountHolder;
+      }
 
       final response = await _remoteDataSource.patchProfile(body);
       final data = response.data;
       final userJson =
-          (data is Map<String, dynamic>
-              ? data['user'] as Map<String, dynamic>?
-              : null) ??
+          (data is Map<String, dynamic> ? data['user'] as Map<String, dynamic>? : null) ??
           data as Map<String, dynamic>;
       final model = UserModel.fromJson(userJson);
       return Right(model.toEntity());
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 
@@ -209,6 +197,8 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(avatarUrl);
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 

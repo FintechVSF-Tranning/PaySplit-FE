@@ -1,3 +1,4 @@
+import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/mock/group_detail_mock_data.dart';
@@ -65,7 +66,7 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
 
     state = _copy(
       debts: state.debts.where((d) => d.id != debtId).toList(),
-      debtMatrix: state.debtMatrix.where((row) => row.from != debt.counterpartName).toList(),
+      debtMatrix: _matrixWithout(debt),
       activities: [
         GroupActivityEntity(
           id: 'a_approve_${debt.id}',
@@ -78,6 +79,29 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
       ],
     );
   }
+
+  /// Gỡ đúng **một** dòng ma trận ứng với [debt] đã tất toán. [DebtMatrixRow]
+  /// chưa tham chiếu tới `debt.id` nên phải khớp theo cặp (from, to) suy ra từ
+  /// chiều nợ, và chỉ gỡ dòng khớp đầu tiên — một người có thể nợ tôi ở nhiều
+  /// khoản, duyệt khoản này không được xóa các khoản còn lại.
+  List<DebtMatrixRow> _matrixWithout(GroupDebtEntity debt) {
+    final from = debt.direction == DebtDirection.iOwe ? _meLabel : debt.counterpartName;
+    final to = debt.direction == DebtDirection.iOwe ? debt.counterpartName : _meLabel;
+
+    final remaining = <DebtMatrixRow>[];
+    var removed = false;
+    for (final row in state.debtMatrix) {
+      if (!removed && row.from == from && row.to == to && row.amount == debt.amount) {
+        removed = true;
+        continue;
+      }
+      remaining.add(row);
+    }
+    return remaining;
+  }
+
+  /// Nhãn đại diện người dùng hiện tại trong ma trận công nợ.
+  static const _meLabel = 'Bạn';
 
   /// Chủ nợ từ chối minh chứng — khoản nợ quay lại trạng thái chờ trả.
   void rejectProof(String debtId, String reason) {
@@ -216,8 +240,22 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
   }
 }
 
+/// Key của [groupDetailProvider]. Mang theo entity gốc để khởi tạo detail,
+/// nhưng chỉ so sánh theo [GroupEntity.id]: các thao tác trên màn chi tiết
+/// (đổi tên, khóa bill...) đồng bộ ngược về `groupsProvider` nên entity truyền
+/// vào sẽ khác đi ở lần mở sau. Nếu key theo cả entity, family coi đó là nhóm
+/// mới và dựng lại notifier từ mock, làm mất state đã thao tác.
+class GroupDetailKey extends Equatable {
+  const GroupDetailKey(this.group);
+
+  final GroupEntity group;
+
+  @override
+  List<Object?> get props => [group.id];
+}
+
 /// Detail được key theo nhóm để mỗi nhóm giữ state riêng khi mở lại.
 final groupDetailProvider =
-    StateNotifierProvider.family<GroupDetailNotifier, GroupDetailEntity, GroupEntity>(
-      (ref, group) => GroupDetailNotifier(group),
+    StateNotifierProvider.family<GroupDetailNotifier, GroupDetailEntity, GroupDetailKey>(
+      (ref, key) => GroupDetailNotifier(key.group),
     );

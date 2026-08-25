@@ -9,7 +9,6 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
-import '../../../../core/widgets/app_button.dart';
 import '../../../home/presentation/widgets/app_bottom_nav_bar.dart';
 import '../../../home/presentation/widgets/group_settings_bottom_sheet.dart';
 import '../../../home/presentation/widgets/invite_code_bottom_sheet.dart';
@@ -50,11 +49,13 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
   bool _hasMoreActivities = true;
   bool _disbanded = false;
 
-  GroupDetailNotifier get _notifier => ref.read(groupDetailProvider(widget.group).notifier);
+  GroupDetailKey get _detailKey => GroupDetailKey(widget.group);
+
+  GroupDetailNotifier get _notifier => ref.read(groupDetailProvider(_detailKey).notifier);
 
   @override
   Widget build(BuildContext context) {
-    final detail = ref.watch(groupDetailProvider(widget.group));
+    final detail = ref.watch(groupDetailProvider(_detailKey));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF9),
@@ -219,14 +220,6 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
                 onTap: () => showComingSoonSnackBar(context, 'Chi tiết ${bill.title}'),
               ),
             ),
-
-        if (!detail.group.isClosed) ...[
-          const SizedBox(height: 6),
-          _CloseBookCard(
-            pendingCount: detail.bills.where((b) => b.status.isActive).length,
-            onCloseBook: () => _closeBook(detail),
-          ),
-        ],
       ],
     );
   }
@@ -271,21 +264,23 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
 
   /// Khóa bill: chốt bảng chia tiền, cố định phần tiền mỗi người phải trả.
   /// Không đòi hỏi nhóm đã sạch nợ — các khoản nợ vẫn trả tiếp sau khi chốt.
-  Future<void> _closeBook(GroupDetailEntity detail) async {
+  /// Gọi từ sheet Cài đặt nhóm; trả về `true` khi đã chốt xong để sheet tự
+  /// chuyển sang trạng thái khóa.
+  Future<bool> _closeBook(GroupDetailEntity detail) async {
     final pending = detail.bills.where((b) => b.status.isActive).toList();
     if (pending.isNotEmpty) {
       showErrorSnackBar(
         context,
         'Còn ${pending.length} hóa đơn chưa chia xong. Hoàn tất trước khi khóa bill.',
       );
-      return;
+      return false;
     }
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => _CloseBookDialog(detail: detail),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) return false;
 
     final now = DateTime.now();
     final closedAt =
@@ -296,8 +291,9 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
         .read(groupsProvider.notifier)
         .setGroupStatus(detail.group.id, GroupStatus.closed, closedAtText: closedAt);
     await HapticFeedback.mediumImpact();
-    if (!mounted) return;
+    if (!mounted) return true;
     showSuccessSnackBar(context, 'Đã khóa bill nhóm ${detail.group.name}');
+    return true;
   }
 
   Future<void> _reopenBook(GroupDetailEntity detail) async {
@@ -364,6 +360,9 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
       createdAtText: '15/08/2026',
       isCaptain: detail.group.isCaptain,
       currentUserNetBalance: detail.group.myBalance,
+      isClosed: detail.group.isClosed,
+      closedAtText: detail.group.closedAtText,
+      pendingBillCount: detail.bills.where((b) => b.status.isActive).length,
       members: [
         for (final m in detail.members)
           GroupMemberSettingItem(
@@ -387,6 +386,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
         _notifier.removeMember(membershipId);
         return true;
       },
+      onCloseBook: () async => _closeBook(detail),
       onLeaveGroup: () async => _tryLeaveGroup(detail),
       onDisbandGroup: () async {
         ref.read(groupsProvider.notifier).deleteGroup(detail.group.id);
@@ -1021,64 +1021,6 @@ class _ClosedRibbon extends StatelessWidget {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Thẻ CTA cuối tab Hóa đơn: khóa bill khi mọi hóa đơn đã chia xong.
-class _CloseBookCard extends StatelessWidget {
-  const _CloseBookCard({required this.pendingCount, required this.onCloseBook});
-
-  final int pendingCount;
-  final VoidCallback onCloseBook;
-
-  @override
-  Widget build(BuildContext context) {
-    final isReady = pendingCount == 0;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isReady ? AppColors.primarySubtle : AppColors.surfaceSubtle,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: isReady ? AppColors.primaryBorder : AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Khóa bill nhóm',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textMain,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            isReady
-                ? 'Khóa bảng chia tiền và cố định phần mỗi người phải trả. Các khoản nợ vẫn thanh toán bình thường sau khi chốt.'
-                : 'Còn $pendingCount hóa đơn chưa chia xong. Hoàn tất chia tiền rồi mới khóa bill được.',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textMuted,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 14),
-          AppButton(
-            label: 'Khóa bill nhóm',
-            variant: isReady ? AppButtonVariant.primary : AppButtonVariant.outline,
-            icon: Icon(
-              HugeIcons.strokeRoundedCheckmarkCircle02,
-              size: 18,
-              color: isReady ? Colors.white : AppColors.textMuted,
-            ),
-            onPressed: isReady ? onCloseBook : null,
-          ),
         ],
       ),
     );

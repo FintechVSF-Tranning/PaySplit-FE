@@ -32,23 +32,31 @@ class GroupsNotifier extends StateNotifier<List<GroupEntity>> {
     return group;
   }
 
+  /// Đưa nhóm vừa tham gia (qua link mời hoặc quét QR) lên đầu danh sách.
+  /// Nếu đã ở trong nhóm thì chỉ nhấc lên đầu, không tạo bản ghi trùng.
+  void joinGroup(GroupEntity group) {
+    final existing = findById(group.id);
+    final rest = state.where((g) => g.id != group.id);
+    state = [
+      if (existing != null)
+        _copyWith(existing, lastActivity: 'Bạn vừa tham gia nhóm', lastActivityAt: DateTime.now())
+      else
+        group,
+      ...rest,
+    ];
+  }
+
   /// Thêm thành viên vào nhóm — ở mock chỉ cập nhật sĩ số hiển thị.
   void addMembers(String groupId, List<GroupMemberEntity> members) {
     if (members.isEmpty) return;
     state = [
       for (final g in state)
         if (g.id == groupId)
-          GroupEntity(
-            id: g.id,
-            name: g.name,
-            emoji: g.emoji,
+          _copyWith(
+            g,
             memberCount: g.memberCount + members.length,
-            myBalance: g.myBalance,
-            inviteCode: g.inviteCode,
-            isCaptain: g.isCaptain,
             lastActivity: 'Đã thêm ${members.length} thành viên mới',
             lastActivityAt: DateTime.now(),
-            pendingBillCount: g.pendingBillCount,
           )
         else
           g,
@@ -82,6 +90,8 @@ class GroupsNotifier extends StateNotifier<List<GroupEntity>> {
     int? memberCount,
     GroupStatus? status,
     String? closedAtText,
+    String? lastActivity,
+    DateTime? lastActivityAt,
   }) {
     return GroupEntity(
       id: g.id,
@@ -91,8 +101,8 @@ class GroupsNotifier extends StateNotifier<List<GroupEntity>> {
       myBalance: g.myBalance,
       inviteCode: g.inviteCode,
       isCaptain: g.isCaptain,
-      lastActivity: g.lastActivity,
-      lastActivityAt: g.lastActivityAt,
+      lastActivity: lastActivity ?? g.lastActivity,
+      lastActivityAt: lastActivityAt ?? g.lastActivityAt,
       pendingBillCount: g.pendingBillCount,
       status: status ?? g.status,
       closedAtText: closedAtText ?? g.closedAtText,

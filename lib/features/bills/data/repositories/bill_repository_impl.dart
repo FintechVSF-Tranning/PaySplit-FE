@@ -22,6 +22,8 @@ class BillRepositoryImpl implements BillRepository {
       return Right(models.map((m) => m.toEntity()).toList());
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 }

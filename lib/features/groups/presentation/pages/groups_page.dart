@@ -73,7 +73,7 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                               child: _JoinActionTile(
                                 icon: HugeIcons.strokeRoundedLink01,
                                 label: 'Nhập link vào nhóm',
-                                onTap: () => _joinByLink(context),
+                                onTap: () => _joinByLink(context, ref),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -81,7 +81,7 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                               child: _JoinActionTile(
                                 icon: HugeIcons.strokeRoundedQrCode,
                                 label: 'Quét QR vào nhóm',
-                                onTap: () => _joinByQr(context),
+                                onTap: () => _joinByQr(context, ref),
                               ),
                             ),
                           ],
@@ -197,17 +197,21 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
     await context.push(AppRoutes.addMembers(group.id), extra: group);
   }
 
-  Future<void> _joinByLink(BuildContext context) async {
+  Future<void> _joinByLink(BuildContext context, WidgetRef ref) async {
     final group = await JoinByLinkBottomSheet.show(context);
-    if (group == null || !context.mounted) return;
+    if (group == null) return;
+    ref.read(groupsProvider.notifier).joinGroup(group);
+    if (!context.mounted) return;
     showSuccessSnackBar(context, 'Đã tham gia nhóm ${group.name}');
   }
 
-  Future<void> _joinByQr(BuildContext context) async {
+  Future<void> _joinByQr(BuildContext context, WidgetRef ref) async {
     final group = await Navigator.of(
       context,
     ).push<GroupEntity>(MaterialPageRoute(builder: (_) => const ScanQrJoinPage()));
-    if (group == null || !context.mounted) return;
+    if (group == null) return;
+    ref.read(groupsProvider.notifier).joinGroup(group);
+    if (!context.mounted) return;
     showSuccessSnackBar(context, 'Đã tham gia nhóm ${group.name}');
   }
 }
