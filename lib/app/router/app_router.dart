@@ -9,6 +9,9 @@ import '../../features/auth/presentation/pages/reset_password_page.dart';
 import '../../features/auth/presentation/pages/verify_otp_page.dart';
 import '../../features/auth/presentation/pages/welcome_page.dart';
 import '../../features/auth/presentation/providers/auth_controller.dart';
+import '../../features/bills/domain/entities/bill_detail_entity.dart';
+import '../../features/bills/presentation/pages/bill_capture_page.dart';
+import '../../features/bills/presentation/pages/bill_detail_page.dart';
 import '../../features/bills/presentation/pages/bills_page.dart';
 import '../../features/groups/domain/entities/group_entity.dart';
 import '../../features/groups/presentation/pages/add_members_page.dart';
@@ -113,12 +116,131 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const BillsPage(),
       ),
       GoRoute(
+        path: AppRoutes.scanBill,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return BillCapturePage(
+            groupId: extra?['groupId'] as String? ?? '01a02363-242d-7cee-ae30-8f61857fd62c',
+            groupName: extra?['groupName'] as String? ?? 'Phòng Dev Cty',
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.billDetail,
+        builder: (context, state) {
+          if (state.extra is BillDetailEntity) {
+            final bill = state.extra! as BillDetailEntity;
+            return BillDetailPage(
+              initialBill: bill,
+              autoStartOcr: bill.photos.isNotEmpty && bill.items.isEmpty,
+            );
+          }
+          final extra = state.extra as Map<String, dynamic>?;
+          if (extra?['bill'] is BillDetailEntity) {
+            final bill = extra!['bill'] as BillDetailEntity;
+            return BillDetailPage(
+              initialBill: bill,
+              autoStartOcr: extra['autoStartOcr'] as bool? ?? (bill.photos.isNotEmpty && bill.items.isEmpty),
+            );
+          }
+          final initialBill = BillDetailEntity(
+            id: extra?['billId'] as String? ?? '',
+            groupId: extra?['groupId'] as String? ?? '01a02363-242d-7cee-ae30-8f61857fd62c',
+            groupName: extra?['groupName'] as String? ?? 'Phòng Dev Cty',
+            creditorMemberId: extra?['creditorMemberId'] as String? ?? '01a02363-242f-72df-b61e-05e551f3360b',
+            creditorName: extra?['creditorName'] as String? ?? 'Nguyen Trong Tin',
+            status: 'draft',
+            merchantName: extra?['merchantName'] as String? ?? 'Lẩu gà lá é Tao Ngộ',
+            subtotal: 750000,
+            serviceCharge: 50000,
+            vat: 60000,
+            totalItemDiscount: 50000,
+            generalDiscount: 50000,
+            total: 760000,
+            items: [
+              const BillItemEntity(
+                id: 'item-1',
+                name: 'Lẩu gà lá é lớn',
+                unitPrice: 350000,
+                lineTotal: 350000,
+                discountAmount: 50000,
+                finalPrice: 300000,
+                assignments: [
+                  BillItemAssignmentEntity(
+                    memberId: '01a02363-242f-72df-b61e-05e551f3360b',
+                    displayName: 'Tin',
+                    weight: 0.33,
+                  ),
+                  BillItemAssignmentEntity(
+                    memberId: '01a03a02-0001-7000-8000-000000000001',
+                    displayName: 'Nam',
+                    weight: 0.33,
+                  ),
+                  BillItemAssignmentEntity(
+                    memberId: '01a03a02-0002-7000-8000-000000000002',
+                    displayName: 'Linh',
+                    weight: 0.34,
+                  ),
+                ],
+              ),
+              const BillItemEntity(
+                id: 'item-2',
+                name: 'Bò nhúng dấm đặc biệt',
+                unitPrice: 400000,
+                lineTotal: 400000,
+                finalPrice: 400000,
+                assignments: [
+                  BillItemAssignmentEntity(
+                    memberId: '01a02363-242f-72df-b61e-05e551f3360b',
+                    displayName: 'Tin',
+                    weight: 0.5,
+                  ),
+                  BillItemAssignmentEntity(
+                    memberId: '01a03a02-0003-7000-8000-000000000003',
+                    displayName: 'Tuấn',
+                    weight: 0.5,
+                  ),
+                ],
+              ),
+            ],
+            members: const [
+              BillMemberEntity(
+                memberId: '01a02363-242f-72df-b61e-05e551f3360b',
+                userId: '01a01ce0-c270-75ad-ae24-a054943629cc',
+                displayName: 'Nguyen Trong Tin',
+                role: 'captain',
+              ),
+              BillMemberEntity(
+                memberId: '01a03a02-0001-7000-8000-000000000001',
+                userId: '01a03a01-0001-7000-8000-000000000001',
+                displayName: 'Lê Nam',
+              ),
+              BillMemberEntity(
+                memberId: '01a03a02-0002-7000-8000-000000000002',
+                userId: '01a03a01-0002-7000-8000-000000000002',
+                displayName: 'Hoàng Linh',
+              ),
+              BillMemberEntity(
+                memberId: '01a03a02-0003-7000-8000-000000000003',
+                userId: '01a03a01-0003-7000-8000-000000000003',
+                displayName: 'Minh Tuấn',
+              ),
+              BillMemberEntity(
+                memberId: '01a03a02-0004-7000-8000-000000000004',
+                userId: '01a03a01-0004-7000-8000-000000000004',
+                displayName: 'Thu Hà',
+              ),
+            ],
+          );
+          return BillDetailPage(initialBill: initialBill);
+        },
+      ),
+      GoRoute(
         path: AppRoutes.groups,
         builder: (context, state) => const GroupsPage(),
         routes: [
           GoRoute(
             path: ':groupId',
-            // Nhóm được truyền qua `extra` để tránh fetch lại ngay sau điều hướng.
             builder: (context, state) => GroupDetailPage(group: state.extra! as GroupEntity),
             routes: [
               GoRoute(

@@ -13,8 +13,9 @@ abstract class NetworkModule {
     final dio = Dio(
       BaseOptions(
         baseUrl: EnvConfig.apiBaseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 90),
+        receiveTimeout: const Duration(seconds: 90),
+        sendTimeout: const Duration(seconds: 90),
         contentType: 'application/json',
       ),
     );

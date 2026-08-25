@@ -8,6 +8,7 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
+import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
 import '../widgets/actionable_debts_section.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/my_groups_carousel.dart';
@@ -174,7 +175,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                   // 1. Hero Net Balance Card
                   NetBalanceHeroCard(
                     onPayVietQr: () => showComingSoonSnackBar(context, 'Thanh toán VietQR'),
-                    onScanBill: () => context.push(AppRoutes.bills),
+                    onScanBill: () async {
+                      final selected = await GroupPickerBottomSheet.show(
+                        context,
+                        currentGroupId: 'g-1',
+                      );
+                      if (selected != null && context.mounted) {
+                        await context.push(AppRoutes.scanBill, extra: {
+                          'groupId': selected.id,
+                          'groupName': selected.name,
+                        });
+                      }
+                    },
                     onCreateGroup: () => context.push(AppRoutes.groups),
                   ),
                   const SizedBox(height: 22),
