@@ -3,10 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+import 'package:image_picker/image_picker.dart';
+
+import '../../../../core/error/failures.dart';
 import '../../../../core/utils/ui_feedback.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../data/mock/group_mock_data.dart';
+import '../../../../di/injection.dart';
+import '../../data/qr_image_decoder.dart';
 import '../../domain/entities/group_entity.dart';
+import '../../domain/invite_code.dart';
+import '../../domain/usecases/preview_invite_usecase.dart';
 import '../widgets/join_by_link_bottom_sheet.dart';
 
 /// Màn hình quét QR để vào nhóm.
@@ -41,10 +46,67 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
     super.dispose();
   }
 
-  /// Điểm vào duy nhất khi có mã được nhận diện (mock hoặc camera thật).
-  void _onCodeDetected(GroupEntity group) {
-    HapticFeedback.mediumImpact();
-    Navigator.of(context).pop(group);
+  bool _isDecoding = false;
+
+  /// Điểm vào duy nhất cho mọi nguồn mã: chọn ảnh, và sau này là camera.
+  ///
+  /// Nhận **chuỗi thô** trong mã QR (chính là `invite_url`), tách lấy mã mời rồi
+  /// xác thực với backend qua `GET /groups/invites/{code}` trước khi trả về màn
+  /// gọi — không tin tưởng nội dung quét được.
+  Future<void> _onCodeDetected(String raw) async {
+    final code = extractInviteCode(raw);
+    if (code.length != kInviteCodeLength) {
+      showErrorSnackBar(context, 'Mã QR này không phải lời mời vào nhóm PaySplit.');
+      return;
+    }
+
+    final result = await getIt<PreviewInviteUseCase>().call(code);
+    if (!mounted) return;
+
+    final failure = result.fold<Failure?>((f) => f, (_) => null);
+    if (failure != null) {
+      showErrorSnackBar(context, failure.message);
+      return;
+    }
+
+    final preview = result.getRight().toNullable()!;
+    await HapticFeedback.mediumImpact();
+    if (!mounted) return;
+    Navigator.of(context).pop(
+      GroupEntity(
+        // Chưa biết id thật của nhóm trước khi tham gia.
+        id: 'preview:$code',
+        name: preview.groupName,
+        memberCount: preview.activeMemberCount,
+        myBalance: 0,
+        inviteCode: code,
+        isCaptain: false,
+        lastActivity: 'Trưởng nhóm: ${preview.captainDisplayName}',
+      ),
+    );
+  }
+
+  /// Chọn một ảnh QR từ thư viện và giải mã hoàn toàn phía client.
+  ///
+  /// Đây là cách thử luồng vào nhóm khi chưa tích hợp camera, và là cách duy
+  /// nhất chạy được trên Flutter Web.
+  Future<void> _pickQrImage() async {
+    if (_isDecoding) return;
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null || !mounted) return;
+
+    setState(() => _isDecoding = true);
+    final bytes = await picked.readAsBytes();
+    final decoded = decodeQrFromImageBytes(bytes);
+    if (!mounted) return;
+    setState(() => _isDecoding = false);
+
+    switch (decoded) {
+      case QrDecodeFailure(:final message):
+        showErrorSnackBar(context, message);
+      case QrDecodeSuccess(:final text):
+        await _onCodeDetected(text);
+    }
   }
 
   @override
@@ -106,18 +168,6 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
                 ),
                 const SizedBox(height: 14),
 
-                // Mô phỏng quét thành công để đi tiếp luồng khi chưa có camera.
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: AppButton(
-                    label: 'Mô phỏng quét thành công',
-                    variant: AppButtonVariant.gradient,
-                    icon: const Icon(HugeIcons.strokeRoundedQrCode, size: 18, color: Colors.white),
-                    onPressed: () => _onCodeDetected(GroupMockData.myGroups.last),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   child: Row(
@@ -125,8 +175,8 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
                       Expanded(
                         child: _GhostAction(
                           icon: HugeIcons.strokeRoundedImage02,
-                          label: 'Chọn ảnh QR',
-                          onTap: () => showComingSoonSnackBar(context, 'Quét QR từ thư viện'),
+                          label: _isDecoding ? 'Đang đọc mã...' : 'Chọn ảnh QR',
+                          onTap: _isDecoding ? null : _pickQrImage,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -281,7 +331,9 @@ class _GhostAction extends StatelessWidget {
 
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+
+  /// `null` để vô hiệu hóa trong lúc đang xử lý.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

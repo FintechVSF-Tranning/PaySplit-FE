@@ -7,8 +7,10 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/error/failures.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
+import '../../../../di/injection.dart';
 import '../../../home/presentation/widgets/app_bottom_nav_bar.dart';
 import '../../../home/presentation/widgets/group_settings_bottom_sheet.dart';
 import '../../../home/presentation/widgets/invite_code_bottom_sheet.dart';
@@ -17,6 +19,12 @@ import '../../domain/entities/group_debt_entity.dart';
 import '../../domain/entities/group_detail_entity.dart';
 import '../../domain/entities/group_entity.dart';
 import '../../domain/entities/group_member_entity.dart';
+import '../../domain/repositories/group_repository.dart';
+import '../../domain/usecases/create_invite_usecase.dart';
+import '../../domain/usecases/leave_or_remove_member_usecase.dart';
+import '../../domain/usecases/list_invites_usecase.dart';
+import '../../domain/usecases/revoke_invite_usecase.dart';
+import '../../domain/usecases/transfer_captain_usecase.dart';
 import '../providers/group_detail_provider.dart';
 import '../providers/groups_provider.dart';
 import '../widgets/bill_speed_dial.dart';
@@ -70,12 +78,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
                   onBack: () => Navigator.of(context).maybePop(),
                   onSettings: () => _openSettings(detail),
                 ),
-                if (detail.group.isClosed)
-                  _ClosedRibbon(
-                    closedAtText: detail.group.closedAtText,
-                    canReopen: detail.group.isCaptain,
-                    onReopen: () => _reopenBook(detail),
-                  ),
+                if (detail.group.isClosed) _ClosedRibbon(closedAtText: detail.group.closedAtText),
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
@@ -287,21 +290,11 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
 
     _notifier.closeBook(closedAt);
-    ref
-        .read(groupsProvider.notifier)
-        .setGroupStatus(detail.group.id, GroupStatus.closed, closedAtText: closedAt);
+    ref.read(groupsProvider.notifier).markGroupClosedLocally(detail.group.id, closedAt);
     await HapticFeedback.mediumImpact();
     if (!mounted) return true;
     showSuccessSnackBar(context, 'Đã khóa bill nhóm ${detail.group.name}');
     return true;
-  }
-
-  Future<void> _reopenBook(GroupDetailEntity detail) async {
-    _notifier.reopenBook();
-    ref.read(groupsProvider.notifier).setGroupStatus(detail.group.id, GroupStatus.active);
-    await HapticFeedback.lightImpact();
-    if (!mounted) return;
-    showSuccessSnackBar(context, 'Đã mở khóa bill, có thể thêm hóa đơn mới');
   }
 
   void _loadMoreActivities() {
@@ -331,24 +324,47 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
     }
   }
 
+  /// Sheet mã mời chạy trên API thật: liệt kê `GET /groups/{id}/invites`, tạo
+  /// `POST .../invites`, thu hồi `DELETE .../invites/{inviteId}`.
   Future<void> _openInviteCodes(GroupDetailEntity detail) async {
+    final groupId = detail.group.id;
+    final listed = await getIt<ListInvitesUseCase>().call(groupId);
+    if (!mounted) return;
+    final invites = listed.fold<List<GroupInvite>>((_) => const [], (items) => items);
+    final failure = listed.fold<Failure?>((f) => f, (_) => null);
+    if (failure != null) {
+      showErrorSnackBar(context, failure.message);
+      return;
+    }
+
     await InviteCodeBottomSheet.show(
       context: context,
-      initialInvites: [
-        InviteCodeItem(
-          id: 'inv_1',
-          code: detail.group.inviteCode,
-          statusText: 'Còn 23 giờ, 12/50 lượt',
-          inviteUrl: detail.group.inviteLink,
-        ),
-      ],
-      onCreateInvite: () async => InviteCodeItem(
-        id: 'inv_${DateTime.now().millisecondsSinceEpoch}',
-        code: detail.group.inviteCode,
-        statusText: 'Còn 24 giờ, 0/50 lượt',
-        inviteUrl: detail.group.inviteLink,
-      ),
-      onRevokeInvite: (_) async => true,
+      initialInvites: invites.map(_toInviteItem).toList(),
+      onCreateInvite: () async {
+        final created = await getIt<CreateInviteUseCase>().call(
+          CreateInviteParams(groupId: groupId),
+        );
+        return created.fold((_) => null, _toInviteItem);
+      },
+      onRevokeInvite: (inviteId) async {
+        final revoked = await getIt<RevokeInviteUseCase>().call(
+          RevokeInviteParams(groupId: groupId, inviteId: inviteId),
+        );
+        return revoked.isRight();
+      },
+    );
+  }
+
+  InviteCodeItem _toInviteItem(GroupInvite invite) {
+    final hoursLeft = invite.expiresAt.difference(DateTime.now()).inHours;
+    final uses = invite.maxUses == null
+        ? '${invite.useCount} lượt'
+        : '${invite.useCount}/${invite.maxUses} lượt';
+    return InviteCodeItem(
+      id: invite.id,
+      code: invite.code,
+      statusText: hoursLeft <= 0 ? 'Đã hết hạn, $uses' : 'Còn $hoursLeft giờ, $uses',
+      inviteUrl: invite.inviteUrl,
     );
   }
 
@@ -374,22 +390,48 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
           ),
       ],
       onRenameGroup: (newName) async {
+        final failure = await ref
+            .read(groupsProvider.notifier)
+            .renameGroup(detail.group.id, newName);
+        if (failure != null) {
+          if (mounted) showErrorSnackBar(context, failure.message);
+          return false;
+        }
         _notifier.renameGroup(newName);
-        ref.read(groupsProvider.notifier).renameGroup(detail.group.id, newName);
         return true;
       },
       onTransferCaptain: (membershipId) async {
+        final result = await getIt<TransferCaptainUseCase>().call(
+          MemberParams(groupId: detail.group.id, membershipId: membershipId),
+        );
+        final failure = result.fold<Failure?>((f) => f, (_) => null);
+        if (failure != null) {
+          if (mounted) showErrorSnackBar(context, failure.message);
+          return false;
+        }
         _notifier.transferCaptain(membershipId);
         return true;
       },
       onRemoveMember: (membershipId) async {
+        final result = await getIt<LeaveOrRemoveMemberUseCase>().call(
+          MemberParams(groupId: detail.group.id, membershipId: membershipId),
+        );
+        final failure = result.fold<Failure?>((f) => f, (_) => null);
+        if (failure != null) {
+          if (mounted) showErrorSnackBar(context, failure.message);
+          return false;
+        }
         _notifier.removeMember(membershipId);
         return true;
       },
       onCloseBook: () async => _closeBook(detail),
       onLeaveGroup: () async => _tryLeaveGroup(detail),
       onDisbandGroup: () async {
-        ref.read(groupsProvider.notifier).deleteGroup(detail.group.id);
+        final failure = await ref.read(groupsProvider.notifier).disbandGroup(detail.group.id);
+        if (failure != null) {
+          if (mounted) showErrorSnackBar(context, failure.message);
+          return false;
+        }
         _disbanded = true;
         return true;
       },
@@ -405,13 +447,25 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
     await Navigator.of(context).maybePop();
   }
 
-  /// Chỉ cho rời nhóm khi đã sạch nợ — khớp ràng buộc 409 của backend.
+  /// Chặn sớm khi còn công nợ để không phải chờ 409 của backend, rồi gọi
+  /// `DELETE /groups/{id}/members/{membershipId}` với membership của chính mình.
   Future<bool> _tryLeaveGroup(GroupDetailEntity detail) async {
     if (detail.group.myBalance != 0) {
       showErrorSnackBar(context, 'Bạn còn công nợ mở. Hãy tất toán trước khi rời nhóm.');
       return false;
     }
-    ref.read(groupsProvider.notifier).deleteGroup(detail.group.id);
+    final myMembershipId = detail.members
+        .firstWhere((m) => m.isMe, orElse: () => detail.members.first)
+        .member
+        .id;
+    final failure = await ref
+        .read(groupsProvider.notifier)
+        .leaveGroup(detail.group.id, myMembershipId);
+    if (!mounted) return false;
+    if (failure != null) {
+      showErrorSnackBar(context, failure.message);
+      return false;
+    }
     showSuccessSnackBar(context, 'Đã rời nhóm ${detail.group.name}');
     return true;
   }
@@ -934,16 +988,12 @@ class _OptionTile extends StatelessWidget {
 
 /// Dải ribbon dưới header khi nhóm đã khóa bill: nói rõ cái gì bị khóa và cái
 /// gì vẫn chạy tiếp (công nợ), kèm lối mở khóa cho trưởng nhóm.
+/// Khóa gửi hóa đơn ở backend là **một chiều** (Spec 0008): không có endpoint
+/// mở lại, nên dải băng này chỉ thông báo, không kèm hành động.
 class _ClosedRibbon extends StatelessWidget {
-  const _ClosedRibbon({
-    required this.closedAtText,
-    required this.canReopen,
-    required this.onReopen,
-  });
+  const _ClosedRibbon({required this.closedAtText});
 
   final String? closedAtText;
-  final bool canReopen;
-  final VoidCallback onReopen;
 
   @override
   Widget build(BuildContext context) {
@@ -998,29 +1048,6 @@ class _ClosedRibbon extends StatelessWidget {
               ],
             ),
           ),
-          if (canReopen) ...[
-            const SizedBox(width: 8),
-            InkWell(
-              onTap: onReopen,
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text(
-                  'Mở khóa bill',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );

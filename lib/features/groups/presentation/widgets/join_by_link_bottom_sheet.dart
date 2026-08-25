@@ -5,8 +5,11 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../data/mock/group_mock_data.dart';
+import '../../../../di/injection.dart';
 import '../../domain/entities/group_entity.dart';
+import '../../domain/invite_code.dart';
+import '../../domain/usecases/preview_invite_usecase.dart';
+import 'group_avatar.dart';
 
 /// Sheet 2 bước: Nhập link/mã mời → Preview nhóm → Xác nhận tham gia.
 ///
@@ -50,16 +53,10 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
     super.dispose();
   }
 
-  /// Tách mã mời khỏi link đầy đủ hoặc chấp nhận mã nhập tay.
-  String _extractCode(String raw) {
-    final value = raw.trim();
-    final slash = value.lastIndexOf('/');
-    return (slash >= 0 ? value.substring(slash + 1) : value).toUpperCase();
-  }
-
   Future<void> _resolve() async {
-    final code = _extractCode(_controller.text);
-    if (code.length < 5) {
+    final code = extractInviteCode(_controller.text);
+    // Kiểm tra độ dài tại chỗ để báo lỗi ngay thay vì đợi một vòng API trả 404.
+    if (code.length != kInviteCodeLength) {
       setState(() => _errorText = 'Link hoặc mã mời không hợp lệ');
       return;
     }
@@ -68,37 +65,40 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
       _errorText = null;
       _isResolving = true;
     });
-    await Future<void>.delayed(const Duration(milliseconds: 700));
+
+    // `GET /groups/invites/{code}` chỉ trả thông tin xem trước, chưa đưa người
+    // dùng vào nhóm; việc tham gia do `POST /groups/join` thực hiện sau đó.
+    final result = await getIt<PreviewInviteUseCase>().call(code);
     if (!mounted) return;
 
-    final matched = GroupMockData.myGroups
-        .where((g) => g.inviteCode.toUpperCase() == code)
-        .cast<GroupEntity?>()
-        .firstWhere((_) => true, orElse: () => null);
-
-    setState(() {
-      _isResolving = false;
-      _preview =
-          matched ??
-          GroupEntity(
-            id: 'g_preview_$code',
-            name: 'Team Building Vũng Tàu',
-            emoji: '🍻',
-            memberCount: 12,
-            myBalance: 0,
-            inviteCode: code,
-            isCaptain: false,
-            lastActivity: 'Nhóm đang mở, chờ bạn tham gia',
-            lastActivityAt: DateTime.now(),
-          );
-    });
+    result.fold(
+      (failure) => setState(() {
+        _isResolving = false;
+        _preview = null;
+        _errorText = failure.message;
+      }),
+      (preview) => setState(() {
+        _isResolving = false;
+        _preview = GroupEntity(
+          // Xem trước chưa biết id thật của nhóm; id chỉ có sau khi tham gia.
+          id: 'preview:$code',
+          name: preview.groupName,
+          memberCount: preview.activeMemberCount,
+          myBalance: 0,
+          inviteCode: code,
+          isCaptain: false,
+          lastActivity: 'Trưởng nhóm: ${preview.captainDisplayName}',
+        );
+      }),
+    );
   }
 
   Future<void> _join() async {
     setState(() => _isJoining = true);
     await HapticFeedback.mediumImpact();
-    await Future<void>.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
+    // Màn hình gọi sheet này sẽ thực hiện `POST /groups/join` bằng inviteCode
+    // đính kèm trong bản xem trước.
     Navigator.of(context).pop(_preview);
   }
 
@@ -150,7 +150,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                           const SizedBox(height: 4),
                           Text(
                             preview == null
-                                ? 'Bước 1/2 · Dán link mời hoặc nhập mã 6–8 ký tự'
+                                ? 'Bước 1/2 · Dán link mời hoặc nhập mã 8 ký tự (phân biệt hoa thường)'
                                 : 'Bước 2/2 · Kiểm tra thông tin nhóm trước khi tham gia',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 12.5,
@@ -225,7 +225,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 15),
-                    hintText: 'paysplit.app/j/DALAT2026',
+                    hintText: 'paysplit.app/j/aB3xKm9Z',
                     hintStyle: GoogleFonts.jetBrainsMono(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -289,7 +289,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                   border: Border.all(color: AppColors.border),
                 ),
                 alignment: Alignment.center,
-                child: Text(group.emoji, style: const TextStyle(fontSize: 24)),
+                child: GroupAvatar(group: group, size: 48),
               ),
               const SizedBox(width: 14),
               Expanded(
