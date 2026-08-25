@@ -26,6 +26,34 @@ const Map<String, String> _errorMessages = {
   'VALIDATION_FAILED':
       'Dữ liệu nhập vào chưa đúng định dạng. Vui lòng kiểm tra lại.',
   'INTERNAL_ERROR': 'Hệ thống đang gặp sự cố tạm thời, vui lòng thử lại sau.',
+
+  // --- Xác thực ---
+  // Backend trả nguyên văn tiếng Anh "authentication required" khi request
+  // không mang access token hợp lệ; thiếu mục này thì chuỗi đó lọt thẳng lên
+  // giao diện.
+  'AUTHENTICATION_REQUIRED': 'Bạn cần đăng nhập để thực hiện thao tác này.',
+  'UNAUTHORIZED': 'Bạn cần đăng nhập để thực hiện thao tác này.',
+  'FORBIDDEN': 'Bạn không có quyền thực hiện thao tác này.',
+
+  // --- Nhóm (module group) ---
+  'GROUP_NOT_FOUND':
+      'Không tìm thấy nhóm, hoặc bạn không còn là thành viên.',
+  'INVITE_NOT_FOUND':
+      'Mã mời không tồn tại, đã bị thu hồi hoặc đã hết hạn. Hãy xin mã mới từ trưởng nhóm.',
+  'MEMBER_NOT_FOUND': 'Không tìm thấy thành viên này trong nhóm.',
+  'CAPTAIN_REQUIRED': 'Chỉ trưởng nhóm mới được thực hiện thao tác này.',
+  'CAPTAIN_TRANSFER_REQUIRED':
+      'Bạn đang là trưởng nhóm. Hãy chuyển quyền cho người khác trước khi rời nhóm.',
+  'CAPTAIN_TRANSFER_CONFLICT':
+      'Quyền trưởng nhóm vừa thay đổi. Hãy tải lại nhóm rồi thử lại.',
+  'GROUP_MEMBER_LIMIT_REACHED': 'Nhóm đã đạt số lượng thành viên tối đa.',
+  'GROUP_MEMBER_HAS_OPEN_DEBTS':
+      'Thành viên này còn công nợ chưa tất toán nên chưa thể rời hoặc bị xóa khỏi nhóm.',
+  'GROUP_HAS_UNSETTLED_OBLIGATIONS':
+      'Nhóm còn hóa đơn hoặc công nợ chưa xong nên chưa thể giải tán.',
+  'BULK_FINALIZE_IN_PROGRESS':
+      'Nhóm đang chốt hóa đơn hàng loạt. Vui lòng đợi hoàn tất.',
+  'INVALID_CURSOR': 'Dữ liệu phân trang không hợp lệ. Hãy tải lại danh sách.',
 };
 
 Failure mapDioError(DioException error) {

@@ -12,6 +12,7 @@ import '../../domain/entities/group_member_entity.dart';
 import '../providers/groups_provider.dart';
 import '../widgets/invite_link_bottom_sheet.dart';
 import '../widgets/invite_qr_bottom_sheet.dart';
+import '../widgets/group_avatar.dart';
 
 /// Màn hình thêm thành viên, mở ngay sau khi tạo nhóm thành công.
 ///
@@ -46,7 +47,9 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
 
   void _finish(List<GroupMemberEntity> contacts) {
     final selected = contacts.where((c) => _selectedIds.contains(c.id)).toList();
-    ref.read(groupsProvider.notifier).addMembers(widget.group.id, selected);
+    // Backend không có `POST /groups/{id}/members`: người được mời phải tự vào
+    // bằng mã mời, nên ở đây chỉ cập nhật sĩ số hiển thị (mục 3.6).
+    ref.read(groupsProvider.notifier).bumpMemberCountLocally(widget.group.id, selected.length);
 
     final message = selected.isEmpty
         ? 'Đã tạo nhóm ${widget.group.name}'
@@ -64,7 +67,7 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
               .where(
                 (c) =>
                     c.name.toLowerCase().contains(_query) ||
-                    c.phone.replaceAll(' ', '').contains(_query),
+                    (c.phone ?? '').replaceAll(' ', '').contains(_query),
               )
               .toList();
 
@@ -293,7 +296,7 @@ class _CreatedGroupBanner extends StatelessWidget {
               border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
             ),
             alignment: Alignment.center,
-            child: Text(group.emoji, style: const TextStyle(fontSize: 23)),
+            child: GroupAvatar(group: group, size: 44),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -331,15 +334,18 @@ class _CreatedGroupBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Mã mời: ${group.inviteCode}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.85),
-                    letterSpacing: 1,
+                // Mã mời không đi kèm response nhóm; nó được tải trong sheet
+                // "Link mời"/"QR mời" nên chỉ hiện ở đây khi đã biết.
+                if (group.inviteCode != null)
+                  Text(
+                    'Mã mời: ${group.inviteCode}',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      letterSpacing: 1,
+                    ),
                   ),
-                ),
               ],
             ),
           ),

@@ -19,7 +19,7 @@ abstract class NetworkModule {
       ),
     );
 
-    dio.interceptors.add(AuthInterceptor(tokenStorage));
+    dio.interceptors.add(AuthInterceptor(tokenStorage, EnvConfig.apiBaseUrl));
 
     if (!EnvConfig.isProduction) {
       dio.interceptors.add(PrettyDioLogger());

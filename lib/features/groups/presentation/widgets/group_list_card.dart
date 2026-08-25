@@ -5,6 +5,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/group_entity.dart';
+import 'group_avatar.dart';
 
 /// Thẻ nhóm trong danh sách "Nhóm của tôi": bo góc 18px, viền 1px, bóng mềm.
 class GroupListCard extends StatelessWidget {
@@ -57,22 +58,7 @@ class GroupListCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: isClosed ? AppColors.surfaceMuted : AppColors.primarySubtle,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isClosed ? AppColors.border : AppColors.primaryBorder,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Opacity(
-                    opacity: isClosed ? 0.55 : 1,
-                    child: Text(group.emoji, style: const TextStyle(fontSize: 21)),
-                  ),
-                ),
+                GroupAvatar(group: group, muted: isClosed),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -187,7 +173,7 @@ class GroupListCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    group.lastActivity,
+                    group.lastActivity ?? 'Chưa có hoạt động nào',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.plusJakartaSans(
@@ -201,7 +187,9 @@ class GroupListCard extends StatelessWidget {
                 Text(
                   isClosed && group.closedAtText != null
                       ? 'Khóa bill ${group.closedAtText}'
-                      : formatRelativeTime(group.lastActivityAt),
+                      : group.lastActivityAt == null
+                      ? ''
+                      : formatRelativeTime(group.lastActivityAt!),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,

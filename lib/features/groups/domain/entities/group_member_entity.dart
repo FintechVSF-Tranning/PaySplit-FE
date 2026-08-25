@@ -8,7 +8,7 @@ class GroupMemberEntity extends Equatable {
   const GroupMemberEntity({
     required this.id,
     required this.name,
-    required this.phone,
+    this.phone,
     this.avatarUrl,
     this.role = GroupMemberRole.member,
     this.sharedGroupCount = 0,
@@ -16,7 +16,10 @@ class GroupMemberEntity extends Equatable {
 
   final String id;
   final String name;
-  final String phone;
+
+  /// Số điện thoại. `null` từ API nhóm: `memberResponse` của backend cố ý
+  /// không trả số điện thoại thành viên vì lý do quyền riêng tư.
+  final String? phone;
   final String? avatarUrl;
   final GroupMemberRole role;
 
