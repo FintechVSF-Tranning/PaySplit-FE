@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/bill_entity.dart';
 import '../providers/bills_provider.dart';
+import '../widgets/group_picker_bottom_sheet.dart';
 
 class BillsPage extends ConsumerWidget {
   const BillsPage({super.key});
@@ -67,6 +70,24 @@ class BillsPage extends ConsumerWidget {
             );
           },
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final selected = await GroupPickerBottomSheet.show(
+            context,
+            currentGroupId: 'g-1',
+          );
+          if (selected != null && context.mounted) {
+            await context.push(AppRoutes.scanBill, extra: {
+              'groupId': selected.id,
+              'groupName': selected.name,
+            });
+          }
+        },
+        backgroundColor: const Color(0xFF0F766E),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.camera_alt_outlined),
+        label: const Text('Chụp bill mới'),
       ),
     );
   }
