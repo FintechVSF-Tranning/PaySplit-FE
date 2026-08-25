@@ -18,4 +18,18 @@ abstract class ApiEndpoints {
   static const String scanReceipt = '/bills/scan';
 
   static String vietQr(String billId) => '/bills/$billId/vietqr';
+
+  static const String groups = '/groups';
+  static String groupDebts(String groupId) => '/groups/$groupId/debts';
+  static String remindDebt(String groupId, String debtId) =>
+      '/groups/$groupId/debts/$debtId/remind';
+  static String paymentQr(String groupId) => '/groups/$groupId/payments/qr';
+  static String payment(String groupId, String paymentId) =>
+      '/groups/$groupId/payments/$paymentId';
+  static String paymentProof(String groupId, String paymentId) =>
+      '/groups/$groupId/payments/$paymentId/proof';
+  static String confirmPayment(String groupId, String paymentId) =>
+      '/groups/$groupId/payments/$paymentId/confirm';
+  static String rejectPayment(String groupId, String paymentId) =>
+      '/groups/$groupId/payments/$paymentId/reject';
 }

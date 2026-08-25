@@ -9,7 +9,6 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../home/presentation/widgets/app_bottom_nav_bar.dart';
 import '../../domain/entities/group_entity.dart';
 import '../providers/groups_provider.dart';
 import '../widgets/create_group_bottom_sheet.dart';
@@ -36,7 +35,9 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 
     final activeGroups = groups.where((g) => !g.isClosed).toList();
     final closedGroups = groups.where((g) => g.isClosed).toList();
-    final visibleGroups = _lifecycle == GroupStatus.active ? activeGroups : closedGroups;
+    final visibleGroups = _lifecycle == GroupStatus.active
+        ? activeGroups
+        : closedGroups;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF9),
@@ -101,17 +102,22 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                         const SizedBox(height: 24),
 
                         if (recentGroups.isNotEmpty) ...[
-                          _SectionTitle(title: 'Nhóm gần đây', trailing: 'Lịch sử truy cập'),
+                          _SectionTitle(
+                            title: 'Nhóm gần đây',
+                            trailing: 'Lịch sử truy cập',
+                          ),
                           const SizedBox(height: 10),
                           SizedBox(
                             height: 44,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: recentGroups.length,
-                              separatorBuilder: (_, _) => const SizedBox(width: 10),
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(width: 10),
                               itemBuilder: (context, index) => _RecentGroupChip(
                                 group: recentGroups[index],
-                                onTap: () => _openDetail(context, recentGroups[index]),
+                                onTap: () =>
+                                    _openDetail(context, recentGroups[index]),
                               ),
                             ),
                           ),
@@ -140,7 +146,9 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 
                 if (groups.isEmpty)
                   SliverToBoxAdapter(
-                    child: _EmptyGroupsState(onCreate: () => _createGroup(context, ref)),
+                    child: _EmptyGroupsState(
+                      onCreate: () => _createGroup(context, ref),
+                    ),
                   )
                 else if (visibleGroups.isEmpty)
                   const SliverToBoxAdapter(child: _EmptyClosedState())
@@ -157,27 +165,6 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                     ),
                   ),
               ],
-            ),
-          ),
-
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: AppBottomNavBar(
-              currentIndex: 1,
-              onTap: (index) {
-                switch (index) {
-                  case 0:
-                    context.go(AppRoutes.home);
-                  case 1:
-                    break;
-                  case 2:
-                    context.push(AppRoutes.bills);
-                  case 3:
-                    context.push(AppRoutes.profile);
-                }
-              },
             ),
           ),
         ],
@@ -206,9 +193,9 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
   }
 
   Future<void> _joinByQr(BuildContext context, WidgetRef ref) async {
-    final group = await Navigator.of(
-      context,
-    ).push<GroupEntity>(MaterialPageRoute(builder: (_) => const ScanQrJoinPage()));
+    final group = await Navigator.of(context).push<GroupEntity>(
+      MaterialPageRoute(builder: (_) => const ScanQrJoinPage()),
+    );
     if (group == null) return;
     ref.read(groupsProvider.notifier).joinGroup(group);
     if (!context.mounted) return;
@@ -261,7 +248,11 @@ class _Header extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
               border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
-            child: const Icon(HugeIcons.strokeRoundedSearch01, size: 20, color: Colors.white),
+            child: const Icon(
+              HugeIcons.strokeRoundedSearch01,
+              size: 20,
+              color: Colors.white,
+            ),
           ),
         ),
       ],
@@ -271,7 +262,11 @@ class _Header extends StatelessWidget {
 
 /// Ô hành động tham gia nhóm — nền trắng nổi trên dải sóng Teal.
 class _JoinActionTile extends StatelessWidget {
-  const _JoinActionTile({required this.icon, required this.label, required this.onTap});
+  const _JoinActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -522,7 +517,12 @@ class _GroupsHeaderWavePainter extends CustomPainter {
 
     final path = Path()
       ..lineTo(0, size.height - 35)
-      ..quadraticBezierTo(size.width * 0.5, size.height + 15, size.width, size.height - 35)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height + 15,
+        size.width,
+        size.height - 35,
+      )
       ..lineTo(size.width, 0)
       ..close();
 

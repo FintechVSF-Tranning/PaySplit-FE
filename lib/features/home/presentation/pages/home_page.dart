@@ -8,8 +8,8 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
+import '../../../settlement/presentation/providers/settlement_controller.dart';
 import '../widgets/actionable_debts_section.dart';
-import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/my_groups_carousel.dart';
 import '../widgets/net_balance_hero_card.dart';
 import '../widgets/recent_activity_timeline.dart';
@@ -22,13 +22,13 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  int _currentNavIndex = 0;
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).valueOrNull;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final displayName = (user?.name != null && user!.name.isNotEmpty) ? user.name : 'Hoàng Nam';
+    final displayName = (user?.name != null && user!.name.isNotEmpty)
+        ? user.name
+        : 'Hoàng Nam';
 
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
 
@@ -71,7 +71,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFF14B8A6), Color(0xFF0D9488)],
+                                  colors: [
+                                    Color(0xFF14B8A6),
+                                    Color(0xFF0D9488),
+                                  ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -127,7 +130,8 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                       // Notification Bell Button
                       InkWell(
-                        onTap: () => showComingSoonSnackBar(context, 'Thông báo'),
+                        onTap: () =>
+                            showComingSoonSnackBar(context, 'Thông báo'),
                         borderRadius: BorderRadius.circular(50),
                         child: Container(
                           width: 40,
@@ -173,21 +177,38 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   // 1. Hero Net Balance Card
                   NetBalanceHeroCard(
-                    onPayVietQr: () => showComingSoonSnackBar(context, 'Thanh toán VietQR'),
-                    onScanBill: () => context.push(AppRoutes.bills),
+                    onPayVietQr: () => context.push(
+                      AppRoutes.settlement,
+                      extra: SettlementTab.payable,
+                    ),
+                    onScanBill: () => context.push(
+                      AppRoutes.settlement,
+                      extra: SettlementTab.bills,
+                    ),
                     onCreateGroup: () => context.push(AppRoutes.groups),
                   ),
                   const SizedBox(height: 22),
 
                   // 2. Actionable Debts Section
                   ActionableDebtsSection(
-                    onViewAll: () => showComingSoonSnackBar(context, 'Tất cả công nợ'),
-                    onPayQr: (name, amount, ctx) =>
-                        showComingSoonSnackBar(context, 'Trả QR cho $name ($amount)'),
-                    onReviewProof: (name, amount) =>
-                        showComingSoonSnackBar(context, 'Duyệt biên lai của $name ($amount)'),
-                    onRemind: (name) =>
-                        showComingSoonSnackBar(context, 'Đã gửi nhắc nợ tới $name'),
+                    onViewAll: (tab) => context.push(
+                      AppRoutes.settlement,
+                      extra: tab == 0
+                          ? SettlementTab.payable
+                          : SettlementTab.receivable,
+                    ),
+                    onPayQr: (name, amount, ctx) => context.push(
+                      AppRoutes.settlement,
+                      extra: SettlementTab.payable,
+                    ),
+                    onReviewProof: (name, amount) => context.push(
+                      AppRoutes.settlement,
+                      extra: SettlementTab.receivable,
+                    ),
+                    onRemind: (name) => showComingSoonSnackBar(
+                      context,
+                      'Đã gửi nhắc nợ tới $name',
+                    ),
                   ),
                   const SizedBox(height: 22),
 
@@ -206,37 +227,21 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ),
           ),
-
-          // 3. Fixed Bottom Navigation Bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: AppBottomNavBar(
-              currentIndex: _currentNavIndex,
-              onTap: (index) {
-                if (index == 0) {
-                  setState(() => _currentNavIndex = 0);
-                } else if (index == 1) {
-                  context.push(AppRoutes.groups);
-                } else if (index == 2) {
-                  context.push(AppRoutes.bills);
-                } else if (index == 3) {
-                  context.push(AppRoutes.profile);
-                }
-              },
-            ),
-          ),
         ],
       ),
     );
   }
 
   static String _getInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return 'HN';
     if (parts.length == 1) return parts.first.characters.first.toUpperCase();
-    return (parts.first.characters.first + parts.last.characters.first).toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first)
+        .toUpperCase();
   }
 }
 
@@ -251,7 +256,11 @@ class _HomeHeaderWavePainter extends CustomPainter {
       ..shader = LinearGradient(
         colors: isDark
             ? [const Color(0xFF0F766E), const Color(0xFF132A24)]
-            : [const Color(0xFF0F766E), const Color(0xFF115E59), const Color(0xFF134E4A)],
+            : [
+                const Color(0xFF0F766E),
+                const Color(0xFF115E59),
+                const Color(0xFF134E4A),
+              ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ).createShader(rect);

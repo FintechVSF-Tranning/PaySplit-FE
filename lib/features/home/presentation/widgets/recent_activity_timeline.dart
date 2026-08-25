@@ -43,7 +43,7 @@ class RecentActivityTimeline extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const _ActivityCardItem(
-          icon: '⚡',
+          icon: '₫',
           iconBg: Color(0xFFFEF3C7),
           iconColor: Color(0xFFD97706),
           richTextParts: [
@@ -85,7 +85,9 @@ class _ActivityCardItem extends StatelessWidget {
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF334155);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF94A3B8);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

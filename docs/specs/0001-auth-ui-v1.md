@@ -81,7 +81,7 @@ Bao gồm 6 màn hình:
          - **5.0s sau khi hoàn thành**: Tự động reset và phát lại toàn bộ chu kỳ nếu người dùng vẫn ở màn hình Welcome.
   4. **Value Proposition Bullets (2 điểm chạm tinh gọn)**:
      - 📸 **Bóc tách hóa đơn AI**: Tự động nhận diện từng món và thuế phí.
-     - ⚡ **Thanh toán VietQR 1-chạm**: Trả đúng số tiền nợ, không cần nhập STK.
+     - **Thanh toán VietQR 1-chạm**: Trả đúng số tiền nợ, không cần nhập STK.
   5. **Action Buttons**:
      - Nút Chính (`FButton.primary` - Nền Teal `#0F766E`): `Tạo tài khoản mới` $\rightarrow$ Điều hướng tới `SignUpPage`.
      - Nút Phụ (`FButton.outline` - Viền 1px `#DBE0CE`): `Đã có tài khoản? Đăng nhập` $\rightarrow$ Điều hướng tới `SignInPage`.

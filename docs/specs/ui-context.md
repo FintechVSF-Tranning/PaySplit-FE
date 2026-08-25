@@ -174,10 +174,10 @@ Financial Mono (STK / OTP)    : JetBrains Mono SemiBold/Bold 600-700 / 14.5px–
        - **Âm (-)**: Nền `#FEF2F2`, chữ `#DC2626` (Red 600), badge Pill *"Bạn cần trả"*.
        - **Bằng 0**: Nền `#F8FAF9`, chữ `#0F172A`, badge Pill *"Đã cân bằng"*.
      - Dải chi tiết 2 chiều: `Đang cho nợ: +X đ` (xanh `#059669`) | `Đang nợ: -X đ` (đỏ `#DC2626`).
-     - Quick Action Bar 3 nút dạng Pill: `⚡ Trả nợ VietQR` (`HugeIcons.strokeRoundedQrCode`) | `📸 Quét bill OCR` (`HugeIcons.strokeRoundedCamera01`) | `👥 Tạo nhóm` (`HugeIcons.strokeRoundedUserGroup`).
+     - Quick Action Bar 3 nút dạng Pill: ` Trả nợ VietQR` (`HugeIcons.strokeRoundedQrCode`) | `📸 Quét bill OCR` (`HugeIcons.strokeRoundedCamera01`) | `👥 Tạo nhóm` (`HugeIcons.strokeRoundedUserGroup`).
   3. **Danh Sách Nợ Cần Xử Lý (Actionable Debts Widget)**:
      - Tab lọc Segmented Pill: `Cần trả (X)` | `Cần thu (Y)`.
-     - Mỗi dòng: Avatar tròn + Tên đối tác + Tên nhóm + Số tiền (`JetBrains Mono Bold 14px`) + Nút hành động `AppButton` (`[ Trả QR ⚡ ]` / `[ Duyệt proof ]` / `[ 🔔 Nhắc nợ ]` dùng `HugeIcons.strokeRoundedQrCode`, `strokeRoundedInvoice02`, `strokeRoundedNotification01`).
+     - Mỗi dòng: Avatar tròn + Tên đối tác + Tên nhóm + Số tiền (`JetBrains Mono Bold 14px`) + Nút hành động `AppButton` (`[ Trả QR ]` / `[ Duyệt proof ]` / `[ 🔔 Nhắc nợ ]` dùng `HugeIcons.strokeRoundedQrCode`, `strokeRoundedInvoice02`, `strokeRoundedNotification01`).
      - `[ Duyệt proof ]`: Mở Bottom Sheet xem ảnh biên lai ngân hàng điện tử chi tiết (mã FT, STK nguồn, STK nhận, thời gian, số tiền, lời nhắn từ người nợ theo `payments.note` và 1 nút tick xác nhận).
      - Nút `[ Xem tất cả ]`: Điều hướng sang **Màn hình 4 (Trung Tâm Công Nợ & Hóa Đơn)**.
   4. **Carousel Nhóm Của Tôi (Horizontal Groups Carousel)**:
@@ -267,7 +267,7 @@ Financial Mono (STK / OTP)    : JetBrains Mono SemiBold/Bold 600-700 / 14.5px–
   7. **Sticky Bottom Bar & Phân Quyền Chốt Hóa Đơn (Governance)**:
      - Tóm tắt phần cá nhân: `Phần của bạn: 349.500 đ` (`JetBrains Mono Bold 16px`, cập nhật live) + Nút `[ Xem bảng phân bổ ▾ ]` (mở `sheet-bill-breakdown`).
      - **Bản nháp (`draft`)**: Hiển thị nút `[ Lưu nháp ]` (Outline) và `[ Xét duyệt hóa đơn ]`.
-     - **Bản nháp đã review hợp lệ & Caller là Captain**: Hiển thị nút nổi bật `[ Xác nhận & Chốt hóa đơn ⚡ ]` (`AppButton.gradient`).
+     - **Bản nháp đã review hợp lệ & Caller là Captain**: Hiển thị nút nổi bật `[ Xác nhận & Chốt hóa đơn ]` (`AppButton.gradient`).
      - **Creditor không phải Captain**: Không nhìn thấy nút Chốt hóa đơn, kể cả đối với bill do chính mình tạo ra và review.
      - **Hóa đơn đã chốt (`finalized`)**: Chuyển hoàn toàn sang chế độ **Chỉ đọc (Immutable)**. Ẩn toàn bộ nút sửa món, OCR, lưu nháp, xóa món hay chốt bill. Chỉ hiển thị bảng phân bổ chi tiết và tiến độ thanh toán.
 
@@ -291,14 +291,14 @@ Financial Mono (STK / OTP)    : JetBrains Mono SemiBold/Bold 600-700 / 14.5px–
      - Thẻ bo góc `18px`, viền `1px solid #E2E8F0`, đổ bóng mềm.
      - Hiển thị 2 cột tổng quan: `Cần trả: -400.000 đ` (2 khoản, đỏ `#DC2626`) | `Cần thu: +1.250.000 đ` (3 khoản, xanh `#059669`).
      - Banner cảnh báo mini khi có proof chờ xử lý: `⚠️ 1 minh chứng chuyển khoản đang chờ bạn duyệt` (nền vàng `#FFFBEB`, viền `#FDE68A`).
-     - Nút hành động nhanh: `AppButton.primary` `[ Trả nợ ⚡ ]` (kèm `HugeIcons.strokeRoundedQrCode`, mở sheet `sheet-select-debt` "Chọn khoản nợ & Trả gộp" phân nhóm nợ theo từng chủ nợ; chỉ có thể gộp nhiều khoản nợ của cùng 1 người nhận để tạo 1 mã VietQR duy nhất đến STK chủ nợ đó).
+     - Nút hành động nhanh: `AppButton.primary` `[ Trả nợ ]` (kèm `HugeIcons.strokeRoundedQrCode`, mở sheet `sheet-select-debt` "Chọn khoản nợ & Trả gộp" phân nhóm nợ theo từng chủ nợ; chỉ có thể gộp nhiều khoản nợ của cùng 1 người nhận để tạo 1 mã VietQR duy nhất đến STK chủ nợ đó).
   3. **Thanh Tab Phân Loại (Segmented Pill Tabs)**:
      - `[ Cần trả (2) ]` | `[ Cần thu (3) ]` | `[ Hóa đơn (3) ]` | `[ Lịch sử ]`.
   4. **Nội dung Tab 1: Cần trả (Payable Debts - "Bạn nợ ai")**:
      - **Gom nợ theo từng chủ nợ (Single-Creditor Batching)**: Mỗi mã VietQR chỉ chuyển đến 1 tài khoản ngân hàng của 1 chủ nợ duy nhất.
      - Ví dụ: `Minh Tran` $\rightarrow$ `-120.000 đ` (Cơm trưa Lẩu gà) & `-80.000 đ` (Cafe Sprint 12) $\rightarrow$ Gộp thành `200.000 đ` trả qua STK Vietcombank của Minh Tran.
      - `Đức Huy` $\rightarrow$ `-280.000 đ` (Tiền xe Limousine) $\rightarrow$ Trả qua STK MB Bank của Đức Huy.
-     - Mỗi dòng: Avatar + Tên chủ nợ + Nhóm & nội dung + Số tiền đỏ (`JetBrains Mono Bold 14.5px`) + Nút `AppButton` `[ Trả QR ⚡ ]` (`HugeIcons.strokeRoundedQrCode`).
+     - Mỗi dòng: Avatar + Tên chủ nợ + Nhóm & nội dung + Số tiền đỏ (`JetBrains Mono Bold 14.5px`) + Nút `AppButton` `[ Trả QR ]` (`HugeIcons.strokeRoundedQrCode`).
      - Nút `[ Trả QR ]` $\rightarrow$ Mở **Dynamic VietQR Modal Sheet** (`sheet-vietqr` bo góc `24px`):
        - Ảnh mã QR chuẩn VietQR (NAPAS 247) tự động sinh số tiền chính xác và cú pháp chuyển tiền duy nhất.
        - Thông tin người nhận: Logo ngân hàng, Tên chủ tài khoản, Số tài khoản kèm nút `[ Copy ]` (`HugeIcons.strokeRoundedCopy01`).
@@ -320,7 +320,7 @@ Financial Mono (STK / OTP)    : JetBrains Mono SemiBold/Bold 600-700 / 14.5px–
        - Bấm vào hóa đơn nháp $\rightarrow$ Điều hướng sang **Màn hình 3 (Chi tiết OCR & Gán món)**.
   7. **Nội dung Tab 4: Lịch Sử Đã Quyết Toán (Settled History)**:
      - Danh sách các giao dịch công nợ đã hoàn tất thanh toán & đối soát thành công trong quá khứ kèm mốc thời gian.
-     - **Tương tác click xem chi tiết**: Bấm vào một dòng giao dịch bất kỳ để mở Bottom Sheet xem lại minh chứng chuyển tiền (`sheet-proof-review` ở chế độ đã đối soát), bao gồm ảnh biên lai điện tử (Ngân hàng, Tài khoản nguồn/nhận, Mã giao dịch FT, Thời gian, Số tiền), Lời nhắn từ người chuyển (`payments.note`), và huy hiệu *"Giao dịch đã được đối soát và ghi nhận số dư"*.
+     - **Tương tác click xem chi tiết**: Bấm vào một dòng giao dịch bất kỳ để mở Bottom Sheet xem lại minh chứng chuyển tiền (`sheet-proof-review` ở chế độ đã đối soát), bao gồm ảnh biên lai điện tử, ngân hàng nhận, tài khoản nhận, nội dung chuyển, thời gian, số tiền, lời nhắn từ người chuyển (`payments.note`), và huy hiệu *"Giao dịch đã được đối soát và ghi nhận số dư"*.
   8. **Bottom Navigation Dock (4 Tab - `AppBottomNavBar`)**:
      - `🏠 Tổng quan` | `👥 Nhóm` | `🧾 Hóa đơn` (Tab Active) | `⚙️ Cài đặt`.
 

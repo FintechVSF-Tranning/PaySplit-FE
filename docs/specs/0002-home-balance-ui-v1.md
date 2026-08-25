@@ -36,7 +36,7 @@ Thiết kế loại bỏ hoàn toàn các biểu đồ trang trí phức tạp (
 
 - **AC-UI-2 (Net Balance 3-State Visual Hero)**:
   - **Dương (+) - Bạn được nhận**: Nền số dư màu xanh ngọc nhạt (`#ECFDF5`), chữ xanh đậm (`#059669` — Emerald 600), số tiền hiển thị `+X.XXX.XXX đ` kèm nhãn *"Bạn được nhận lại"*.
-  - **Âm (-) - Bạn cần trả**: Nền số dư màu đỏ nhạt (`#FEF2F2`), chữ đỏ đậm (`#DC2626` — Red 600), số tiền hiển thị `-X.XXX.XXX đ` kèm nút nổi bật `[ Trả nợ ngay ⚡ ]`.
+  - **Âm (-) - Bạn cần trả**: Nền số dư màu đỏ nhạt (`#FEF2F2`), chữ đỏ đậm (`#DC2626` — Red 600), số tiền hiển thị `-X.XXX.XXX đ` kèm nút nổi bật `[ Trả nợ ngay ]`.
   - **Bằng 0 (0 đ) - Sạch nợ**: Nền số dư màu Olive nhạt (`#EDF0E6`), chữ xám đậm (`#1C2118`), hiển thị *"Đã thanh toán hết công nợ • Không có nợ đọng"*.
 
 - **AC-UI-3 (P2P Quick Settlement Hub)**:
@@ -81,7 +81,7 @@ Thiết kế loại bỏ hoàn toàn các biểu đồ trang trí phức tạp (
 │  │  TỔNG SỐ DƯ CÔNG NỢ (NET BALANCE)                          │  │
 │  │  +850.000 đ  (Bạn được nhận lại)                           │  │
 │  │  ────────────────────────────────────────────────────────  │  │
-│  │  [⚡ Trả nợ VietQR]   [📸 Quét hóa đơn]   [👥 Tạo nhóm]    │  │
+│  │  [ Trả nợ VietQR]   [📸 Quét hóa đơn]   [👥 Tạo nhóm]    │  │
 │  └────────────────────────────────────────────────────────────┘  │
 ├──────────────────────────────────────────────────────────────────┤
 │  [ACTIONABLE DEBTS & SETTLEMENTS]                                │
@@ -135,7 +135,7 @@ Thẻ trung tâm đặt trên nền trắng `FCard` bo góc `10px`, viền `1px 
   - `Đang cho nợ (Receivable)`: `+1.250.000 đ` (`JetBrains Mono Medium 13px, #059669`).
   - `Đang nợ (Payable)`: `-400.000 đ` (`JetBrains Mono Medium 13px, #DC2626`).
 - **Quick Action Bar (3 nút bấm nhanh dạng Pill)**:
-  1. `⚡ Trả nợ VietQR`: Mở Bottom Sheet chọn khoản nợ cần thanh toán (`Select Debt Sheet`) nếu người dùng có nhiều khoản nợ từ các chủ nợ khác nhau. Cho phép chọn 1 hoặc nhiều khoản nợ để tạo mã VietQR tương ứng. *(Lưu ý: Cơ chế gom nợ nâng cao & thanh toán đa chủ nợ được đặc tả chi tiết trong spec `0004-split-settlement-v1`)*.
+  1. ` Trả nợ VietQR`: Mở Bottom Sheet chọn khoản nợ cần thanh toán (`Select Debt Sheet`) nếu người dùng có nhiều khoản nợ từ các chủ nợ khác nhau. Cho phép chọn 1 hoặc nhiều khoản nợ để tạo mã VietQR tương ứng. *(Lưu ý: Cơ chế gom nợ nâng cao & thanh toán đa chủ nợ được đặc tả chi tiết trong spec `0004-split-settlement-v1`)*.
   2. `📸 Quét bill OCR`: Mở luồng chụp/chọn ảnh hóa đơn.
   3. `👥 Tạo nhóm`: Mở modal đặt tên và thêm thành viên nhóm mới.
 
@@ -149,7 +149,7 @@ Khu vực hiển thị danh sách các khoản nợ cần thanh toán hoặc c�
 - **Cấu trúc mỗi dòng nợ (Debt Item Row)**:
   - **Bên trái**: Avatar đối tác + Tên đối tác (`Roboto Slab Medium 14px`) + Tên hóa đơn/nhóm (`Roboto Slab Regular 12px, #676E5F`).
   - **Bên phải**: Số tiền nợ (`JetBrains Mono Bold 14px`) + Nút hành động tương ứng:
-    - Nếu là khoản cần trả: Nút `[ Trả QR ⚡ ]` (`FButton.outline`, kích thước nhỏ, màu Teal `#0F766E`). Bấm vào sinh ngay VietQR thanh toán cho chủ nợ đó.
+    - Nếu là khoản cần trả: Nút `[ Trả QR ]` (`FButton.outline`, kích thước nhỏ, màu Teal `#0F766E`). Bấm vào sinh ngay VietQR thanh toán cho chủ nợ đó.
     - Nếu là khoản cần thu mà đối tác đã chuyển: Nút `[ Duyệt proof ]` (`FButton.primary`, màu Xanh lá `#059669`). Bấm vào mở Bottom Sheet xem ảnh biên lai ngân hàng điện tử (mô phỏng phiếu chuyển khoản ngân hàng chuẩn với đầy đủ mã FT, STK nguồn, STK nhận, thời gian, số tiền, **lời nhắn từ người nợ** theo Spec 0004 AC-6 `payments.note` và 1 nút tick xác nhận duy nhất).
     - Nếu là khoản cần thu quá 24h: Nút `[ 🔔 Nhắc nợ ]` (`FButton.ghost`). Bấm vào gửi thông báo nhắc nợ tự động (áp dụng rate-limit 1 lần/24h).
 

@@ -1,7 +1,7 @@
 # 0007. Debt Settlement and Proof Review Hub UI Specification
 
 **Date**: 2026-08-25  
-**Status**: Proposed  
+**Status**: In Progress
 **Target release**: V1  
 **Platform**: Flutter 3.x, iOS and Android  
 **Feature areas**: `features/bills/`, `features/home/`, `features/groups/`  
@@ -48,11 +48,11 @@ Creditors also need a clear workflow to verify incoming bank transfers without m
 - **AC-2 (Summary Header and Quick Actions)**:
   - The top summary card displays the total payable balance in red (`#DC2626`) and the total receivable balance in green (`#059669`) across all active groups.
   - When there are pending proofs awaiting caller confirmation, a warning banner `1 proof đang chờ duyệt` appears with a pulsing dot. Tapping it switches to the `Cần thu` tab immediately.
-  - The `[ Trả nợ ⚡ ]` button opens the `sheet-select-debt` modal for single creditor debt batching.
+  - The `[ Trả nợ ]` button opens the `sheet-select-debt` modal for single creditor debt batching.
 
 - **AC-3 (Tab 1: Payable Debts and Single Creditor Batching)**:
   - Displays all unsettled debts where the caller is the debtor, showing creditor avatar, name, group context, bill title, and amount in Monospace font.
-  - Tapping `[ Trả QR ⚡ ]` on an individual debt opens the `sheet-vietqr` modal preloaded with the exact debt amount, recipient bank, account number, account holder, and reference code.
+  - Tapping `[ Trả QR ]` on an individual debt opens the `sheet-vietqr` modal preloaded with the exact debt amount, recipient bank, account number, account holder, and reference code.
   - The `sheet-select-debt` modal groups debts by creditor. Debts belonging to the same creditor can be checked or unchecked with reactive total updates. Tapping pay generates one VietQR code for the selected subset through `POST /api/v1/groups/{groupId}/payments/qr`.
 
 - **AC-4 (Dynamic VietQR Generation and Proof Upload Modal)**:

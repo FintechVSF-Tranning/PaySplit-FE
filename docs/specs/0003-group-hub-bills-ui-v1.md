@@ -48,7 +48,7 @@ Thiết kế tuân thủ nghiêm ngặt tinh thần **Tally x Hallmark**: bố c
 - **AC-UI-3 (Group Balance Banner)**:
   - Hiển thị số dư riêng của người dùng trong nhóm với 3 trạng thái màu:
     - **Dương (+)**: Nền `#ECFDF5`, chữ `#059669` (`+350.000 đ` — Bạn được nhận lại).
-    - **Âm (-)**: Nền `#FEF2F2`, chữ `#DC2626` (`-120.000 đ` — Bạn cần trả nợ) kèm nút nhanh `[ Trả QR ⚡ ]`.
+    - **Âm (-)**: Nền `#FEF2F2`, chữ `#DC2626` (`-120.000 đ` — Bạn cần trả nợ) kèm nút nhanh `[ Trả QR ]`.
     - **Bằng 0 (0 đ)**: Nền `#EDF0E6`, chữ `#1C2118` (`0 đ` — Sạch nợ trong nhóm).
 
 - **AC-UI-4 (4-Tab Segregation - FTabs)**:
@@ -73,7 +73,7 @@ Thiết kế tuân thủ nghiêm ngặt tinh thần **Tally x Hallmark**: bố c
 
 - **AC-UI-6 (Debt Settlement Matrix & VietQR Integration)**:
   - Nhóm các khoản nợ theo Chủ nợ trong nhóm.
-  - Bấm `[ Trả QR ⚡ ]` mở Bottom Sheet VietQR động chứa đúng số tiền nợ và cú pháp `PAY...`.
+  - Bấm `[ Trả QR ]` mở Bottom Sheet VietQR động chứa đúng số tiền nợ và cú pháp `PAY...`.
   - Chủ nợ bấm `[ Duyệt proof ]` xem ảnh biên lai ngân hàng kèm lời nhắn (`payments.note` theo BE Spec 0004 AC-6).
 
 - **AC-UI-7 (Member & Captain Governance Safety Rules)**:
@@ -194,7 +194,7 @@ Khi ứng dụng chưa được cài, URL mở trang web fallback tại cùng đ
 ### 4.3. Group Net Balance Banner (`GroupBalanceBanner.dart`)
 - Thẻ bo tròn viền mỏng hiển thị số dư của người dùng riêng trong nhóm:
   - Nếu `net_balance > 0`: Nền xanh ngọc nhạt `#ECFDF5`, chữ số `#059669`, nhãn *"Bạn được nhận lại"*.
-  - Nếu `net_balance < 0`: Nền đỏ nhạt `#FEF2F2`, chữ số `#DC2626`, nhãn *"Bạn cần trả nợ"* kèm nút bấm `[ Trả QR ⚡ ]`.
+  - Nếu `net_balance < 0`: Nền đỏ nhạt `#FEF2F2`, chữ số `#DC2626`, nhãn *"Bạn cần trả nợ"* kèm nút bấm `[ Trả QR ]`.
   - Nếu `net_balance == 0`: Nền xám `#EDF0E6`, chữ `#1C2118`, nhãn *"Đã cân bằng sạch nợ"*.
 
 ---
@@ -221,7 +221,7 @@ Khi ứng dụng chưa được cài, URL mở trang web fallback tại cùng đ
 
 ### 4.5. Tab 2: Bảng Công Nợ & Ma Trận Thanh Toán (`GroupDebtsTab.dart`)
 - **Khoản nợ cá nhân cần xử lý**:
-  - Danh sách người bạn cần trả trong nhóm kèm nút `[ Trả QR ⚡ ]`.
+  - Danh sách người bạn cần trả trong nhóm kèm nút `[ Trả QR ]`.
   - Danh sách người đang nợ bạn trong nhóm kèm nút `[ Duyệt proof ]` (kèm lời nhắn `payments.note` nếu đã nộp proof) hoặc `[ 🔔 Nhắc nợ ]` (rate limit 1 lần/24h).
 - **Ma trận công nợ cả nhóm (Debt Matrix)**:
   - Bảng thu gọn hiển thị các cặp nợ trong nhóm: `A → B: 120.000 đ`, `C → B: 150.000 đ`.
@@ -510,7 +510,7 @@ class GroupHubController extends _$GroupHubController {
 - [ ] Wire FAB button to Open Bill Creation / OCR Camera vs Manual Entry Form.
 
 ### Slice 4: Tab 2 (Debts Matrix & Quick VietQR)
-- [ ] Implement Personal Debts list (Payable with `[ Trả QR ⚡ ]`, Receivable with `[ Duyệt proof ]` kèm `payments.note` và `[ 🔔 Nhắc nợ ]`).
+- [ ] Implement Personal Debts list (Payable with `[ Trả QR ]`, Receivable with `[ Duyệt proof ]` kèm `payments.note` và `[ 🔔 Nhắc nợ ]`).
 - [ ] Implement Full Group Debt Matrix breakdown.
 - [ ] Wire VietQR Bottom Sheet and Proof Review Bottom Sheet.
 

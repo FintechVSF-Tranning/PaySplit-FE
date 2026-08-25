@@ -22,12 +22,20 @@ class ProfilePage extends ConsumerWidget {
     final user = ref.watch(authControllerProvider).valueOrNull;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final displayName = (user?.name != null && user!.name.isNotEmpty) ? user.name : 'Người dùng';
-    final email = (user?.email != null && user!.email.isNotEmpty) ? user.email : '';
+    final displayName = (user?.name != null && user!.name.isNotEmpty)
+        ? user.name
+        : 'Người dùng';
+    final email = (user?.email != null && user!.email.isNotEmpty)
+        ? user.email
+        : '';
     final phoneNumber = PhoneFormatter.formatForDisplay(user?.phoneNumber);
-    final displayPhone = phoneNumber.isNotEmpty ? phoneNumber : 'Chưa cập nhật SĐT';
+    final displayPhone = phoneNumber.isNotEmpty
+        ? phoneNumber
+        : 'Chưa cập nhật SĐT';
 
-    final hasBank = (user?.bankAccountNumber != null && user!.bankAccountNumber!.isNotEmpty);
+    final hasBank =
+        (user?.bankAccountNumber != null &&
+        user!.bankAccountNumber!.isNotEmpty);
     final bankCode = user?.bankCode ?? 'MB';
     final bankAccount = user?.bankAccountNumber ?? '';
     final bankHolder = user?.bankAccountHolder ?? displayName.toUpperCase();
@@ -36,7 +44,9 @@ class ProfilePage extends ConsumerWidget {
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
     final primaryTeal = const Color(0xFF0F766E);
 
     return Scaffold(
@@ -80,7 +90,9 @@ class ProfilePage extends ConsumerWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white.withValues(alpha: 0.15),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                            ),
                           ),
                           child: const Icon(
                             HugeIcons.strokeRoundedArrowLeft01,
@@ -105,7 +117,8 @@ class ProfilePage extends ConsumerWidget {
 
                   // Avatar with Edit Button Overlay (Tap triggers change avatar)
                   GestureDetector(
-                    onTap: () => _showAvatarOptions(context, ref, user?.avatarUrl),
+                    onTap: () =>
+                        _showAvatarOptions(context, ref, user?.avatarUrl),
                     child: Stack(
                       children: [
                         Container(
@@ -131,7 +144,9 @@ class ProfilePage extends ConsumerWidget {
                             ],
                           ),
                           child: ClipOval(
-                            child: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
+                            child:
+                                (user?.avatarUrl != null &&
+                                    user!.avatarUrl!.isNotEmpty)
                                 ? Image.network(
                                     user.avatarUrl!,
                                     width: 76,
@@ -221,7 +236,9 @@ class ProfilePage extends ConsumerWidget {
                       border: Border.all(color: border),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryTeal.withValues(alpha: isDark ? 0.2 : 0.05),
+                          color: primaryTeal.withValues(
+                            alpha: isDark ? 0.2 : 0.05,
+                          ),
                           blurRadius: 18,
                           offset: const Offset(0, 6),
                         ),
@@ -253,12 +270,15 @@ class ProfilePage extends ConsumerWidget {
                                 end: Alignment.bottomRight,
                               ),
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFA7F3D0)),
+                              border: Border.all(
+                                color: const Color(0xFFA7F3D0),
+                              ),
                             ),
                             child: Column(
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
                                       children: [
@@ -267,16 +287,23 @@ class ProfilePage extends ConsumerWidget {
                                           height: 36,
                                           decoration: BoxDecoration(
                                             color: Colors.white,
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.05),
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.05,
+                                                ),
                                                 blurRadius: 4,
                                               ),
                                             ],
                                           ),
                                           child: const Center(
-                                            child: Text('🏦', style: TextStyle(fontSize: 18)),
+                                            child: Text(
+                                              '🏦',
+                                              style: TextStyle(fontSize: 18),
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(width: 10),
@@ -291,7 +318,10 @@ class ProfilePage extends ConsumerWidget {
                                       ],
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 3,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF0F766E),
                                         borderRadius: BorderRadius.circular(6),
@@ -309,17 +339,24 @@ class ProfilePage extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 12),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: const Color(0xFFCCFBF1)),
+                                    border: Border.all(
+                                      color: const Color(0xFFCCFBF1),
+                                    ),
                                   ),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'SỐ TÀI KHOẢN',
@@ -352,14 +389,20 @@ class ProfilePage extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 12),
                                 InkWell(
-                                  onTap: () => context.push(AppRoutes.bankSettings),
+                                  onTap: () =>
+                                      context.push(AppRoutes.bankSettings),
                                   borderRadius: BorderRadius.circular(10),
                                   child: Container(
                                     width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
                                     decoration: BoxDecoration(
                                       gradient: const LinearGradient(
-                                        colors: [Color(0xFF0F766E), Color(0xFF10B981)],
+                                        colors: [
+                                          Color(0xFF0F766E),
+                                          Color(0xFF10B981),
+                                        ],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                       ),
@@ -385,7 +428,9 @@ class ProfilePage extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
+                              color: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFFF8FAF9),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: border),
                             ),
@@ -412,7 +457,8 @@ class ProfilePage extends ConsumerWidget {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             'Chưa liên kết tài khoản ngân hàng',
@@ -437,21 +483,29 @@ class ProfilePage extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 12),
                                 InkWell(
-                                  onTap: () => context.push(AppRoutes.bankSettings),
+                                  onTap: () =>
+                                      context.push(AppRoutes.bankSettings),
                                   borderRadius: BorderRadius.circular(10),
                                   child: Container(
                                     width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
                                     decoration: BoxDecoration(
                                       gradient: const LinearGradient(
-                                        colors: [Color(0xFF0F766E), Color(0xFF10B981)],
+                                        colors: [
+                                          Color(0xFF0F766E),
+                                          Color(0xFF10B981),
+                                        ],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                       ),
                                       borderRadius: BorderRadius.circular(10),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: primaryTeal.withValues(alpha: 0.25),
+                                          color: primaryTeal.withValues(
+                                            alpha: 0.25,
+                                          ),
                                           blurRadius: 8,
                                           offset: const Offset(0, 3),
                                         ),
@@ -486,7 +540,9 @@ class ProfilePage extends ConsumerWidget {
                       border: Border.all(color: border),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryTeal.withValues(alpha: isDark ? 0.2 : 0.05),
+                          color: primaryTeal.withValues(
+                            alpha: isDark ? 0.2 : 0.05,
+                          ),
                           blurRadius: 18,
                           offset: const Offset(0, 6),
                         ),
@@ -514,7 +570,12 @@ class ProfilePage extends ConsumerWidget {
                           onTap: () => context.push(AppRoutes.editProfile),
                           isDark: isDark,
                         ),
-                        Divider(color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9), height: 1),
+                        Divider(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFF1F5F9),
+                          height: 1,
+                        ),
 
                         // Item 2: Đổi mật khẩu
                         _ProfileMenuItem(
@@ -576,7 +637,9 @@ class ProfilePage extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -633,8 +696,14 @@ class ProfilePage extends ConsumerWidget {
                     onPressed: () => Navigator.of(ctx).pop(false),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFCBD5E1),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: Text(
                       'Hủy',
@@ -655,7 +724,9 @@ class ProfilePage extends ConsumerWidget {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: Text(
                       'Đăng xuất',
@@ -678,7 +749,11 @@ class ProfilePage extends ConsumerWidget {
     }
   }
 
-  Future<void> _pickAndUploadAvatar(BuildContext context, WidgetRef ref, ImageSource source) async {
+  Future<void> _pickAndUploadAvatar(
+    BuildContext context,
+    WidgetRef ref,
+    ImageSource source,
+  ) async {
     try {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(
@@ -703,7 +778,9 @@ class ProfilePage extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        final message = e is Failure ? e.message : 'Tải lên ảnh thất bại. Vui lòng thử lại.';
+        final message = e is Failure
+            ? e.message
+            : 'Tải lên ảnh thất bại. Vui lòng thử lại.';
         showErrorSnackBar(context, message);
       }
     }
@@ -723,7 +800,11 @@ class ProfilePage extends ConsumerWidget {
     }
   }
 
-  void _showAvatarOptions(BuildContext context, WidgetRef ref, String? currentAvatarUrl) {
+  void _showAvatarOptions(
+    BuildContext context,
+    WidgetRef ref,
+    String? currentAvatarUrl,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
@@ -744,7 +825,9 @@ class ProfilePage extends ConsumerWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                  color: isDark
+                      ? const Color(0xFF475569)
+                      : const Color(0xFFCBD5E1),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -761,7 +844,10 @@ class ProfilePage extends ConsumerWidget {
               ListTile(
                 leading: const CircleAvatar(
                   backgroundColor: Color(0xFFF0FDFA),
-                  child: Icon(Icons.camera_alt_rounded, color: Color(0xFF0F766E)),
+                  child: Icon(
+                    Icons.camera_alt_rounded,
+                    color: Color(0xFF0F766E),
+                  ),
                 ),
                 title: Text(
                   'Chụp ảnh mới',
@@ -779,7 +865,10 @@ class ProfilePage extends ConsumerWidget {
               ListTile(
                 leading: const CircleAvatar(
                   backgroundColor: Color(0xFFF0FDFA),
-                  child: Icon(Icons.photo_library_rounded, color: Color(0xFF0F766E)),
+                  child: Icon(
+                    Icons.photo_library_rounded,
+                    color: Color(0xFF0F766E),
+                  ),
                 ),
                 title: Text(
                   'Chọn ảnh từ thư viện',
@@ -798,7 +887,10 @@ class ProfilePage extends ConsumerWidget {
                 ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Color(0xFFFEF2F2),
-                    child: Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      color: Color(0xFFEF4444),
+                    ),
                   ),
                   title: Text(
                     'Gỡ ảnh đại diện',
@@ -821,10 +913,15 @@ class ProfilePage extends ConsumerWidget {
   }
 
   static String _getInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return 'HN';
     if (parts.length == 1) return parts.first.characters.first.toUpperCase();
-    return (parts.first.characters.first + parts.last.characters.first).toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first)
+        .toUpperCase();
   }
 }
 
@@ -844,7 +941,9 @@ class _ProfileMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
     final primaryTeal = const Color(0xFF0F766E);
 
     return InkWell(
@@ -858,7 +957,9 @@ class _ProfileMenuItem extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                color: isDark
+                    ? const Color(0xFF334155)
+                    : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: primaryTeal, size: 18),
@@ -874,7 +975,11 @@ class _ProfileMenuItem extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(HugeIcons.strokeRoundedArrowRight01, color: textMuted, size: 18),
+            Icon(
+              HugeIcons.strokeRoundedArrowRight01,
+              color: textMuted,
+              size: 18,
+            ),
           ],
         ),
       ),
@@ -893,7 +998,11 @@ class _ProfileHeaderWavePainter extends CustomPainter {
       ..shader = LinearGradient(
         colors: isDark
             ? [const Color(0xFF0F766E), const Color(0xFF132A24)]
-            : [const Color(0xFF0F766E), const Color(0xFF115E59), const Color(0xFF134E4A)],
+            : [
+                const Color(0xFF0F766E),
+                const Color(0xFF115E59),
+                const Color(0xFF134E4A),
+              ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ).createShader(rect);
