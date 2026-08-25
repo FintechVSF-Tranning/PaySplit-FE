@@ -15,21 +15,45 @@ abstract class ApiEndpoints {
 
   static const String bills = '/bills';
   static String billById(String id) => '/bills/$id';
+  static const String calculateBill = '/bills/calculate';
+  static String calculateBillById(String id) => '/bills/$id/calculate';
   static const String scanReceipt = '/bills/scan';
+  static const String groups = '/groups';
+
+  static const String notifications = '/notifications';
+  static const String notificationsUnreadCount = '/notifications/unread-count';
+  static const String notificationsReadAll = '/notifications/read-all';
+  static String notificationRead(String id) => '/notifications/$id/read';
 
   static String vietQr(String billId) => '/bills/$billId/vietqr';
 
-  static const String groups = '/groups';
+  // --- Groups (module `group`) ---
+  static String groupById(String id) => '/groups/$id';
+  static String groupInvites(String id) => '/groups/$id/invites';
+  static String groupInviteById(String id, String inviteId) =>
+      '/groups/$id/invites/$inviteId';
+  static String invitePreview(String code) => '/groups/invites/$code';
+  static const String joinGroup = '/groups/join';
+  static String groupMember(String id, String memberId) =>
+      '/groups/$id/members/$memberId';
+  static String groupMemberRole(String id, String memberId) =>
+      '/groups/$id/members/$memberId/role';
+  static String groupActivities(String id) => '/groups/$id/activities';
+
+  // --- Settlement (tab Công nợ, mount trên /groups) ---
   static String groupDebts(String groupId) => '/groups/$groupId/debts';
+  static String groupExpensesMe(String groupId) =>
+      '/groups/$groupId/expenses/me';
   static String remindDebt(String groupId, String debtId) =>
       '/groups/$groupId/debts/$debtId/remind';
-  static String paymentQr(String groupId) => '/groups/$groupId/payments/qr';
-  static String payment(String groupId, String paymentId) =>
+  static String groupPaymentQr(String groupId) =>
+      '/groups/$groupId/payments/qr';
+  static String groupPayment(String groupId, String paymentId) =>
       '/groups/$groupId/payments/$paymentId';
-  static String paymentProof(String groupId, String paymentId) =>
+  static String groupPaymentProof(String groupId, String paymentId) =>
       '/groups/$groupId/payments/$paymentId/proof';
-  static String confirmPayment(String groupId, String paymentId) =>
+  static String confirmGroupPayment(String groupId, String paymentId) =>
       '/groups/$groupId/payments/$paymentId/confirm';
-  static String rejectPayment(String groupId, String paymentId) =>
+  static String rejectGroupPayment(String groupId, String paymentId) =>
       '/groups/$groupId/payments/$paymentId/reject';
 }

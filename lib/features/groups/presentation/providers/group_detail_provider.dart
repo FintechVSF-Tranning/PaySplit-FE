@@ -179,21 +179,6 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
   }
 
   /// Mở khóa bill để tiếp tục thêm hóa đơn (chỉ trưởng nhóm).
-  void reopenBook() {
-    state = _copy(
-      group: _copyGroup(status: GroupStatus.active, clearClosedAt: true),
-      activities: [
-        GroupActivityEntity(
-          id: 'a_reopen_${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Nhóm đã được mở khóa bill',
-          subtitle: 'Có thể tiếp tục thêm hóa đơn mới',
-          timeText: 'Vừa xong',
-          kind: GroupActivityKind.system,
-        ),
-        ...state.activities,
-      ],
-    );
-  }
 
   GroupEntity _copyGroup({
     String? name,
@@ -208,7 +193,6 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
     return GroupEntity(
       id: g.id,
       name: name ?? g.name,
-      emoji: g.emoji,
       memberCount: memberCount ?? g.memberCount,
       myBalance: myBalance ?? g.myBalance,
       inviteCode: g.inviteCode,

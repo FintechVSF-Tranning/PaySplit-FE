@@ -102,7 +102,7 @@ class SettlementRemoteDataSourceImpl implements SettlementRemoteDataSource {
     String paymentId,
   ) async {
     final response = await _dio.get<dynamic>(
-      ApiEndpoints.payment(groupId, paymentId),
+      ApiEndpoints.groupPayment(groupId, paymentId),
     );
     return _payment(response.data);
   }
@@ -114,7 +114,7 @@ class SettlementRemoteDataSourceImpl implements SettlementRemoteDataSource {
     required List<String> debtIds,
   }) async {
     final response = await _dio.post<dynamic>(
-      ApiEndpoints.paymentQr(groupId),
+      ApiEndpoints.groupPaymentQr(groupId),
       data: {'creditor_member_id': creditorId, 'debt_ids': debtIds},
       options: Options(headers: _idempotencyHeader()),
     );
@@ -139,7 +139,7 @@ class SettlementRemoteDataSourceImpl implements SettlementRemoteDataSource {
     });
 
     await _dio.post<dynamic>(
-      ApiEndpoints.paymentProof(groupId, paymentId),
+      ApiEndpoints.groupPaymentProof(groupId, paymentId),
       data: formData,
       options: Options(headers: _idempotencyHeader()),
     );
@@ -148,7 +148,7 @@ class SettlementRemoteDataSourceImpl implements SettlementRemoteDataSource {
   @override
   Future<void> confirmPayment(String groupId, String paymentId) async {
     await _dio.post<dynamic>(
-      ApiEndpoints.confirmPayment(groupId, paymentId),
+      ApiEndpoints.confirmGroupPayment(groupId, paymentId),
       options: Options(headers: _idempotencyHeader()),
     );
   }
@@ -160,7 +160,7 @@ class SettlementRemoteDataSourceImpl implements SettlementRemoteDataSource {
     String reason,
   ) async {
     await _dio.post<dynamic>(
-      ApiEndpoints.rejectPayment(groupId, paymentId),
+      ApiEndpoints.rejectGroupPayment(groupId, paymentId),
       data: {'reason': reason},
       options: Options(headers: _idempotencyHeader()),
     );

@@ -8,6 +8,8 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
+import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
+import '../../../notifications/presentation/providers/notifications_notifier.dart';
 import '../../../settlement/presentation/providers/settlement_controller.dart';
 import '../widgets/actionable_debts_section.dart';
 import '../widgets/my_groups_carousel.dart';
@@ -25,6 +27,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).valueOrNull;
+    final unreadNotifs = ref.watch(unreadNotificationCountProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final displayName = (user?.name != null && user!.name.isNotEmpty)
         ? user.name
@@ -130,8 +133,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                       // Notification Bell Button
                       InkWell(
-                        onTap: () =>
-                            showComingSoonSnackBar(context, 'Thông báo'),
+                        onTap: () => context.push(AppRoutes.notifications),
                         borderRadius: BorderRadius.circular(50),
                         child: Container(
                           width: 40,
@@ -151,22 +153,24 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 color: Colors.white,
                                 size: 20,
                               ),
-                              Positioned(
-                                top: 9,
-                                right: 9,
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEF4444),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xFF0F766E),
-                                      width: 1.5,
+                              if (unreadNotifs > 0) ...[
+                                Positioned(
+                                  top: 9,
+                                  right: 9,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFF0F766E),
+                                        width: 1.5,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
@@ -181,10 +185,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                       AppRoutes.settlement,
                       extra: SettlementTab.payable,
                     ),
-                    onScanBill: () => context.push(
-                      AppRoutes.settlement,
-                      extra: SettlementTab.bills,
-                    ),
+                    onScanBill: () async {
+                      final selected = await GroupPickerBottomSheet.show(
+                        context,
+                        currentGroupId: 'g-1',
+                      );
+                      if (selected != null && context.mounted) {
+                        await context.push(
+                          AppRoutes.scanBill,
+                          extra: {
+                            'groupId': selected.id,
+                            'groupName': selected.name,
+                          },
+                        );
+                      }
+                    },
                     onCreateGroup: () => context.push(AppRoutes.groups),
                   ),
                   const SizedBox(height: 22),
@@ -215,8 +230,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                   // 3. My Groups Carousel
                   MyGroupsCarousel(
                     onViewAll: () => context.push(AppRoutes.groups),
-                    onTapGroup: (groupName) =>
-                        showComingSoonSnackBar(context, 'Mở nhóm $groupName'),
+                    onTapGroupItem: (group) {
+                      if (group.id.isNotEmpty) {
+                        context.push('${AppRoutes.groups}/${group.id}');
+                      } else {
+                        context.push(AppRoutes.groups);
+                      }
+                    },
                     onCreateGroup: () => context.push(AppRoutes.groups),
                   ),
                   const SizedBox(height: 22),

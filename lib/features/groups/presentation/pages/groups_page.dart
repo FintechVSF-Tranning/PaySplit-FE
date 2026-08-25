@@ -15,6 +15,7 @@ import '../widgets/create_group_bottom_sheet.dart';
 import '../widgets/group_list_card.dart';
 import '../widgets/join_by_link_bottom_sheet.dart';
 import 'scan_qr_join_page.dart';
+import '../widgets/group_avatar.dart';
 
 /// Tab "Nhóm" — trung tâm điều phối mọi nhóm chi tiêu của người dùng.
 class GroupsPage extends ConsumerStatefulWidget {
@@ -30,7 +31,8 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final groups = ref.watch(groupsProvider);
+    final groupsState = ref.watch(groupsProvider);
+    final groups = groupsState.groups;
     final recentGroups = ref.watch(recentGroupsProvider);
 
     final activeGroups = groups.where((g) => !g.isClosed).toList();
@@ -144,7 +146,22 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                   ),
                 ),
 
-                if (groups.isEmpty)
+                if (groupsState.isLoading && groups.isEmpty)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 48),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  )
+                else if (groupsState.failure != null && groups.isEmpty)
+                  SliverToBoxAdapter(
+                    child: _GroupsErrorState(
+                      message: groupsState.failure!.message,
+                      onRetry: () =>
+                          ref.read(groupsProvider.notifier).refresh(),
+                    ),
+                  )
+                else if (groups.isEmpty)
                   SliverToBoxAdapter(
                     child: _EmptyGroupsState(
                       onCreate: () => _createGroup(context, ref),
@@ -186,19 +203,35 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 
   Future<void> _joinByLink(BuildContext context, WidgetRef ref) async {
     final group = await JoinByLinkBottomSheet.show(context);
-    if (group == null) return;
-    ref.read(groupsProvider.notifier).joinGroup(group);
-    if (!context.mounted) return;
-    showSuccessSnackBar(context, 'Đã tham gia nhóm ${group.name}');
+    if (group == null || !context.mounted) return;
+    await _join(context, ref, group);
   }
 
   Future<void> _joinByQr(BuildContext context, WidgetRef ref) async {
     final group = await Navigator.of(context).push<GroupEntity>(
       MaterialPageRoute(builder: (_) => const ScanQrJoinPage()),
     );
-    if (group == null) return;
-    ref.read(groupsProvider.notifier).joinGroup(group);
+    if (group == null || !context.mounted) return;
+    await _join(context, ref, group);
+  }
+
+  /// Sheet xem trước chỉ trả về thông tin hiển thị kèm mã mời; việc tham gia
+  /// thật sự do `POST /groups/join` thực hiện, sau đó danh sách được tải lại.
+  Future<void> _join(
+    BuildContext context,
+    WidgetRef ref,
+    GroupEntity group,
+  ) async {
+    final code = group.inviteCode;
+    if (code == null) return;
+    final failure = await ref
+        .read(groupsProvider.notifier)
+        .joinGroupByCode(code);
     if (!context.mounted) return;
+    if (failure != null) {
+      showErrorSnackBar(context, failure.message);
+      return;
+    }
     showSuccessSnackBar(context, 'Đã tham gia nhóm ${group.name}');
   }
 }
@@ -375,7 +408,7 @@ class _RecentGroupChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(group.emoji, style: const TextStyle(fontSize: 15)),
+            GroupAvatar(group: group, size: 26),
             const SizedBox(width: 8),
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -390,7 +423,9 @@ class _RecentGroupChip extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  formatRelativeTime(group.lastActivityAt),
+                  group.lastActivityAt == null
+                      ? ''
+                      : formatRelativeTime(group.lastActivityAt!),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w500,
@@ -684,6 +719,36 @@ class _EmptyClosedState extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Trạng thái lỗi khi không tải được danh sách nhóm.
+class _GroupsErrorState extends StatelessWidget {
+  const _GroupsErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Column(
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextButton(onPressed: onRetry, child: const Text('Thử lại')),
+        ],
       ),
     );
   }

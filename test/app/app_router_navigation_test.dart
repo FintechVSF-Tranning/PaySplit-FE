@@ -3,10 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fpdart/fpdart.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:paysplit/app/router/app_router.dart';
 import 'package:paysplit/app/router/app_routes.dart';
+import 'package:paysplit/di/injection.dart';
 import 'package:paysplit/features/auth/domain/entities/user_entity.dart';
 import 'package:paysplit/features/auth/presentation/providers/auth_controller.dart';
+import 'package:paysplit/features/groups/domain/repositories/group_repository.dart';
+import 'package:paysplit/features/groups/domain/usecases/list_groups_usecase.dart';
 import 'package:paysplit/features/groups/presentation/pages/groups_page.dart';
 import 'package:paysplit/features/home/presentation/pages/home_page.dart';
 import 'package:paysplit/features/home/presentation/widgets/app_bottom_nav_bar.dart';
@@ -16,7 +21,20 @@ import 'package:paysplit/features/settlement/data/mock/mock_settlement_repositor
 import 'package:paysplit/features/settlement/presentation/providers/settlement_controller.dart';
 import 'package:paysplit/features/settlement/presentation/widgets/all_bills_tab.dart';
 
+class _MockGroupRepository extends Mock implements GroupRepository {}
+
 void main() {
+  setUpAll(() {
+    final groupRepository = _MockGroupRepository();
+    when(
+      () => groupRepository.listGroups(
+        limit: any(named: 'limit'),
+        cursor: any(named: 'cursor'),
+      ),
+    ).thenAnswer((_) async => Right(const GroupPage(items: [])));
+    getIt.registerSingleton(ListGroupsUseCase(groupRepository));
+  });
+
   testWidgets('app router switches main branches without replacing the shell', (
     tester,
   ) async {

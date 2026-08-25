@@ -7,22 +7,11 @@ abstract class GroupMockData {
   static final DateTime _now = DateTime(2026, 8, 24, 20, 30);
 
   /// Biểu tượng đại diện cho nhóm, dùng chung ở sheet tạo nhóm.
-  static const List<GroupEmojiOption> emojiOptions = [
-    GroupEmojiOption(emoji: '🌴', label: 'Du lịch'),
-    GroupEmojiOption(emoji: '🍜', label: 'Cơm trưa'),
-    GroupEmojiOption(emoji: '🍻', label: 'Ăn uống'),
-    GroupEmojiOption(emoji: '☕', label: 'Cafe'),
-    GroupEmojiOption(emoji: '🏠', label: 'Trọ'),
-    GroupEmojiOption(emoji: '🎬', label: 'Giải trí'),
-    GroupEmojiOption(emoji: '🚗', label: 'Di chuyển'),
-    GroupEmojiOption(emoji: '🎁', label: 'Quà tặng'),
-  ];
 
   static List<GroupEntity> get myGroups => [
     GroupEntity(
       id: 'g_001',
       name: 'Du lịch Đà Lạt 2026',
-      emoji: '🌴',
       memberCount: 5,
       myBalance: -340000,
       inviteCode: 'DALAT2026',
@@ -34,7 +23,6 @@ abstract class GroupMockData {
     GroupEntity(
       id: 'g_002',
       name: 'Cơm trưa văn phòng',
-      emoji: '🍜',
       memberCount: 8,
       myBalance: 185000,
       inviteCode: 'LUNCH88',
@@ -46,7 +34,6 @@ abstract class GroupMockData {
     GroupEntity(
       id: 'g_003',
       name: 'Nhà trọ Quận 7',
-      emoji: '🏠',
       memberCount: 4,
       myBalance: 0,
       inviteCode: 'TROQ7X',
@@ -57,7 +44,6 @@ abstract class GroupMockData {
     GroupEntity(
       id: 'g_004',
       name: 'Team Building Vũng Tàu',
-      emoji: '🍻',
       memberCount: 12,
       myBalance: -1250000,
       inviteCode: 'VTAU26',
@@ -69,7 +55,6 @@ abstract class GroupMockData {
     GroupEntity(
       id: 'g_005',
       name: 'Sinh nhật Trâm Anh',
-      emoji: '🎁',
       memberCount: 6,
       myBalance: -150000,
       inviteCode: 'BDAYTA',
@@ -82,7 +67,6 @@ abstract class GroupMockData {
     GroupEntity(
       id: 'g_006',
       name: 'Du lịch Phú Quốc 2025',
-      emoji: '🌴',
       memberCount: 9,
       myBalance: 0,
       inviteCode: 'PQUOC25',
@@ -126,11 +110,4 @@ abstract class GroupMockData {
       sharedGroupCount: 1,
     ),
   ];
-}
-
-class GroupEmojiOption {
-  const GroupEmojiOption({required this.emoji, required this.label});
-
-  final String emoji;
-  final String label;
 }

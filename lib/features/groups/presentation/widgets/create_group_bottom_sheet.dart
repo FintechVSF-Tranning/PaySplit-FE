@@ -6,7 +6,6 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../data/mock/group_mock_data.dart';
 import '../../domain/entities/group_entity.dart';
 import '../providers/groups_provider.dart';
 
@@ -34,7 +33,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
 
-  int _selectedEmoji = 0;
   String? _errorText;
   bool _isSubmitting = false;
 
@@ -65,15 +63,27 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _errorText = null;
+    });
     await HapticFeedback.mediumImpact();
-    // Độ trễ giả lập round-trip API để thấy rõ trạng thái Loading của nút.
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+
+    final group = await ref.read(groupsProvider.notifier).createGroup(name: name);
     if (!mounted) return;
 
-    final group = ref
-        .read(groupsProvider.notifier)
-        .createGroup(name: name, emoji: GroupMockData.emojiOptions[_selectedEmoji].emoji);
+    // Lỗi API: giữ sheet mở và hiện thông báo ngay dưới ô nhập, thay vì đóng
+    // sheet và để người dùng không biết vì sao nhóm không được tạo.
+    if (group == null) {
+      setState(() {
+        _isSubmitting = false;
+        _errorText =
+            ref.read(groupsProvider).failure?.message ?? 'Không tạo được nhóm. Vui lòng thử lại.';
+      });
+      return;
+    }
+
+    setState(() => _isSubmitting = false);
     Navigator.of(context).pop(group);
   }
 
@@ -168,36 +178,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                         ),
                       ),
                     ],
-                    const SizedBox(height: 18),
-
-                    Text(
-                      'Chọn biểu tượng đại diện',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMain,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 36,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: GroupMockData.emojiOptions.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final option = GroupMockData.emojiOptions[index];
-                          return _EmojiChip(
-                            option: option,
-                            isSelected: index == _selectedEmoji,
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              setState(() => _selectedEmoji = index);
-                            },
-                          );
-                        },
-                      ),
-                    ),
                     const SizedBox(height: 24),
 
                     AppButton(label: 'Tạo nhóm ngay', isLoading: _isSubmitting, onPressed: _submit),
@@ -274,45 +254,6 @@ class _NameField extends StatelessWidget {
             fontWeight: FontWeight.w500,
             color: AppColors.textSubtle,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EmojiChip extends StatelessWidget {
-  const _EmojiChip({required this.option, required this.isSelected, required this.onTap});
-
-  final GroupEmojiOption option;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surfaceMuted,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(option.emoji, style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 6),
-            Text(
-              option.label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : AppColors.textMuted,
-              ),
-            ),
-          ],
         ),
       ),
     );

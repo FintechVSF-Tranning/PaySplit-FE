@@ -11,6 +11,7 @@ abstract class CurrencyFormatter {
   );
 
   static String vnd(num amount) => _vnd.format(amount);
+  static String formatVND(num amount) => _vnd.format(amount);
 
   /// Signed variant for transaction rows: credits get a leading `+`, debits
   /// keep the `-` that [format] already produces.
