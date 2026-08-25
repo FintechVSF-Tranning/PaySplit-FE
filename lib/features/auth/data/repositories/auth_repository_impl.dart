@@ -32,13 +32,16 @@ class AuthRepositoryImpl implements AuthRepository {
         'device_id': deviceId,
         'device_name': 'Mobile Device',
       });
+      final auth = response.requireData;
       await _tokenStorage.saveTokens(
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
+        accessToken: auth.accessToken,
+        refreshToken: auth.refreshToken,
       );
-      return Right(response.user.toEntity());
+      return Right(auth.user.toEntity());
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 
@@ -50,16 +53,12 @@ class AuthRepositoryImpl implements AuthRepository {
     String? phoneNumber,
   }) async {
     try {
-      final body = <String, dynamic>{
-        'display_name': name,
-        'email': email,
-        'password': password,
-      };
+      final body = <String, dynamic>{'display_name': name, 'email': email, 'password': password};
       if (phoneNumber != null && phoneNumber.isNotEmpty) {
         body['phone_number'] = phoneNumber;
       }
       final response = await _remoteDataSource.register(body);
-      final userJson = response['user'] as Map<String, dynamic>?;
+      final userJson = (response.data as Map<String, dynamic>?)?['user'] as Map<String, dynamic>?;
       if (userJson != null) {
         final userModel = UserModel.fromJson(userJson);
         return Right(userModel.toEntity());
@@ -67,14 +66,13 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(UserEntity(id: 'temp', name: name, email: email, phoneNumber: phoneNumber));
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 
   @override
-  Future<Either<Failure, void>> verifyEmail({
-    required String email,
-    required String otp,
-  }) async {
+  Future<Either<Failure, void>> verifyEmail({required String email, required String otp}) async {
     try {
       await _remoteDataSource.verifyEmail({'email': email, 'otp': otp});
       return const Right(null);
@@ -84,9 +82,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> resendVerification({
-    required String email,
-  }) async {
+  Future<Either<Failure, void>> resendVerification({required String email}) async {
     try {
       await _remoteDataSource.resendVerification({'email': email});
       return const Right(null);
@@ -96,9 +92,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> forgotPassword({
-    required String email,
-  }) async {
+  Future<Either<Failure, void>> forgotPassword({required String email}) async {
     try {
       await _remoteDataSource.forgotPassword({'email': email});
       return const Right(null);
@@ -129,11 +123,16 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, UserEntity>> getCurrentUser() async {
     try {
       final response = await _remoteDataSource.getCurrentUser();
-      final userJson = response['user'] as Map<String, dynamic>? ?? response;
+      final data = response.data;
+      final userJson =
+          (data is Map<String, dynamic> ? data['user'] as Map<String, dynamic>? : null) ??
+          data as Map<String, dynamic>;
       final model = UserModel.fromJson(userJson);
       return Right(model.toEntity());
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 
@@ -166,15 +165,24 @@ class AuthRepositoryImpl implements AuthRepository {
       if (name != null) body['display_name'] = name;
       if (phoneNumber != null) body['phone_number'] = phoneNumber;
       if (bankCode != null) body['bank_code'] = bankCode;
-      if (bankAccountNumber != null) body['bank_account_number'] = bankAccountNumber;
-      if (bankAccountHolder != null) body['bank_account_holder'] = bankAccountHolder;
+      if (bankAccountNumber != null) {
+        body['bank_account_number'] = bankAccountNumber;
+      }
+      if (bankAccountHolder != null) {
+        body['bank_account_holder'] = bankAccountHolder;
+      }
 
       final response = await _remoteDataSource.patchProfile(body);
-      final userJson = response['user'] as Map<String, dynamic>? ?? response;
+      final data = response.data;
+      final userJson =
+          (data is Map<String, dynamic> ? data['user'] as Map<String, dynamic>? : null) ??
+          data as Map<String, dynamic>;
       final model = UserModel.fromJson(userJson);
       return Right(model.toEntity());
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 
@@ -182,12 +190,15 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, String>> uploadAvatar(File avatar) async {
     try {
       final response = await _remoteDataSource.uploadAvatar(avatar);
-      final avatarUrl = (response is Map<String, dynamic>)
-          ? response['avatar_url'] as String? ?? ''
-          : response.toString();
+      final data = response.data;
+      final avatarUrl = (data is Map<String, dynamic>)
+          ? data['avatar_url'] as String? ?? ''
+          : data.toString();
       return Right(avatarUrl);
     } on DioException catch (e) {
       return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(invalidResponseFailure);
     }
   }
 

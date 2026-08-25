@@ -22,17 +22,17 @@ class ServerFailure extends Failure {
 
 class NetworkFailure extends Failure {
   const NetworkFailure([super.message = 'Không có kết nối mạng', String? code])
-      : super(code: code ?? 'NETWORK_ERROR');
+    : super(code: code ?? 'NETWORK_ERROR');
 }
 
 class CacheFailure extends Failure {
   const CacheFailure([super.message = 'Lỗi bộ nhớ đệm', String? code])
-      : super(code: code ?? 'CACHE_ERROR');
+    : super(code: code ?? 'CACHE_ERROR');
 }
 
 class UnauthorizedFailure extends Failure {
   const UnauthorizedFailure([super.message = 'Phiên đăng nhập hết hạn', String? code])
-      : super(code: code ?? 'UNAUTHORIZED');
+    : super(code: code ?? 'UNAUTHORIZED');
 }
 
 class ValidationFailure extends Failure {
@@ -46,5 +46,14 @@ class ValidationFailure extends Failure {
 
 class UnexpectedFailure extends Failure {
   const UnexpectedFailure([super.message = 'Đã có lỗi xảy ra, vui lòng thử lại', String? code])
-      : super(code: code ?? 'UNEXPECTED_ERROR');
+    : super(code: code ?? 'UNEXPECTED_ERROR');
 }
+
+/// Body 2xx nhưng sai shape so với hợp đồng API: `ApiResponse.requireData` ném
+/// [StateError] khi `data` null, hoặc ép kiểu `data` ném [TypeError]. Cả hai
+/// đều không phải `DioException` nên repository phải bắt riêng, nếu không
+/// exception sẽ thoát ra ngoài thay vì trở thành [Failure].
+const Failure invalidResponseFailure = UnexpectedFailure(
+  'Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.',
+  'INVALID_RESPONSE',
+);
