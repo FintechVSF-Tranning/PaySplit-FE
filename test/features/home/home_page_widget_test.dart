@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:paysplit/features/home/domain/entities/home_group_item_entity.dart';
 import 'package:paysplit/features/home/presentation/pages/home_page.dart';
+import 'package:paysplit/features/home/presentation/providers/home_groups_provider.dart';
 import 'package:paysplit/features/home/presentation/widgets/actionable_debts_section.dart';
 import 'package:paysplit/features/home/presentation/widgets/app_bottom_nav_bar.dart';
 import 'package:paysplit/features/home/presentation/widgets/my_groups_carousel.dart';
@@ -16,8 +18,19 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
+        ProviderScope(
+          overrides: [
+            homeGroupsProvider.overrideWith((ref) => Future.value([
+              const HomeGroupItemEntity(
+                id: '1',
+                name: 'Phòng Dev Cty',
+                currency: 'VND',
+                callerRole: 'captain',
+                activeMemberCount: 5,
+              ),
+            ])),
+          ],
+          child: const MaterialApp(
             home: HomePage(),
           ),
         ),
@@ -66,8 +79,19 @@ void main() {
       addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
+        ProviderScope(
+          overrides: [
+            homeGroupsProvider.overrideWith((ref) => Future.value([
+              const HomeGroupItemEntity(
+                id: '1',
+                name: 'Phòng Dev Cty',
+                currency: 'VND',
+                callerRole: 'captain',
+                activeMemberCount: 5,
+              ),
+            ])),
+          ],
+          child: const MaterialApp(
             home: HomePage(),
           ),
         ),

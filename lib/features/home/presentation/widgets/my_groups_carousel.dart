@@ -1,24 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
-class MyGroupsCarousel extends StatelessWidget {
+import '../../domain/entities/home_group_item_entity.dart';
+import '../providers/home_groups_provider.dart';
+
+class MyGroupsCarousel extends ConsumerWidget {
   const MyGroupsCarousel({
     this.onViewAll,
     this.onTapGroup,
+    this.onTapGroupItem,
     this.onCreateGroup,
     super.key,
   });
 
   final VoidCallback? onViewAll;
   final void Function(String groupName)? onTapGroup;
+  final void Function(HomeGroupItemEntity group)? onTapGroupItem;
   final VoidCallback? onCreateGroup;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryTeal = const Color(0xFF0F766E);
+    const primaryTeal = Color(0xFF0F766E);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+
+    final groupsAsync = ref.watch(homeGroupsProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,42 +61,85 @@ class MyGroupsCarousel extends StatelessWidget {
 
         // Horizontal scrolling group cards
         SizedBox(
-          height: 110,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            children: [
-              _GroupCardItem(
-                emoji: '🍜',
-                memberCount: 5,
-                title: 'Phòng Dev Cty',
-                balanceText: '+350.000 đ',
-                isPositive: true,
-                onTap: () => onTapGroup?.call('Phòng Dev Cty'),
-              ),
-              const SizedBox(width: 10),
-              _GroupCardItem(
-                emoji: '🏖',
-                memberCount: 8,
-                title: 'Du lịch Đà Lạt',
-                balanceText: '-120.000 đ',
-                onTap: () => onTapGroup?.call('Du lịch Đà Lạt'),
-              ),
-              const SizedBox(width: 10),
-              _GroupCardItem(
-                emoji: '🏠',
-                memberCount: 3,
-                title: 'Nhà Trọ Tân Bình',
-                balanceText: '0 đ',
-                isNeutral: true,
-                onTap: () => onTapGroup?.call('Nhà Trọ Tân Bình'),
-              ),
-              const SizedBox(width: 10),
-              // Add Group Card
-              _AddGroupCard(onTap: onCreateGroup),
-            ],
+          height: 112,
+          child: groupsAsync.when(
+            loading: () => ListView(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              children: [
+                _buildSkeletonCard(isDark),
+                const SizedBox(width: 10),
+                _buildSkeletonCard(isDark),
+                const SizedBox(width: 10),
+                _AddGroupCard(onTap: onCreateGroup),
+              ],
+            ),
+            error: (error, stackTrace) => _buildEmptyState(),
+            data: (groups) {
+              if (groups.isEmpty) {
+                return _buildEmptyState();
+              }
+
+              return ListView(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                children: [
+                  for (final g in groups) ...[
+                    _GroupCardItem(
+                      emoji: g.emoji,
+                      memberCount: g.activeMemberCount,
+                      title: g.name,
+                      balanceText: g.balanceText,
+                      isPositive: g.isPositive,
+                      isNeutral: g.isNeutral,
+                      isCaptain: g.isCaptain,
+                      onTap: () {
+                        if (onTapGroupItem != null) {
+                          onTapGroupItem!(g);
+                        } else if (onTapGroup != null) {
+                          onTapGroup!(g.name);
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  _AddGroupCard(onTap: onCreateGroup),
+                ],
+              );
+            },
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildSkeletonCard(bool isDark) {
+    return Container(
+      width: 142,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(width: 24, height: 24, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), shape: BoxShape.circle)),
+          Container(width: 80, height: 12, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4))),
+          Container(width: 60, height: 12, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return ListView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      children: [
+        _AddGroupCard(onTap: onCreateGroup),
       ],
     );
   }
@@ -102,6 +153,7 @@ class _GroupCardItem extends StatelessWidget {
     required this.balanceText,
     this.isPositive = false,
     this.isNeutral = false,
+    this.isCaptain = false,
     this.onTap,
   });
 
@@ -111,6 +163,7 @@ class _GroupCardItem extends StatelessWidget {
   final String balanceText;
   final bool isPositive;
   final bool isNeutral;
+  final bool isCaptain;
   final VoidCallback? onTap;
 
   @override
@@ -120,8 +173,8 @@ class _GroupCardItem extends StatelessWidget {
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
 
-    final emeraldGreen = const Color(0xFF10B981);
-    final dangerRed = const Color(0xFFEF4444);
+    const emeraldGreen = Color(0xFF10B981);
+    const dangerRed = Color(0xFFEF4444);
 
     return InkWell(
       onTap: onTap,
@@ -145,25 +198,44 @@ class _GroupCardItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Top: Emoji + Member Count Badge
+            // Top: Emoji + Member Count Badge & Captain Tag
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(emoji, style: const TextStyle(fontSize: 18)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '$memberCount TV',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isCaptain) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        margin: const EdgeInsets.only(right: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: const Text(
+                          '👑',
+                          style: TextStyle(fontSize: 9),
+                        ),
+                      ),
+                    ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '$memberCount TV',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -184,7 +256,7 @@ class _GroupCardItem extends StatelessWidget {
             Text(
               balanceText,
               style: GoogleFonts.jetBrainsMono(
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w700,
                 color: isNeutral
                     ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))
@@ -206,7 +278,7 @@ class _AddGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryTeal = const Color(0xFF0F766E);
+    const primaryTeal = Color(0xFF0F766E);
 
     return InkWell(
       onTap: onTap,

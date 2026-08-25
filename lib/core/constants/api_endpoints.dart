@@ -20,5 +20,10 @@ abstract class ApiEndpoints {
   static const String scanReceipt = '/bills/scan';
   static const String groups = '/groups';
 
+  static const String notifications = '/notifications';
+  static const String notificationsUnreadCount = '/notifications/unread-count';
+  static const String notificationsReadAll = '/notifications/read-all';
+  static String notificationRead(String id) => '/notifications/$id/read';
+
   static String vietQr(String billId) => '/bills/$billId/vietqr';
 }
