@@ -64,12 +64,18 @@ class BillStickyBottomBar extends StatelessWidget {
     final bg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
 
-    final memberCount = breakdown.isNotEmpty ? breakdown.length : (bill.members.isNotEmpty ? bill.members.length : 0);
-    final hasWarnings = !hasBankAccount || hasNoItems || hasUnassignedItems || isTotalMismatch;
+    final memberCount = breakdown.isNotEmpty
+        ? breakdown.length
+        : (bill.members.isNotEmpty ? bill.members.length : 0);
+    final hasWarnings =
+        !hasBankAccount || hasNoItems || hasUnassignedItems || isTotalMismatch;
 
-    final hasMainBreakdownButton = bill.status == 'finalized' ||
+    final hasMainBreakdownButton =
+        bill.status == 'finalized' ||
         bill.status == 'voided' ||
         (!isCaptain && !isCreditor);
     final showTopBreakdownChip = !hasMainBreakdownButton;
@@ -92,7 +98,9 @@ class BillStickyBottomBar extends StatelessWidget {
         16,
         12,
         16,
-        MediaQuery.of(context).padding.bottom > 0 ? MediaQuery.of(context).padding.bottom + 6 : 12,
+        MediaQuery.of(context).padding.bottom > 0
+            ? MediaQuery.of(context).padding.bottom + 6
+            : 12,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -123,18 +131,23 @@ class BillStickyBottomBar extends StatelessWidget {
                                       text: TextSpan(
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 11.5,
-                                          color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+                                          color: isDark
+                                              ? const Color(0xFFFCD34D)
+                                              : const Color(0xFF92400E),
                                           fontWeight: FontWeight.w500,
                                         ),
                                         children: [
-                                          const TextSpan(text: 'Chưa cập nhật STK '),
+                                          const TextSpan(
+                                            text: 'Chưa cập nhật STK ',
+                                          ),
                                           TextSpan(
                                             text: '(cập nhật)',
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 11.5,
                                               color: AppColors.primary,
                                               fontWeight: FontWeight.w700,
-                                              decoration: TextDecoration.underline,
+                                              decoration:
+                                                  TextDecoration.underline,
                                             ),
                                             recognizer: TapGestureRecognizer()
                                               ..onTap = onUpdateBankAccount,
@@ -165,7 +178,9 @@ class BillStickyBottomBar extends StatelessWidget {
                                       'Hoá đơn chưa có món ăn nào',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 11.5,
-                                        color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+                                        color: isDark
+                                            ? const Color(0xFFFCD34D)
+                                            : const Color(0xFF92400E),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -174,7 +189,8 @@ class BillStickyBottomBar extends StatelessWidget {
                               ),
                             ],
                             if (hasUnassignedItems && !hasNoItems) ...[
-                              if (!hasBankAccount || hasNoItems) const SizedBox(height: 4),
+                              if (!hasBankAccount || hasNoItems)
+                                const SizedBox(height: 4),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -192,18 +208,23 @@ class BillStickyBottomBar extends StatelessWidget {
                                       text: TextSpan(
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 11.5,
-                                          color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+                                          color: isDark
+                                              ? const Color(0xFFFCD34D)
+                                              : const Color(0xFF92400E),
                                           fontWeight: FontWeight.w500,
                                         ),
                                         children: [
-                                          const TextSpan(text: 'Có món chưa được chia '),
+                                          const TextSpan(
+                                            text: 'Có món chưa được chia ',
+                                          ),
                                           TextSpan(
                                             text: '(chi tiết)',
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 11.5,
                                               color: AppColors.primary,
                                               fontWeight: FontWeight.w700,
-                                              decoration: TextDecoration.underline,
+                                              decoration:
+                                                  TextDecoration.underline,
                                             ),
                                             recognizer: TapGestureRecognizer()
                                               ..onTap = onOpenUnassignedDetail,
@@ -216,7 +237,10 @@ class BillStickyBottomBar extends StatelessWidget {
                               ),
                             ],
                             if (isTotalMismatch) ...[
-                              if (!hasBankAccount || hasNoItems || (hasUnassignedItems && !hasNoItems)) const SizedBox(height: 4),
+                              if (!hasBankAccount ||
+                                  hasNoItems ||
+                                  (hasUnassignedItems && !hasNoItems))
+                                const SizedBox(height: 4),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -234,18 +258,23 @@ class BillStickyBottomBar extends StatelessWidget {
                                       text: TextSpan(
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 11.5,
-                                          color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+                                          color: isDark
+                                              ? const Color(0xFFFCD34D)
+                                              : const Color(0xFF92400E),
                                           fontWeight: FontWeight.w500,
                                         ),
                                         children: [
-                                          const TextSpan(text: 'Tổng tiền bị chênh lệch '),
+                                          const TextSpan(
+                                            text: 'Tổng tiền bị chênh lệch ',
+                                          ),
                                           TextSpan(
                                             text: '(chi tiết)',
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 11.5,
                                               color: AppColors.primary,
                                               fontWeight: FontWeight.w700,
-                                              decoration: TextDecoration.underline,
+                                              decoration:
+                                                  TextDecoration.underline,
                                             ),
                                             recognizer: TapGestureRecognizer()
                                               ..onTap = onOpenMismatchDetail,
@@ -267,16 +296,21 @@ class BillStickyBottomBar extends StatelessWidget {
                     onTap: isCalculatingBreakdown
                         ? null
                         : (onOpenBreakdown ??
-                            () => BillBreakdownBottomSheet.show(
-                                  context,
-                                  breakdown: breakdown,
-                                  totalAmount: bill.total,
-                                )),
+                              () => BillBreakdownBottomSheet.show(
+                                context,
+                                breakdown: breakdown,
+                                totalAmount: bill.total,
+                              )),
                     borderRadius: BorderRadius.circular(9999),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAF9),
                         borderRadius: BorderRadius.circular(9999),
                         border: Border.all(color: border),
                       ),
@@ -355,12 +389,13 @@ class BillStickyBottomBar extends StatelessWidget {
               child: AppButton(
                 label: 'Xem phân bổ',
                 variant: AppButtonVariant.gradient,
-                onPressed: onOpenBreakdown ??
+                onPressed:
+                    onOpenBreakdown ??
                     () => BillBreakdownBottomSheet.show(
-                          context,
-                          breakdown: breakdown,
-                          totalAmount: bill.total,
-                        ),
+                      context,
+                      breakdown: breakdown,
+                      totalAmount: bill.total,
+                    ),
               ),
             ),
           ],
@@ -373,12 +408,13 @@ class BillStickyBottomBar extends StatelessWidget {
             child: AppButton(
               label: 'Xem phân bổ',
               variant: AppButtonVariant.gradient,
-              onPressed: onOpenBreakdown ??
+              onPressed:
+                  onOpenBreakdown ??
                   () => BillBreakdownBottomSheet.show(
-                        context,
-                        breakdown: breakdown,
-                        totalAmount: bill.total,
-                      ),
+                    context,
+                    breakdown: breakdown,
+                    totalAmount: bill.total,
+                  ),
             ),
           ),
         ],
@@ -393,12 +429,13 @@ class BillStickyBottomBar extends StatelessWidget {
             child: AppButton(
               label: 'Xem phân bổ',
               variant: AppButtonVariant.outline,
-              onPressed: onOpenBreakdown ??
+              onPressed:
+                  onOpenBreakdown ??
                   () => BillBreakdownBottomSheet.show(
-                        context,
-                        breakdown: breakdown,
-                        totalAmount: bill.total,
-                      ),
+                    context,
+                    breakdown: breakdown,
+                    totalAmount: bill.total,
+                  ),
             ),
           ),
         ],
@@ -411,9 +448,23 @@ class BillStickyBottomBar extends StatelessWidget {
         return Row(
           children: [
             Expanded(
+              flex: 2,
+              child: AppButton(
+                label: 'Sửa lại',
+                variant: AppButtonVariant.outline,
+                isLoading: isSaving,
+                icon: const Icon(HugeIcons.strokeRoundedEdit02, size: 18),
+                onPressed: isSaving ? null : onSaveDraft,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 3,
               child: AppButton(
                 label: 'Chốt chia tiền',
-                variant: hasWarnings ? AppButtonVariant.outline : AppButtonVariant.gradient,
+                variant: hasWarnings
+                    ? AppButtonVariant.outline
+                    : AppButtonVariant.gradient,
                 isLoading: isFinalizing,
                 onPressed: (isFinalizing || hasWarnings) ? null : onFinalize,
               ),
@@ -455,9 +506,13 @@ class BillStickyBottomBar extends StatelessWidget {
                 Expanded(
                   child: AppButton(
                     label: 'Gửi đối soát',
-                    variant: (hasWarnings || !isDirty) ? AppButtonVariant.outline : AppButtonVariant.primary,
+                    variant: (hasWarnings || !isDirty)
+                        ? AppButtonVariant.outline
+                        : AppButtonVariant.primary,
                     isLoading: isSaving,
-                    onPressed: (isSaving || hasWarnings || !isDirty) ? null : (onReview ?? onFinalize),
+                    onPressed: (isSaving || hasWarnings || !isDirty)
+                        ? null
+                        : (onReview ?? onFinalize),
                   ),
                 ),
               ],
@@ -471,12 +526,13 @@ class BillStickyBottomBar extends StatelessWidget {
               child: AppButton(
                 label: 'Xem phân bổ',
                 variant: AppButtonVariant.outline,
-                onPressed: onOpenBreakdown ??
+                onPressed:
+                    onOpenBreakdown ??
                     () => BillBreakdownBottomSheet.show(
-                          context,
-                          breakdown: breakdown,
-                          totalAmount: bill.total,
-                        ),
+                      context,
+                      breakdown: breakdown,
+                      totalAmount: bill.total,
+                    ),
               ),
             ),
           ],
@@ -502,7 +558,9 @@ class BillStickyBottomBar extends StatelessWidget {
             flex: 3,
             child: AppButton(
               label: 'Chốt hoá đơn',
-              variant: hasWarnings ? AppButtonVariant.outline : AppButtonVariant.gradient,
+              variant: hasWarnings
+                  ? AppButtonVariant.outline
+                  : AppButtonVariant.gradient,
               isLoading: isFinalizing,
               onPressed: (isFinalizing || hasWarnings) ? null : onFinalize,
             ),
@@ -528,9 +586,13 @@ class BillStickyBottomBar extends StatelessWidget {
             flex: 3,
             child: AppButton(
               label: 'Gửi đối soát',
-              variant: hasWarnings ? AppButtonVariant.outline : AppButtonVariant.primary,
+              variant: hasWarnings
+                  ? AppButtonVariant.outline
+                  : AppButtonVariant.primary,
               isLoading: isSaving,
-              onPressed: (isSaving || hasWarnings) ? null : (onReview ?? onFinalize),
+              onPressed: (isSaving || hasWarnings)
+                  ? null
+                  : (onReview ?? onFinalize),
             ),
           ),
         ],
@@ -544,12 +606,13 @@ class BillStickyBottomBar extends StatelessWidget {
           child: AppButton(
             label: 'Xem phân bổ',
             variant: AppButtonVariant.outline,
-            onPressed: onOpenBreakdown ??
+            onPressed:
+                onOpenBreakdown ??
                 () => BillBreakdownBottomSheet.show(
-                      context,
-                      breakdown: breakdown,
-                      totalAmount: bill.total,
-                    ),
+                  context,
+                  breakdown: breakdown,
+                  totalAmount: bill.total,
+                ),
           ),
         ),
       ],

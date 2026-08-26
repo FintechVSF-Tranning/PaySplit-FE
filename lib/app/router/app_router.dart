@@ -7,6 +7,7 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/reset_password_page.dart';
 import '../../features/auth/presentation/pages/verify_otp_page.dart';
+import '../../features/auth/presentation/pages/welcome_page.dart';
 import '../../features/auth/presentation/providers/auth_controller.dart';
 import '../../features/bills/domain/entities/bill_detail_entity.dart';
 import '../../features/bills/presentation/pages/bill_capture_page.dart';
@@ -55,6 +56,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isAuth = authState.valueOrNull != null;
       final isGoingToSplash = state.matchedLocation == AppRoutes.splash;
       final isGoingToAuth =
+          state.matchedLocation == AppRoutes.welcome ||
           state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register ||
           state.matchedLocation == AppRoutes.verifyOtp ||
@@ -66,10 +68,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (!isAuth) {
+        if (isGoingToSplash) {
+          return AppRoutes.welcome;
+        }
         if (isGoingToAuth) {
           return null;
         }
-        return AppRoutes.login;
+        return AppRoutes.welcome;
       }
 
       if (isGoingToSplash || isGoingToAuth) {
@@ -82,6 +87,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.splash,
         builder: (context, state) => const SplashPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.welcome,
+        builder: (context, state) => const WelcomePage(),
       ),
       GoRoute(
         path: AppRoutes.login,
