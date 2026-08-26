@@ -183,7 +183,7 @@ dart run build_runner build --delete-conflicting-outputs   # BẮT BUỘC: sinh 
 
 flutter run                                     # flavor development
 flutter run -t lib/main_staging.dart            # flavor staging
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080/v1   # trỏ về Go API chạy local
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080/api/v1   # trỏ về Go API chạy local
 
 # Chạy với port 5173
 flutter run -d chrome --web-port 5173 -t lib/main_development.dart

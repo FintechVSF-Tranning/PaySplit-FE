@@ -111,10 +111,21 @@ class SettlementController extends StateNotifier<SettlementState> {
 
   Future<void> loadData({bool rethrowOnError = false}) async {
     if (!mounted) return;
+    final hadData = state.overview != null;
+    final previousSelection = state.selectedDebtIds;
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final data = await _repository.loadSettlement();
       if (!mounted) return;
+      final selectableIds = data.payableDebts
+          .where((debt) => debt.status == DebtStatus.awaiting)
+          .map((debt) => debt.id)
+          .toSet();
+      // Lần tải đầu chọn sẵn tất cả; những lần sau giữ nguyên lựa chọn của user
+      // và chỉ bỏ đi các khoản không còn chọn được nữa.
+      final selection = hadData
+          ? previousSelection.intersection(selectableIds)
+          : selectableIds;
       state = state.copyWith(
         isLoading: false,
         overview: data.overview,
@@ -124,10 +135,7 @@ class SettlementController extends StateNotifier<SettlementState> {
         pendingProofs: data.pendingProofs,
         settledHistory: data.settledHistory,
         bills: data.bills,
-        selectedDebtIds: data.payableDebts
-            .where((debt) => debt.status == DebtStatus.awaiting)
-            .map((debt) => debt.id)
-            .toSet(),
+        selectedDebtIds: selection,
         errorMessage: null,
       );
     } catch (error) {
@@ -242,7 +250,9 @@ class SettlementController extends StateNotifier<SettlementState> {
     bool reload = true,
   }) async {
     if (state.isMutating) {
-      throw StateError('Một thao tác khác đang được xử lý');
+      const message = 'Một thao tác khác đang được xử lý';
+      state = state.copyWith(errorMessage: message);
+      throw StateError(message);
     }
     state = state.copyWith(isMutating: true, errorMessage: null);
     try {
@@ -279,6 +289,7 @@ class SettlementController extends StateNotifier<SettlementState> {
 
   String _errorMessage(Object error) {
     if (error is Failure) return error.message;
+    if (error is StateError) return error.message;
     return 'Không thể hoàn tất thao tác. Vui lòng thử lại.';
   }
 

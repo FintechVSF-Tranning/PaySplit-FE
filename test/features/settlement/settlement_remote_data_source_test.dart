@@ -42,6 +42,7 @@ void main() {
           groupId: 'group-1',
           creditorId: 'creditor-1',
           debtIds: const ['debt-1', 'debt-2'],
+          idempotencyKey: 'key-qr-1',
         );
 
         expect(payment['id'], 'payment-1');
@@ -77,6 +78,7 @@ void main() {
         imageName: 'receipt.png',
         imageBytes: Uint8List.fromList(const [1, 2, 3]),
         note: 'Đã chuyển khoản',
+        idempotencyKey: 'key-proof-1',
       );
 
       final request = requests.single;
@@ -166,5 +168,69 @@ void main() {
         );
       },
     );
+
+    test('dừng phân trang khi server trả về cursor không tiến', () async {
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests.add(options);
+            handler.resolve(
+              Response<dynamic>(
+                requestOptions: options,
+                statusCode: 200,
+                data: {
+                  'success': true,
+                  'data': {
+                    'groups': [
+                      {
+                        'group': {'id': 'g1'},
+                        'caller_membership_id': 'm1',
+                      },
+                    ],
+                    // luôn trả về cùng một cursor: vòng lặp cũ sẽ chạy vô hạn
+                    'next_cursor': 'same-cursor',
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final source = SettlementRemoteDataSourceImpl(dio);
+
+      final groups = await source.listGroups();
+
+      expect(requests, hasLength(2), reason: 'dừng ngay khi cursor lặp lại');
+      expect(groups, hasLength(2));
+    });
+
+    test('dừng phân trang khi chạm trần số trang', () async {
+      var page = 0;
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests.add(options);
+            handler.resolve(
+              Response<dynamic>(
+                requestOptions: options,
+                statusCode: 200,
+                data: {
+                  'success': true,
+                  'data': {
+                    'groups': const [],
+                    'next_cursor': 'cursor-${page++}',
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+      final source = SettlementRemoteDataSourceImpl(dio, maxPages: 3);
+
+      await source.listGroups();
+
+      expect(requests, hasLength(3));
+    });
   });
 }
