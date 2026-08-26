@@ -14,7 +14,11 @@ class FakeAuthRepository implements AuthRepository {
   String returnedUrl = 'https://res.cloudinary.com/avatar.webp';
 
   @override
-  Future<Either<Failure, String>> uploadAvatar(File avatar) async {
+  Future<Either<Failure, String>> uploadAvatar({
+    File? avatar,
+    List<int>? bytes,
+    String? filename,
+  }) async {
     if (shouldFail) {
       return const Left(ServerFailure('Upload avatar failed'));
     }

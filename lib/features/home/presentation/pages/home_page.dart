@@ -32,7 +32,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final displayName = (user?.name != null && user!.name.isNotEmpty)
         ? user.name
-        : 'Hoàng Nam';
+        : (user?.email != null && user!.email.isNotEmpty ? user.email.split('@').first : 'Bạn');
 
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
     final statusBarHeight = MediaQuery.paddingOf(context).top;
@@ -96,15 +96,34 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   ),
                                 ],
                               ),
-                              child: Center(
-                                child: Text(
-                                  _getInitials(displayName),
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                              child: ClipOval(
+                                child: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
+                                    ? Image.network(
+                                        user.avatarUrl!,
+                                        width: 44,
+                                        height: 44,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (ctx, _, _) => Center(
+                                          child: Text(
+                                            _getInitials(displayName),
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          _getInitials(displayName),
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
                               ),
                             ),
                           ),
@@ -261,7 +280,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         .split(RegExp(r'\s+'))
         .where((p) => p.isNotEmpty)
         .toList();
-    if (parts.isEmpty) return 'HN';
+    if (parts.isEmpty) return 'PS';
     if (parts.length == 1) return parts.first.characters.first.toUpperCase();
     return (parts.first.characters.first + parts.last.characters.first)
         .toUpperCase();

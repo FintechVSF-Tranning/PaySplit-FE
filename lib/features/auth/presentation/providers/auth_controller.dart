@@ -124,9 +124,17 @@ class AuthController extends _$AuthController {
     );
   }
 
-  Future<String> uploadAvatar(File avatar) async {
+  Future<String> uploadAvatar({
+    File? avatar,
+    List<int>? bytes,
+    String? filename,
+  }) async {
     final result = await getIt<UploadAvatarUseCase>().call(
-      UploadAvatarParams(avatar: avatar),
+      UploadAvatarParams(
+        avatar: avatar,
+        bytes: bytes,
+        filename: filename,
+      ),
     );
     return result.match(
       (failure) => throw failure,

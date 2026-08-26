@@ -16,15 +16,25 @@ class UploadAvatarUseCase implements UseCase<String, UploadAvatarParams> {
 
   @override
   Future<Either<Failure, String>> call(UploadAvatarParams params) {
-    return _repository.uploadAvatar(params.avatar);
+    return _repository.uploadAvatar(
+      avatar: params.avatar,
+      bytes: params.bytes,
+      filename: params.filename,
+    );
   }
 }
 
 class UploadAvatarParams extends Equatable {
-  const UploadAvatarParams({required this.avatar});
+  const UploadAvatarParams({
+    this.avatar,
+    this.bytes,
+    this.filename,
+  });
 
-  final File avatar;
+  final File? avatar;
+  final List<int>? bytes;
+  final String? filename;
 
   @override
-  List<Object?> get props => [avatar.path];
+  List<Object?> get props => [avatar?.path, bytes?.length, filename];
 }

@@ -187,9 +187,30 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, String>> uploadAvatar(File avatar) async {
+  Future<Either<Failure, String>> uploadAvatar({
+    File? avatar,
+    List<int>? bytes,
+    String? filename,
+  }) async {
     try {
-      final response = await _remoteDataSource.uploadAvatar(avatar);
+      List<int>? fileBytes = bytes;
+      String? name = filename;
+      if (fileBytes == null && avatar != null) {
+        fileBytes = await avatar.readAsBytes();
+        name ??= avatar.path.split(RegExp(r'[/\\]')).last;
+      }
+      if (fileBytes == null || fileBytes.isEmpty) {
+        return const Left(ValidationFailure('Không tìm thấy dữ liệu ảnh'));
+      }
+
+      final formData = FormData.fromMap({
+        'avatar': MultipartFile.fromBytes(
+          fileBytes,
+          filename: (name != null && name.isNotEmpty) ? name : 'avatar.jpg',
+        ),
+      });
+
+      final response = await _remoteDataSource.uploadAvatar(formData);
       final data = response.data;
       final avatarUrl = (data is Map<String, dynamic>)
           ? data['avatar_url'] as String? ?? ''

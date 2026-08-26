@@ -52,7 +52,11 @@ abstract class AuthRepository {
     String? bankAccountHolder,
   });
 
-  Future<Either<Failure, String>> uploadAvatar(File avatar);
+  Future<Either<Failure, String>> uploadAvatar({
+    File? avatar,
+    List<int>? bytes,
+    String? filename,
+  });
 
   Future<Either<Failure, void>> deleteAvatar();
 

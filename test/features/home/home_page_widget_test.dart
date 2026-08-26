@@ -40,7 +40,7 @@ void main() {
 
       // 1. Header
       expect(find.text('Xin chào,'), findsOneWidget);
-      expect(find.text('Hoàng Nam'), findsOneWidget);
+      expect(find.text('Bạn'), findsOneWidget);
 
       // 2. Net Balance Hero Card
       expect(find.byType(NetBalanceHeroCard), findsOneWidget);

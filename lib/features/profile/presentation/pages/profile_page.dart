@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -765,13 +763,17 @@ class ProfilePage extends ConsumerWidget {
 
       if (pickedFile == null) return;
 
-      final file = File(pickedFile.path);
+      final bytes = await pickedFile.readAsBytes();
+      final filename = pickedFile.name.isNotEmpty ? pickedFile.name : 'avatar.jpg';
 
       if (context.mounted) {
         showSuccessSnackBar(context, 'Đang tải lên ảnh đại diện...');
       }
 
-      await ref.read(authControllerProvider.notifier).uploadAvatar(file);
+      await ref.read(authControllerProvider.notifier).uploadAvatar(
+            bytes: bytes,
+            filename: filename,
+          );
 
       if (context.mounted) {
         showSuccessSnackBar(context, 'Đã cập nhật ảnh đại diện thành công!');
@@ -918,7 +920,7 @@ class ProfilePage extends ConsumerWidget {
         .split(RegExp(r'\s+'))
         .where((p) => p.isNotEmpty)
         .toList();
-    if (parts.isEmpty) return 'HN';
+    if (parts.isEmpty) return 'PS';
     if (parts.length == 1) return parts.first.characters.first.toUpperCase();
     return (parts.first.characters.first + parts.last.characters.first)
         .toUpperCase();

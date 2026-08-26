@@ -63,26 +63,43 @@ class _EditItemDialogState extends State<EditItemDialog> {
   final Set<String> _selectedMemberIds = {};
   String? _nameError;
 
+  static String _cleanQuantity(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '1';
+    final d = double.tryParse(raw.trim().replaceAll(',', '.'));
+    if (d == null || d <= 0) return raw.trim();
+    if (d == d.roundToDouble()) {
+      return d.toInt().toString();
+    }
+    return d.toString();
+  }
+
+  static double _parseQuantityToDouble(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return 1.0;
+    final d = double.tryParse(raw.trim().replaceAll(',', '.'));
+    if (d == null || d <= 0) return 1.0;
+    return d;
+  }
+
   @override
   void initState() {
     super.initState();
     final item = widget.item;
     _nameController = TextEditingController(text: item?.name ?? '');
-    _qtyController = TextEditingController(text: item?.quantity ?? '1');
+    _qtyController = TextEditingController(text: _cleanQuantity(item?.quantity));
 
     int initialUnitPrice = 0;
     if (item != null) {
       if (item.unitPrice > 0) {
         initialUnitPrice = item.unitPrice;
       } else {
-        final q = int.tryParse(item.quantity) ?? 1;
+        final q = _parseQuantityToDouble(item.quantity);
         initialUnitPrice = q > 0 ? (item.lineTotal / q).round() : item.lineTotal;
       }
     }
 
     int initialUnitDiscount = 0;
     if (item != null && item.discountAmount > 0) {
-      final q = int.tryParse(item.quantity) ?? 1;
+      final q = _parseQuantityToDouble(item.quantity);
       initialUnitDiscount = q > 0 ? (item.discountAmount / q).round() : item.discountAmount;
     }
 
@@ -110,14 +127,11 @@ class _EditItemDialogState extends State<EditItemDialog> {
   }
 
   int get _parsedPrice => int.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-  int get _parsedQty {
-    final val = int.tryParse(_qtyController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
-    return val > 0 ? val : 1;
-  }
+  double get _parsedQty => _parseQuantityToDouble(_qtyController.text);
   int get _parsedUnitDiscount => int.tryParse(_discountController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
 
-  int get _lineTotal => _parsedPrice * _parsedQty;
-  int get _totalDiscount => _parsedUnitDiscount * _parsedQty;
+  int get _lineTotal => (_parsedPrice * _parsedQty).round();
+  int get _totalDiscount => (_parsedUnitDiscount * _parsedQty).round();
   int get _finalPrice => (_lineTotal - _totalDiscount).clamp(0, _lineTotal);
 
   void _toggleAllMembers() {
@@ -172,7 +186,7 @@ class _EditItemDialogState extends State<EditItemDialog> {
     final item = BillItemEntity(
       id: effectiveId,
       name: name,
-      quantity: _parsedQty.toString(),
+      quantity: _cleanQuantity(_qtyController.text),
       unitPrice: _parsedPrice,
       lineTotal: _lineTotal,
       discountAmount: _totalDiscount,
@@ -220,8 +234,8 @@ class _EditItemDialogState extends State<EditItemDialog> {
     final hasDiscount = item.discountAmount > 0;
     final effectiveUnitPrice = item.unitPrice > 0
         ? item.unitPrice
-        : ((int.tryParse(item.quantity) ?? 1) > 0
-            ? (item.lineTotal / (int.tryParse(item.quantity) ?? 1)).round()
+        : (_parseQuantityToDouble(item.quantity) > 0
+            ? (item.lineTotal / _parseQuantityToDouble(item.quantity)).round()
             : item.lineTotal);
 
     // Xác định danh sách người tham gia

@@ -185,17 +185,20 @@ class BillItemEntity {
         ? rawId.trim()
         : 'item-${DateTime.now().microsecondsSinceEpoch}-$pos';
 
-    final qtyStr = json['quantity']?.toString() ?? '1';
-    final qtyInt = int.tryParse(qtyStr) ?? 1;
+    final rawQtyStr = json['quantity']?.toString() ?? '1';
+    final qtyDouble = double.tryParse(rawQtyStr.replaceAll(',', '.')) ?? 1.0;
+    final cleanQtyStr = (qtyDouble == qtyDouble.roundToDouble())
+        ? qtyDouble.toInt().toString()
+        : qtyDouble.toString();
     final rawUnitPrice = (json['unit_price'] as num?)?.toInt() ?? 0;
     final effectiveUnitPrice = rawUnitPrice > 0
         ? rawUnitPrice
-        : (qtyInt > 0 ? (lineTot / qtyInt).round() : lineTot);
+        : (qtyDouble > 0 ? (lineTot / qtyDouble).round() : lineTot);
 
     return BillItemEntity(
       id: effectiveId,
       name: json['name'] as String? ?? 'Món ăn',
-      quantity: qtyStr,
+      quantity: cleanQtyStr,
       unitPrice: effectiveUnitPrice,
       lineTotal: lineTot,
       discountAmount: disc,
