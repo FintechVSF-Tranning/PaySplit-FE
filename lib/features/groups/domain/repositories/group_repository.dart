@@ -139,6 +139,10 @@ abstract class GroupRepository {
 
   Future<Either<Failure, Unit>> transferCaptain(String groupId, String membershipId);
 
+  /// Khóa gửi hóa đơn của nhóm (chỉ Captain). Trả về thời điểm khóa; backend
+  /// không có đường mở lại.
+  Future<Either<Failure, DateTime>> lockBillSubmissions(String groupId);
+
   Future<Either<Failure, GroupPage<GroupActivityEntity>>> listActivities(
     String groupId, {
     int? limit,

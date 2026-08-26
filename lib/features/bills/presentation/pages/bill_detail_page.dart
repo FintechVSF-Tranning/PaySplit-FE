@@ -551,7 +551,18 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
     final isCreditor = currentUserId.isEmpty || isNewUnsavedBill || bill.creditorMemberId.isEmpty || bill.members.any((m) => m.userId == currentUserId && m.memberId == bill.creditorMemberId);
 
     final isReadOnlyStatus = bill.status == 'finalized' || bill.status == 'voided';
+
+    /// Gán người ăn, đổi cách chia và gửi đối soát / chốt sổ: backend cho phép
+    /// Trưởng nhóm hoặc Chủ chi, nên client mở đúng chừng đó.
     final isEditable = !isReadOnlyStatus && (isCaptain || isCreditor || bill.members.isEmpty);
+
+    /// Sửa **nội dung tiền**: giá món, số lượng, thêm/xóa món, thuế phí, giảm
+    /// giá, tên quán. Chỉ Trưởng nhóm — con số trên hóa đơn là thứ cả nhóm
+    /// phải tin, không để mỗi người tự sửa. Hóa đơn vừa quét/nhập tay chưa lưu
+    /// lên server thì người tạo vẫn phải nhập được, nếu không thành viên
+    /// thường sẽ không tạo nổi hóa đơn nào.
+    final canEditContent =
+        !isReadOnlyStatus && (isCaptain || isNewUnsavedBill || bill.members.isEmpty);
 
     final formattedDate = bill.billDate != null
         ? DateFormat('dd/MM/yyyy HH:mm').format(bill.billDate!)
@@ -594,7 +605,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (isEditable) ...[
+              if (canEditContent) ...[
                 const SizedBox(width: 4),
                 InkWell(
                   onTap: () => _showEditMerchantDialog(context, bill.merchantName ?? ''),
@@ -612,6 +623,27 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
             ],
           ),
           actions: [
+            // Xóa nháp chỉ dành cho hoá đơn đã lưu mà còn ở trạng thái draft:
+            // đã chốt thì phải dùng "Huỷ hoá đơn" để giữ lại lịch sử, còn hoá
+            // đơn chưa lưu thì thoát ra là xong.
+            if (bill.status == 'draft' && !isNewUnsavedBill && (isCaptain || isCreditor))
+              IconButton(
+                onPressed: state.isDeleting
+                    ? null
+                    : () => _confirmDeleteDraft(context, notifier, bill),
+                icon: state.isDeleting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(
+                        HugeIcons.strokeRoundedDelete02,
+                        size: 20,
+                        color: Color(0xFFEF4444),
+                      ),
+                tooltip: 'Xóa hoá đơn nháp',
+              ),
             Padding(
               padding: const EdgeInsets.only(right: 14),
               child: _buildStatusBadge(bill.status, isDark: isDark),
@@ -757,7 +789,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                             ),
                           ],
                         ),
-                        if (isEditable)
+                        if (canEditContent)
                           TextButton.icon(
                             onPressed: () {
                               EditItemDialog.show(
@@ -913,7 +945,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                                 color: textMuted,
                               ),
                             ),
-                            if (isEditable) ...[
+                            if (canEditContent) ...[
                               const SizedBox(height: 12),
                               ElevatedButton.icon(
                                 onPressed: () {
@@ -945,16 +977,21 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                           members: bill.members,
                           itemIndex: i,
                           isEvenSplit: isEvenSplit,
-                          isEditable: isEditable,
+                          isEditable: canEditContent,
+                          canAssign: isEditable,
                           onTap: () {
                             EditItemDialog.show(
                               context,
                               item: bill.items[i],
                               members: bill.members,
                               isEvenSplit: isEvenSplit,
-                              isEditable: isEditable,
-                              onSave: isEditable ? (updated) => notifier.updateItem(updated) : null,
-                              onDelete: isEditable ? () => notifier.deleteItem(bill.items[i].id) : null,
+                              isEditable: canEditContent,
+                              onSave: canEditContent
+                                  ? (updated) => notifier.updateItem(updated)
+                                  : null,
+                              onDelete: canEditContent
+                                  ? () => notifier.deleteItem(bill.items[i].id)
+                                  : null,
                             );
                           },
                           onDelete: () => notifier.deleteItem(bill.items[i].id),
@@ -971,7 +1008,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                       computedTotalItemDiscount: state.computedTotalItemDiscount,
                       computedNetItemsTotal: state.computedNetItemsTotal,
                       computedTotal: state.computedTotal,
-                      isEditable: isEditable,
+                      isEditable: canEditContent,
                       onUpdateAdjustments: ({serviceCharge, vat, generalDiscount, total}) {
                         notifier.setAdjustments(
                           serviceCharge: serviceCharge,
@@ -1113,6 +1150,55 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
               },
             ),
       );
+  }
+
+  /// Xác nhận trước khi xóa: thao tác này không hoàn tác được và cũng xóa luôn
+  /// ảnh hóa đơn đã tải lên.
+  Future<void> _confirmDeleteDraft(
+    BuildContext context,
+    BillDetailNotifier notifier,
+    BillDetailEntity bill,
+  ) async {
+    final billName = bill.merchantName?.isNotEmpty == true
+        ? bill.merchantName!
+        : 'hoá đơn nháp này';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Xóa hoá đơn nháp?',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 17),
+        ),
+        content: Text(
+          'Toàn bộ nội dung và ảnh của "$billName" sẽ bị xóa vĩnh viễn. '
+          'Thao tác này không thể hoàn tác.',
+          style: GoogleFonts.plusJakartaSans(fontSize: 13.5, height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Giữ lại'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
+            child: const Text('Xóa hoá đơn'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final deleted = await notifier.deleteDraftBill();
+    if (!deleted || !context.mounted) return;
+
+    showSuccessSnackBar(context, 'Đã xóa hoá đơn nháp');
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.home);
+    }
   }
 
   Future<void> _showVoidBillDialog(BuildContext context, BillDetailNotifier notifier) async {

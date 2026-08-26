@@ -12,7 +12,12 @@ class BillItemCard extends StatelessWidget {
   final List<BillMemberEntity> members;
   final int itemIndex;
   final bool isEvenSplit;
+  /// Được sửa nội dung món (giá, số lượng, xóa món) — chỉ Trưởng nhóm.
   final bool isEditable;
+
+  /// Được gán người ăn cho món. Rộng hơn [isEditable]: Chủ chi cũng gán được,
+  /// vì đó là việc chia phần chứ không phải sửa số tiền.
+  final bool canAssign;
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final Function(String memberId) onToggleMember;
@@ -25,6 +30,7 @@ class BillItemCard extends StatelessWidget {
     required this.itemIndex,
     this.isEvenSplit = false,
     this.isEditable = true,
+    this.canAssign = true,
     required this.onTap,
     required this.onDelete,
     required this.onToggleMember,
@@ -177,7 +183,7 @@ class BillItemCard extends StatelessWidget {
                   AvatarAssignmentBar(
                     item: item,
                     members: members,
-                    isEditable: isEditable,
+                    isEditable: canAssign,
                     onToggleMember: onToggleMember,
                     onAssignAll: onAssignAll,
                     onOpenDetail: onTap,

@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/home_group_item_entity.dart';
+import '../../../../app/session/session_scope.dart';
 
 final homeGroupsProvider = FutureProvider.autoDispose<List<HomeGroupItemEntity>>((ref) async {
+  ref.watch(sessionRevisionProvider);
   try {
     final dio = getIt<Dio>();
     final response = await dio.get(

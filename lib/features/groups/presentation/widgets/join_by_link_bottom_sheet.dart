@@ -13,8 +13,8 @@ import 'group_avatar.dart';
 
 /// Sheet 2 bước: Nhập link/mã mời → Preview nhóm → Xác nhận tham gia.
 ///
-/// Ở mock, mọi mã hợp lệ (>= 5 ký tự) đều resolve về một nhóm mẫu; riêng mã
-/// trùng với nhóm có sẵn trong [GroupMockData] sẽ trả đúng nhóm đó.
+/// Cả hai bước đều gọi backend thật: `GET /groups/invites/{code}` để xem trước
+/// và `POST /groups/join` để vào nhóm.
 class JoinByLinkBottomSheet extends StatefulWidget {
   const JoinByLinkBottomSheet({super.key});
 

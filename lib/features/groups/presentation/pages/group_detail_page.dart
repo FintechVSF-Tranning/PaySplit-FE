@@ -13,7 +13,10 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../di/injection.dart';
+import '../../../bills/domain/entities/bill_detail_entity.dart';
+import '../../../bills/domain/repositories/bill_repository.dart';
 import '../../../home/presentation/widgets/group_settings_bottom_sheet.dart';
+import '../../../settlement/presentation/providers/settlement_controller.dart';
 import '../../../home/presentation/widgets/invite_code_bottom_sheet.dart';
 import '../../domain/entities/group_bill_entity.dart';
 import '../../domain/entities/group_debt_entity.dart';
@@ -23,9 +26,13 @@ import '../../domain/entities/group_member_entity.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/usecases/create_invite_usecase.dart';
 import '../../domain/usecases/leave_or_remove_member_usecase.dart';
+import '../../domain/usecases/lock_bill_submissions_usecase.dart';
 import '../../domain/usecases/list_invites_usecase.dart';
 import '../../domain/usecases/revoke_invite_usecase.dart';
 import '../../domain/usecases/transfer_captain_usecase.dart';
+import '../providers/group_activities_provider.dart';
+import '../providers/group_bills_provider.dart';
+import '../providers/group_debts_provider.dart';
 import '../providers/group_detail_provider.dart';
 import '../providers/group_roster_provider.dart';
 import '../providers/groups_provider.dart';
@@ -36,8 +43,6 @@ import '../widgets/group_bill_card.dart';
 import '../widgets/group_debts_panel.dart';
 import '../widgets/group_members_panel.dart';
 import '../widgets/invite_qr_bottom_sheet.dart';
-import '../widgets/proof_review_sheet.dart';
-import '../widgets/vietqr_payment_sheet.dart';
 
 /// 4 tab của màn Chi tiết nhóm (Group Hub).
 enum GroupHubTab { bills, debts, members, activity }
@@ -56,20 +61,28 @@ class GroupDetailPage extends ConsumerStatefulWidget {
 class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
   GroupHubTab _tab = GroupHubTab.bills;
   GroupBillFilter _billFilter = GroupBillFilter.all;
-  bool _hasMoreActivities = true;
   bool _disbanded = false;
 
   GroupDetailKey get _detailKey => GroupDetailKey(widget.group);
 
-  /// Thay danh sách thành viên của [detail] bằng roster realtime.
+  /// Bộ lọc trạng thái được gửi thẳng lên backend, nên mỗi chip là một khóa
+  /// provider riêng.
+  GroupBillsKey get _billsKey =>
+      GroupBillsKey(groupId: widget.group.id, filter: _billFilter);
+
+  /// Thay danh sách thành viên và số dư của [detail] bằng roster realtime.
   ///
-  /// Số dư vẫn lấy từ [detail] vì nó thuộc luồng công nợ, không thuộc giao thức
-  /// đồng bộ nhóm: một người vừa vào chưa phát sinh giao dịch nào nên số dư 0
-  /// là đúng cho tới lần tải công nợ kế tiếp.
-  GroupDetailEntity _withLiveRoster(GroupDetailEntity detail, GroupRosterState roster) {
+  /// Số dư đến từ `balances` của `GET /groups/{id}` — cùng một lần đọc với danh
+  /// sách thành viên. Nó đổi theo hóa đơn và thanh toán chứ không theo
+  /// roster_version, nên stream roster không mang số dư mới; màn hình tải lại
+  /// khi có thao tác hóa đơn / công nợ.
+  GroupDetailEntity _withLiveRoster(
+    GroupDetailEntity detail,
+    GroupRosterState roster,
+    Map<String, int> balanceByMember,
+  ) {
     if (roster.isLoading && roster.members.isEmpty) return detail;
 
-    final balanceByMember = {for (final entry in detail.members) entry.member.id: entry.balance};
     final members = [
       for (final member in roster.members)
         GroupMemberBalance(
@@ -90,6 +103,75 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
     );
   }
 
+  /// Thay danh sách hóa đơn mock bằng dữ liệu thật từ `GET /api/v1/bills`.
+  ///
+  /// Trong lúc tải (hoặc khi lỗi) trả về danh sách rỗng để tab đếm đúng và
+  /// panel tự hiển thị trạng thái loading/error, thay vì lộ dữ liệu mock.
+  GroupDetailEntity _withLiveBills(
+    GroupDetailEntity detail,
+    GroupBillsState billsState,
+  ) {
+    final bills = billsState.bills;
+    return GroupDetailEntity(
+      group: detail.group,
+      createdAtText: detail.createdAtText,
+      bills: bills,
+      debts: detail.debts,
+      debtMatrix: detail.debtMatrix,
+      members: detail.members,
+      activities: detail.activities,
+    );
+  }
+
+  /// Thay công nợ mock bằng dữ liệu thật từ `GET /groups/{id}/debts`.
+  GroupDetailEntity _withLiveDebts(GroupDetailEntity detail, GroupDebtsState debtsState) {
+    return GroupDetailEntity(
+      group: _groupWithBalance(detail.group, debtsState),
+      createdAtText: detail.createdAtText,
+      bills: detail.bills,
+      debts: debtsState.debts,
+      debtMatrix: debtsState.matrix,
+      members: detail.members,
+      activities: detail.activities,
+    );
+  }
+
+  /// Thay nhật ký mock bằng `GET /groups/{id}/activities`.
+  GroupDetailEntity _withLiveActivities(
+    GroupDetailEntity detail,
+    GroupActivitiesState activitiesState,
+  ) {
+    return GroupDetailEntity(
+      group: detail.group,
+      createdAtText: detail.createdAtText,
+      bills: detail.bills,
+      debts: detail.debts,
+      debtMatrix: detail.debtMatrix,
+      members: detail.members,
+      activities: activitiesState.activities,
+    );
+  }
+
+  /// Số dư trên banner suy ra từ chính các khoản nợ đang hiển thị, nên con số
+  /// và danh sách bên dưới luôn kể cùng một câu chuyện.
+  GroupEntity _groupWithBalance(GroupEntity group, GroupDebtsState debtsState) {
+    if (debtsState.isLoading && debtsState.debts.isEmpty) return group;
+    return GroupEntity(
+      id: group.id,
+      name: group.name,
+      memberCount: group.memberCount,
+      myBalance: debtsState.myNetBalance,
+      inviteCode: group.inviteCode,
+      isCaptain: group.isCaptain,
+      lastActivity: group.lastActivity,
+      lastActivityAt: group.lastActivityAt,
+      pendingBillCount: group.pendingBillCount,
+      status: group.status,
+      closedAtText: group.closedAtText,
+      createdAt: group.createdAt,
+    );
+  }
+
   GroupEntity _groupWithRoster(GroupEntity group, GroupRosterState roster, int memberCount) {
     return GroupEntity(
       id: group.id,
@@ -103,6 +185,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
       pendingBillCount: group.pendingBillCount,
       status: group.status,
       closedAtText: group.closedAtText,
+      createdAt: group.createdAt,
     );
   }
 
@@ -118,7 +201,57 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
     // Roster là nguồn sự thật realtime cho danh sách thành viên; phần còn lại
     // của màn hình (hóa đơn, công nợ, hoạt động) vẫn đến từ store cũ.
     final roster = ref.watch(groupRosterProvider(widget.group.id));
-    final detail = _withLiveRoster(ref.watch(groupDetailProvider(_detailKey)), roster);
+
+    // Trả dữ liệu tươi về cho danh sách nhóm. Danh sách chỉ tải một lần mỗi
+    // phiên nên nếu người khác đổi tên nhóm, mở nhóm ra thấy tên mới mà back
+    // lại vẫn thấy tên cũ. `listen` chứ không phải ghi thẳng trong `build`:
+    // đổi state của provider khác giữa lúc dựng widget là lỗi.
+    ref.listen<GroupRosterState>(groupRosterProvider(widget.group.id), (
+      previous,
+      next,
+    ) {
+      // Nhóm bị giải tán hoặc mình bị xóa khỏi nhóm trong lúc đang mở: mọi
+      // thao tác từ đây sẽ là 403/404, nên đưa người dùng ra thay vì để họ bấm
+      // vào một màn hình đã chết.
+      if (next.endedReason != null && previous?.endedReason == null) {
+        _handleGroupEnded(next.endedReason!);
+        return;
+      }
+
+      if (next.isLoading || next.groupName == null) return;
+      ref
+          .read(groupsProvider.notifier)
+          .applyGroupSnapshot(
+            groupId: widget.group.id,
+            name: next.groupName,
+            memberCount: next.members.isEmpty ? null : next.members.length,
+            isCaptain: next.callerRole.isEmpty ? null : next.isCaptain,
+          );
+    });
+    final billsState = ref.watch(groupBillsProvider(_billsKey));
+    final debtsState = ref.watch(groupDebtsProvider(widget.group.id));
+    final activitiesState = ref.watch(groupActivitiesProvider(widget.group.id));
+    // Số dư từng thành viên: ưu tiên tính lại từ công nợ vừa tải (cùng công
+    // thức với backend) để nó đi theo mọi lần chốt hóa đơn / xác nhận thanh
+    // toán; `GET /groups/{id}` chỉ là giá trị khởi đầu.
+    final balances = debtsState.netBalanceByMember.isNotEmpty
+        ? debtsState.netBalanceByMember
+        : roster.balances;
+
+    final detail = _withLiveActivities(
+      _withLiveDebts(
+        _withLiveBills(
+          _withLiveRoster(
+            ref.watch(groupDetailProvider(_detailKey)),
+            roster,
+            balances,
+          ),
+          billsState,
+        ),
+        debtsState,
+      ),
+      activitiesState,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF9),
@@ -158,22 +291,36 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
                         GroupHubTab.debts => GroupDebtsPanel(
                           detail: detail,
                           onPayQr: (debt) => _payDebt(detail, debt),
-                          onReviewProof: (debt) => _reviewProof(debt),
-                          onRemind: (debt) => showSuccessSnackBar(
-                            context,
-                            'Đã gửi nhắc nợ tới ${debt.counterpartName}',
-                          ),
+                          onReviewProof: _reviewProof,
+                          onRemind: (debt) => _remindDebt(detail, debt),
                         ),
-                        GroupHubTab.members => GroupMembersPanel(
-                          detail: detail,
-                          canAddMember: !detail.group.isClosed,
-                          onAddMember: () => _openAddMemberOptions(detail),
-                          onLeaveGroup: () => _leaveGroup(detail),
-                        ),
+                        // Không tải được nhóm (mất mạng, 403 vì vừa bị xóa
+                        // khỏi nhóm) thì nói ra, thay vì hiện một tab Thành
+                        // viên trống trông như nhóm không có ai.
+                        GroupHubTab.members =>
+                          roster.failure != null && roster.members.isEmpty
+                              ? _BillsPlaceholder(
+                                  message: roster.failure!.message,
+                                  onRetry: () => ref
+                                      .read(
+                                        groupRosterProvider(
+                                          widget.group.id,
+                                        ).notifier,
+                                      )
+                                      .resync(),
+                                )
+                              : GroupMembersPanel(
+                                  detail: detail,
+                                  canAddMember: !detail.group.isClosed,
+                                  onAddMember: () => _openAddMemberOptions(detail),
+                                  onLeaveGroup: () => _leaveGroup(detail),
+                                ),
                         GroupHubTab.activity => GroupActivityPanel(
                           detail: detail,
-                          hasMore: _hasMoreActivities,
-                          onLoadMore: _loadMoreActivities,
+                          hasMore: activitiesState.hasMore,
+                          onLoadMore: () => ref
+                              .read(groupActivitiesProvider(widget.group.id).notifier)
+                              .loadMore(),
                         ),
                       },
                     ],
@@ -192,8 +339,8 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
                 child: IgnorePointer(
                   ignoring: false,
                   child: BillSpeedDial(
-                    onScanOcr: () => showComingSoonSnackBar(context, 'Quét hóa đơn AI OCR'),
-                    onManualEntry: () => showComingSoonSnackBar(context, 'Tạo hóa đơn thủ công'),
+                    onScanOcr: () => _openOcrScan(detail),
+                    onManualEntry: () => _openManualEntry(detail),
                   ),
                 ),
               ),
@@ -206,21 +353,17 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
   // --- Tab Hóa đơn ---------------------------------------------------------
 
   Widget _buildBillsPanel(GroupDetailEntity detail) {
-    final bills = detail.bills.where((b) => _billFilter.matches(b.status)).toList();
+    // Backend đã lọc theo `status`, client không lọc lại. Badge của các chip
+    // lấy từ `counts` của toàn nhóm nên không phụ thuộc trang đang tải.
+    final billsState = ref.watch(groupBillsProvider(_billsKey));
+    final bills = detail.bills;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        GroupPanelHead(
+        const GroupPanelHead(
           title: 'Hóa đơn trong nhóm',
           subtitle: 'Được cập nhật theo tiến trình chia tiền',
-          trailing: _DemoBalanceButton(
-            state: detail.group.balanceState,
-            onTap: () {
-              HapticFeedback.selectionClick();
-              _notifier.cycleDemoBalance();
-            },
-          ),
         ),
         const SizedBox(height: 12),
 
@@ -234,7 +377,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
               final filter = GroupBillFilter.values[index];
               return _FilterChip(
                 label: filter.label,
-                count: detail.countBills(filter),
+                count: billsState.countFor(filter),
                 isSelected: filter == _billFilter,
                 onTap: () {
                   HapticFeedback.selectionClick();
@@ -246,56 +389,304 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
         ),
         const SizedBox(height: 14),
 
-        if (bills.isEmpty)
+        if (billsState.isLoading && bills.isEmpty)
+          const _BillsPlaceholder(message: 'Đang tải hóa đơn của nhóm...')
+        else if (billsState.errorMessage != null && bills.isEmpty)
+          _BillsPlaceholder(
+            message: billsState.errorMessage!,
+            onRetry: () => ref.read(groupBillsProvider(_billsKey).notifier).load(),
+          )
+        else if (bills.isEmpty)
           _EmptyBills(filter: _billFilter)
-        else
+        else ...[
           for (final bill in bills)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: GroupBillCard(
                 bill: bill,
-                onTap: () => showComingSoonSnackBar(context, 'Chi tiết ${bill.title}'),
+                onTap: () => _openBillDetail(detail, bill),
+                // Chỉ trưởng nhóm mới gỡ được hóa đơn khỏi nhóm.
+                onDelete: detail.group.isCaptain
+                    ? () => _removeBill(detail, bill)
+                    : null,
               ),
             ),
+
+          // Backend phân trang theo cursor: chỉ hiện nút khi còn trang sau.
+          if (billsState.hasMore)
+            _LoadMoreBillsButton(
+              isLoading: billsState.isLoadingMore,
+              onTap: () => ref.read(groupBillsProvider(_billsKey).notifier).loadMore(),
+            ),
+
+          // Lỗi khi tải thêm không được xóa danh sách đang hiển thị.
+          if (billsState.errorMessage != null && bills.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                billsState.errorMessage!,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.danger,
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }
 
   // --- Hành động -----------------------------------------------------------
 
-  /// Nút trên banner số dư: tôi đang nợ → mở VietQR cho khoản nợ đầu tiên.
+  /// Hóa đơn mới chưa tồn tại trên server: dựng draft rỗng để màn chia tiền
+  /// khởi tạo (cùng khuôn với luồng quét bill ở màn Tổng quan).
+  BillDetailEntity _draftBillFor(GroupDetailEntity detail) {
+    return BillDetailEntity(
+      id: '',
+      groupId: detail.group.id,
+      groupName: detail.group.name,
+      creditorMemberId: '',
+      creditorName: '',
+      status: 'draft',
+      merchantName: 'Hoá đơn ${detail.group.name}',
+      subtotal: 0,
+      serviceCharge: 0,
+      vat: 0,
+      totalItemDiscount: 0,
+      generalDiscount: 0,
+      total: 0,
+    );
+  }
+
+  /// Quét OCR: vào thẳng màn chụp hóa đơn với nhóm hiện tại (bỏ qua bước chọn
+  /// nhóm của luồng ở màn Tổng quan vì ta đã ở trong nhóm).
+  Future<void> _openOcrScan(GroupDetailEntity detail) async {
+    await context.push(
+      AppRoutes.scanBill,
+      extra: {'groupId': detail.group.id, 'groupName': detail.group.name},
+    );
+    _refreshBills();
+  }
+
+  /// Nhập tay: mở thẳng màn chia tiền với hóa đơn draft rỗng — chính là nhánh
+  /// "Nhập thủ công" của màn chụp hóa đơn.
+  Future<void> _openManualEntry(GroupDetailEntity detail) async {
+    await context.push(
+      AppRoutes.billDetail,
+      extra: {'bill': _draftBillFor(detail), 'autoStartOcr': false},
+    );
+    _refreshBills();
+  }
+
+  /// Mở lại một hóa đơn đã có: màn chia tiền tự gọi `GET /api/v1/bills/{id}`
+  /// và hiển thị đúng phần đã chia (read-only nếu hóa đơn đã chốt/hủy).
+  Future<void> _openBillDetail(GroupDetailEntity detail, GroupBillEntity bill) async {
+    await context.push(
+      AppRoutes.billDetail,
+      extra: {
+        'billId': bill.id,
+        'groupId': detail.group.id,
+        'groupName': detail.group.name,
+        'merchantName': bill.title,
+      },
+    );
+    _refreshBills();
+  }
+
+  /// Rời khỏi màn nhóm khi quyền đọc không còn: nhóm bị giải tán, hoặc mình
+  /// vừa bị xóa khỏi nhóm.
+  void _handleGroupEnded(String reason) {
+    if (!mounted || _disbanded) return;
+    _disbanded = true;
+
+    ref.read(groupsProvider.notifier).removeGroupLocally(widget.group.id);
+    showErrorSnackBar(
+      context,
+      reason == 'group_archived'
+          ? 'Nhóm "${widget.group.name}" đã được giải tán'
+          : 'Bạn không còn là thành viên của nhóm "${widget.group.name}"',
+    );
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.groups);
+    }
+  }
+
+  /// Gỡ bỏ một hóa đơn khỏi nhóm. Backend có hai đường khác hẳn nhau:
+  ///
+  /// - `draft` → `DELETE /bills/{id}`: xóa hẳn, kèm ảnh, vì hóa đơn chưa sinh
+  ///   công nợ nên không có gì để giữ lại.
+  /// - `finalized` → `POST /bills/{id}/void`: **huỷ**, giữ lại bản ghi và lý do
+  ///   vì các khoản nợ đã phát sinh, bắt buộc có lý do và chỉ Captain được làm.
+  /// - `reviewed` → backend chặn cả hai đường; phải mở hóa đơn bấm "Sửa lại"
+  ///   để đưa về nháp trước.
+  Future<void> _removeBill(GroupDetailEntity detail, GroupBillEntity bill) async {
+    switch (bill.status) {
+      case GroupBillStatus.draft:
+        await _deleteDraftBill(detail, bill);
+      case GroupBillStatus.finalized:
+        await _voidFinalizedBill(detail, bill);
+      case GroupBillStatus.reviewed:
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Hóa đơn đang chờ duyệt'),
+            content: Text(
+              '"${bill.title}" đã được đối soát nên không xóa trực tiếp được. '
+              'Mở hóa đơn và bấm "Sửa lại" để đưa về nháp, rồi xóa.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Đã hiểu'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  unawaited(_openBillDetail(detail, bill));
+                },
+                child: const Text('Mở hóa đơn'),
+              ),
+            ],
+          ),
+        );
+      case GroupBillStatus.voided:
+        showErrorSnackBar(context, 'Hóa đơn này đã bị hủy trước đó');
+    }
+  }
+
+  Future<void> _deleteDraftBill(GroupDetailEntity detail, GroupBillEntity bill) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa hóa đơn nháp?'),
+        content: Text(
+          'Toàn bộ nội dung và ảnh của "${bill.title}" sẽ bị xóa vĩnh viễn. '
+          'Thao tác này không thể hoàn tác.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Giữ lại'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Xóa hóa đơn'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final result = await getIt<BillRepository>().deleteDraftBill(
+      billId: bill.id,
+      groupId: detail.group.id,
+    );
+    if (!mounted) return;
+
+    result.match(
+      (failure) => showErrorSnackBar(context, 'Xóa hóa đơn thất bại: ${failure.message}'),
+      (_) {
+        showSuccessSnackBar(context, 'Đã xóa hóa đơn "${bill.title}"');
+        _refreshBills();
+      },
+    );
+  }
+
+  Future<void> _voidFinalizedBill(GroupDetailEntity detail, GroupBillEntity bill) async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _VoidBillDialog(billTitle: bill.title),
+    );
+    if (reason == null || !mounted) return;
+
+    final result = await getIt<BillRepository>().voidBill(
+      billId: bill.id,
+      groupId: detail.group.id,
+      version: bill.version,
+      reason: reason,
+    );
+    if (!mounted) return;
+
+    result.match(
+      (failure) => showErrorSnackBar(context, 'Hủy hóa đơn thất bại: ${failure.message}'),
+      (_) {
+        showSuccessSnackBar(context, 'Đã hủy hóa đơn "${bill.title}"');
+        _refreshBills();
+      },
+    );
+  }
+
+  /// Làm mới sau một thao tác hóa đơn.
+  ///
+  /// Chốt hoặc hủy một hóa đơn đổi luôn công nợ và số dư của cả nhóm, nên
+  /// không chỉ danh sách hóa đơn cần tải lại: mọi bộ lọc (kể cả `counts` của
+  /// chip khác), công nợ và nhật ký đều phải đi theo.
+  void _refreshBills() {
+    if (!mounted) return;
+
+    unawaited(ref.read(groupDebtsProvider(widget.group.id).notifier).load());
+    unawaited(ref.read(groupActivitiesProvider(widget.group.id).notifier).load());
+
+    // Chỉ tải lại chip đang mở. Các chip khác là provider `autoDispose` chưa ai
+    // xem nên đã bị hủy — bấm vào là tự tải mới. Gọi `invalidate` cho chúng ở
+    // đây sẽ dựng cả 5 provider dậy và bắn 5 request cho một thao tác, đúng
+    // kiểu làm chạm ngưỡng rate limit.
+    unawaited(ref.read(groupBillsProvider(_billsKey).notifier).load());
+  }
+
+  /// Nút trên banner số dư: tôi đang nợ → sang màn Công nợ, nơi có luồng
+  /// VietQR gộp khoản và nộp minh chứng đầy đủ.
   Future<void> _settleMyBalance(GroupDetailEntity detail) async {
     final owed = detail.debts.where((d) => d.direction == DebtDirection.iOwe).toList();
     if (owed.isEmpty) {
-      showComingSoonSnackBar(context, 'Thanh toán VietQR');
+      showSuccessSnackBar(context, 'Bạn không còn khoản nào phải trả trong nhóm này');
       return;
     }
-    await _payDebt(detail, owed.first);
+    _openSettlement(SettlementTab.payable);
   }
 
-  Future<void> _payDebt(GroupDetailEntity detail, GroupDebtEntity debt) async {
-    final submitted = await VietQrPaymentSheet.show(
-      context,
-      debt: debt,
-      groupName: detail.group.name,
-    );
-    if (submitted != true || !mounted) return;
-
-    _notifier.submitProof(debt.id);
-    showSuccessSnackBar(context, 'Đã gửi minh chứng, chờ ${debt.counterpartName} xác nhận');
+  /// Trả tiền và duyệt minh chứng là luồng nhiều bước (tạo QR gộp khoản, tải
+  /// ảnh minh chứng, đối bên xác nhận) đã có sẵn ở màn Công nợ. Màn nhóm chỉ
+  /// đưa người dùng sang đúng tab thay vì dựng lại một bản rút gọn.
+  void _payDebt(GroupDetailEntity detail, GroupDebtEntity debt) {
+    _openSettlement(SettlementTab.payable);
   }
 
-  Future<void> _reviewProof(GroupDebtEntity debt) async {
-    final result = await ProofReviewSheet.show(context, debt);
-    if (result == null || !mounted) return;
+  void _reviewProof(GroupDebtEntity debt) {
+    _openSettlement(SettlementTab.receivable);
+  }
 
-    switch (result) {
-      case ProofApproved():
-        _notifier.approveProof(debt.id);
-        showSuccessSnackBar(context, 'Đã xác nhận nhận tiền từ ${debt.counterpartName}');
-      case ProofRejected(:final reason):
-        _notifier.rejectProof(debt.id, reason);
-        showErrorSnackBar(context, 'Đã từ chối minh chứng: $reason');
+  void _openSettlement(SettlementTab tab) {
+    context.go(AppRoutes.settlement, extra: tab);
+  }
+
+  /// Nhắc nợ thật: gọi `POST /groups/{id}/debts/{debtId}/remind` cho khoản cũ
+  /// nhất của người đó. Backend chặn ở 3 lần mỗi khoản nên không cần đếm lại ở
+  /// client, chỉ cần hiển thị đúng lỗi trả về.
+  Future<void> _remindDebt(GroupDetailEntity detail, GroupDebtEntity debt) async {
+    final debtIds =
+        ref.read(groupDebtsProvider(widget.group.id)).debtIdsByCounterpart[debt.id] ??
+        const <String>[];
+    if (debtIds.isEmpty) {
+      showErrorSnackBar(context, 'Không tìm thấy khoản nợ để nhắc');
+      return;
+    }
+
+    try {
+      await ref
+          .read(settlementRepositoryProvider)
+          .remindDebt(groupId: detail.group.id, debtId: debtIds.first);
+      if (!mounted) return;
+      showSuccessSnackBar(context, 'Đã gửi nhắc nợ tới ${debt.counterpartName}');
+      unawaited(ref.read(groupActivitiesProvider(widget.group.id).notifier).load());
+    } catch (_) {
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Không gửi được nhắc nợ tới ${debt.counterpartName}');
     }
   }
 
@@ -304,11 +695,14 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
   /// Gọi từ sheet Cài đặt nhóm; trả về `true` khi đã chốt xong để sheet tự
   /// chuyển sang trạng thái khóa.
   Future<bool> _closeBook(GroupDetailEntity detail) async {
-    final pending = detail.bills.where((b) => b.status.isActive).toList();
-    if (pending.isNotEmpty) {
+    // Đếm theo `counts` của cả nhóm, không theo danh sách đang hiển thị: chip
+    // lọc chỉ tải hóa đơn của một trạng thái, dựa vào nó thì đứng ở tab "Đã
+    // chốt" sẽ tưởng nhóm không còn hóa đơn nào dang dở.
+    final pending = _pendingBillCount();
+    if (pending > 0) {
       showErrorSnackBar(
         context,
-        'Còn ${pending.length} hóa đơn chưa chia xong. Hoàn tất trước khi khóa hóa đơn.',
+        'Còn $pending hóa đơn chưa chia xong. Hoàn tất trước khi khóa hóa đơn.',
       );
       return false;
     }
@@ -319,24 +713,32 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
     );
     if (confirmed != true || !mounted) return false;
 
-    final now = DateTime.now();
-    final closedAt =
-        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    final result = await getIt<LockBillSubmissionsUseCase>().call(detail.group.id);
+    if (!mounted) return false;
 
-    _notifier.closeBook(closedAt);
-    ref.read(groupsProvider.notifier).markGroupClosedLocally(detail.group.id, closedAt);
-    await HapticFeedback.mediumImpact();
-    if (!mounted) return true;
-    showSuccessSnackBar(context, 'Đã khóa hóa đơn nhóm ${detail.group.name}');
-    return true;
+    return result.match(
+      (failure) {
+        showErrorSnackBar(context, 'Khóa hóa đơn thất bại: ${failure.message}');
+        return false;
+      },
+      (lockedAt) {
+        final closedAt =
+            '${lockedAt.day.toString().padLeft(2, '0')}/${lockedAt.month.toString().padLeft(2, '0')}/${lockedAt.year}';
+        _notifier.closeBook(closedAt);
+        ref.read(groupsProvider.notifier).markGroupClosedLocally(detail.group.id, closedAt);
+        unawaited(HapticFeedback.mediumImpact());
+        showSuccessSnackBar(context, 'Đã khóa hóa đơn nhóm ${detail.group.name}');
+        return true;
+      },
+    );
   }
 
-  void _loadMoreActivities() {
-    final loaded = _notifier.loadMoreActivities();
-    setState(() => _hasMoreActivities = loaded);
-    if (!loaded) {
-      showComingSoonSnackBar(context, 'Lịch sử hoạt động cũ hơn');
-    }
+  /// Số hóa đơn chưa chốt của **cả nhóm**, lấy từ `counts` mà backend trả kèm
+  /// mọi trang danh sách.
+  int _pendingBillCount() {
+    final billsState = ref.read(groupBillsProvider(_billsKey));
+    return billsState.countFor(GroupBillFilter.draft) +
+        billsState.countFor(GroupBillFilter.reviewed);
   }
 
   /// Menu 3 lối thêm người: mã mời, QR mời, hoặc chọn từ danh bạ gần đây.
@@ -353,7 +755,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
         await _openInviteCodes(detail);
       case _AddMemberChoice.inviteQr:
         await InviteQrBottomSheet.show(context, detail.group);
-      case _AddMemberChoice.contacts:
+      case _AddMemberChoice.inviteHub:
         await context.push(AppRoutes.addMembers(detail.group.id), extra: detail.group);
     }
   }
@@ -407,12 +809,12 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
       context: context,
       groupId: detail.group.id,
       initialGroupName: detail.group.name,
-      createdAtText: '15/08/2026',
+      createdAtText: detail.createdAtText,
       isCaptain: detail.group.isCaptain,
       currentUserNetBalance: detail.group.myBalance,
       isClosed: detail.group.isClosed,
       closedAtText: detail.group.closedAtText,
-      pendingBillCount: detail.bills.where((b) => b.status.isActive).length,
+      pendingBillCount: _pendingBillCount(),
       members: [
         for (final m in detail.members)
           GroupMemberSettingItem(
@@ -432,6 +834,9 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
           return false;
         }
         _notifier.renameGroup(newName);
+        // Áp tên mới vào roster ngay: header đọc tên từ đó, chờ sự kiện SSE
+        // quay về thì màn hình còn hiện tên cũ.
+        _roster.applyLocalRename(newName);
         unawaited(_roster.resync());
         return true;
       },
@@ -594,7 +999,12 @@ class _Header extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${group.memberCount} thành viên, ${detail.createdAtText}',
+                  // Ngày tạo chỉ có sau khi tải danh sách nhóm; nhóm mở thẳng
+                  // từ deep link chưa có nó, và "3 thành viên, " cụt đuôi thì
+                  // xấu hơn là không nói gì.
+                  detail.createdAtText.isEmpty
+                      ? '${group.memberCount} thành viên'
+                      : '${group.memberCount} thành viên, ${detail.createdAtText}',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -802,39 +1212,82 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-/// Nút prototype xoay vòng 3 trạng thái số dư để demo giao diện.
-class _DemoBalanceButton extends StatelessWidget {
-  const _DemoBalanceButton({required this.state, required this.onTap});
+/// Nút "Tải thêm" cho phân trang cursor của danh sách hóa đơn.
+class _LoadMoreBillsButton extends StatelessWidget {
+  const _LoadMoreBillsButton({required this.isLoading, required this.onTap});
 
-  final GroupBalanceState state;
+  final bool isLoading;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final label = switch (state) {
-      GroupBalanceState.positive => 'Demo số dư',
-      GroupBalanceState.negative => 'Demo cần trả',
-      GroupBalanceState.settled => 'Demo sạch nợ',
-    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: OutlinedButton(
+        onPressed: isLoading ? null : onTap,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          side: const BorderSide(color: AppColors.border),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Text(
+                'Tải thêm hóa đơn',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+      ),
+    );
+  }
+}
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primary,
+/// Ô thông báo trạng thái tải / lỗi dùng chung cho các panel trong màn nhóm.
+class _BillsPlaceholder extends StatelessWidget {
+  const _BillsPlaceholder({required this.message, this.onRetry});
+
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSubtle,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          if (onRetry == null)
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.2),
+            ),
+          if (onRetry == null) const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textMuted,
+            ),
           ),
-        ),
+          if (onRetry != null) ...[
+            const SizedBox(height: 10),
+            TextButton(onPressed: onRetry, child: const Text('Thử lại')),
+          ],
+        ],
       ),
     );
   }
@@ -882,7 +1335,7 @@ class _EmptyBills extends StatelessWidget {
 }
 
 /// Các lối thêm thành viên mở từ tab "Thành viên".
-enum _AddMemberChoice { inviteCode, inviteQr, contacts }
+enum _AddMemberChoice { inviteCode, inviteQr, inviteHub }
 
 class _AddMemberOptionsSheet extends StatelessWidget {
   const _AddMemberOptionsSheet();
@@ -939,9 +1392,9 @@ class _AddMemberOptionsSheet extends StatelessWidget {
                   const SizedBox(height: 10),
                   _OptionTile(
                     icon: HugeIcons.strokeRoundedUserAdd01,
-                    title: 'Chọn từ danh bạ gần đây',
-                    subtitle: 'Thêm nhanh những người hay đi chung',
-                    onTap: () => Navigator.of(context).pop(_AddMemberChoice.contacts),
+                    title: 'Xem tất cả cách mời',
+                    subtitle: 'Link, QR và hướng dẫn cho người được mời',
+                    onTap: () => Navigator.of(context).pop(_AddMemberChoice.inviteHub),
                   ),
                 ],
               ),
@@ -1087,6 +1540,86 @@ class _ClosedRibbon extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Hộp thoại nhập lý do huỷ hóa đơn đã chốt. Backend bắt buộc lý do 1-500 ký
+/// tự và ghi nó vào nhật ký nhóm, nên đây không phải ô cho có.
+class _VoidBillDialog extends StatefulWidget {
+  const _VoidBillDialog({required this.billTitle});
+
+  final String billTitle;
+
+  @override
+  State<_VoidBillDialog> createState() => _VoidBillDialogState();
+}
+
+class _VoidBillDialogState extends State<_VoidBillDialog> {
+  final TextEditingController _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final reason = _controller.text.trim();
+    if (reason.isEmpty) {
+      setState(() => _error = 'Vui lòng nhập lý do hủy');
+      return;
+    }
+    if (reason.length > 500) {
+      setState(() => _error = 'Lý do tối đa 500 ký tự');
+      return;
+    }
+    Navigator.of(context).pop(reason);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Hủy hóa đơn đã chốt?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Các khoản nợ phát sinh từ "${widget.billTitle}" sẽ được gỡ bỏ. '
+            'Hóa đơn vẫn được giữ lại trong lịch sử kèm lý do hủy.',
+            style: GoogleFonts.plusJakartaSans(fontSize: 13.5, height: 1.45),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            maxLines: 2,
+            maxLength: 500,
+            decoration: InputDecoration(
+              labelText: 'Lý do hủy',
+              hintText: 'Ví dụ: nhập nhầm hóa đơn của nhóm khác',
+              errorText: _error,
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (_) {
+              if (_error != null) setState(() => _error = null);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Giữ lại'),
+        ),
+        TextButton(
+          onPressed: _submit,
+          style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+          child: const Text('Hủy hóa đơn'),
+        ),
+      ],
     );
   }
 }

@@ -235,6 +235,14 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, void>> logout() async {
+    // Thu hồi session phía máy chủ trước, nhưng không để lỗi mạng giữ người
+    // dùng lại trong app: refresh token vẫn sống 7 ngày nếu bước này thất bại,
+    // còn token trên máy thì luôn phải bị xóa.
+    try {
+      await _remoteDataSource.signOut();
+    } catch (_) {
+      // Bỏ qua: đăng xuất cục bộ vẫn phải diễn ra.
+    }
     await _tokenStorage.clear();
     return const Right(null);
   }

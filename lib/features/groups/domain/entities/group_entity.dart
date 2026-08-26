@@ -27,11 +27,16 @@ class GroupEntity extends Equatable {
     this.pendingBillCount = 0,
     this.status = GroupStatus.active,
     this.closedAtText,
+    this.createdAt,
   });
 
   final String id;
   final String name;
   final int memberCount;
+
+  /// Ngày tạo nhóm từ `GET /groups`; `null` khi entity được dựng tại client
+  /// (ví dụ nhóm vừa tạo, chưa tải lại danh sách).
+  final DateTime? createdAt;
 
   /// Số dư ròng của tôi trong nhóm: dương = được nhận, âm = cần trả.
   final int myBalance;

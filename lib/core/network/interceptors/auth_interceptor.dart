@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 
 import '../../constants/api_endpoints.dart';
 import '../token_storage.dart';
+import '../session_events.dart';
 
 /// Gắn bearer token vào mọi request và tự xoay vòng token khi gặp 401.
 ///
@@ -12,11 +13,19 @@ import '../token_storage.dart';
 /// đăng nhập. Việc làm mới đặt ở đây thay vì trong từng repository để mọi
 /// module (auth, groups, bills, settlement...) đều được bảo vệ như nhau.
 class AuthInterceptor extends Interceptor {
-  AuthInterceptor(this._tokenStorage, this._baseUrl, {Dio Function(BaseOptions)? dioFactory})
-    : _dioFactory = dioFactory ?? Dio.new;
+  AuthInterceptor(
+    this._tokenStorage,
+    this._baseUrl, {
+    Dio Function(BaseOptions)? dioFactory,
+    this.sessionEvents,
+  }) : _dioFactory = dioFactory ?? Dio.new;
 
   final TokenStorage _tokenStorage;
   final String _baseUrl;
+
+  /// Báo lên tầng UI khi phiên mất hẳn, để app đưa người dùng về màn đăng nhập
+  /// thay vì đứng yên với một loạt request 401.
+  final SessionEvents? sessionEvents;
 
   /// Cách dựng Dio cho lời gọi làm mới và lần thử lại. Tách ra thành tham số
   /// để test có thể tiêm adapter giả; mặc định là `Dio.new`.
@@ -28,6 +37,10 @@ class AuthInterceptor extends Interceptor {
   /// token là dùng một lần, gọi song song sẽ bị coi là tái sử dụng và thu hồi
   /// cả phiên.
   Future<bool>? _refreshing;
+
+  /// Đã báo "mất phiên" cho lần hỏng hiện tại hay chưa. Đặt lại sau mỗi lần
+  /// làm mới token thành công.
+  bool _sessionEndNotified = false;
 
   /// Đánh dấu request đã được thử lại sau khi làm mới token, để một request
   /// không rơi vào vòng lặp 401 → refresh → 401 vô hạn.
@@ -63,9 +76,12 @@ class AuthInterceptor extends Interceptor {
         request.extra[_retriedFlag] != true;
 
     if (!shouldTryRefresh) {
-      // 401 ở nơi không làm mới được nghĩa là phiên thực sự đã mất.
-      if (err.response?.statusCode == 401) {
-        await _tokenStorage.clear();
+      // 401 trên chính các endpoint xác thực (sai mật khẩu, OTP hỏng...) không
+      // phải là mất phiên: người dùng chưa đăng nhập, đừng đụng vào token và
+      // đừng đá ai ra khỏi đâu cả.
+      if (err.response?.statusCode == 401 && !_skipRefreshPaths.contains(request.path)) {
+        // Còn lại là request đã thử lại bằng token mới mà vẫn 401 — phiên hỏng thật.
+        await _endSession();
       }
       handler.next(err);
       return;
@@ -75,16 +91,30 @@ class AuthInterceptor extends Interceptor {
     _refreshing = null;
 
     if (!refreshed) {
-      await _tokenStorage.clear();
+      await _endSession();
       handler.next(err);
       return;
     }
+
+    // Làm mới được nghĩa là phiên vẫn sống: lần mất phiên sau phải được báo lại.
+    _sessionEndNotified = false;
 
     try {
       handler.resolve(await _retry(request));
     } on DioException catch (retryError) {
       handler.next(retryError);
     }
+  }
+
+  /// Kết thúc phiên: xóa token và báo lên UI đúng một lần.
+  ///
+  /// Nhiều request cùng chết vì một phiên hỏng (màn hình gọi song song vài API)
+  /// nên nếu không chặn, UI nhận cả loạt sự kiện cho cùng một sự việc.
+  Future<void> _endSession() async {
+    await _tokenStorage.clear();
+    if (_sessionEndNotified) return;
+    _sessionEndNotified = true;
+    sessionEvents?.notifyExpired();
   }
 
   /// Gọi `POST /auth/refresh` bằng một Dio riêng, không gắn interceptor này,

@@ -14,8 +14,11 @@ const Map<String, String> _errorMessages = {
       'Tài khoản hiện đang bị khóa hoặc tạm ngưng hoạt động.',
   'INVALID_OR_EXPIRED_TOKEN':
       'Mã OTP không chính xác hoặc đã hết hạn hiệu lực.',
+  // 429 không chỉ đến từ "thao tác sai": ngưỡng tính theo IP nên vài người dùng
+  // chung một mạng, hay một máy đăng nhập nhiều tài khoản, cũng chạm được. Nói
+  // đúng nguyên nhân, kèm thời gian chờ lấy từ header `Retry-After`.
   'RATE_LIMITED':
-      'Bạn đã thao tác sai quá nhiều lần. Vui lòng đợi trong giây lát rồi thử lại.',
+      'Máy chủ đang nhận quá nhiều yêu cầu từ kết nối của bạn. Vui lòng thử lại sau ít giây.',
   'SESSION_REVOKED': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   'INVALID_CURRENT_PASSWORD': 'Mật khẩu hiện tại không chính xác.',
   'UNSUPPORTED_BANK': 'Ngân hàng được chọn hiện chưa được hệ thống hỗ trợ.',
@@ -81,12 +84,21 @@ Failure mapDioError(DioException error) {
         fieldDetailMessage = 'Lỗi nhập liệu ($messages)';
       }
 
-      final localizedMessage =
+      var localizedMessage =
           (code != null && _errorMessages.containsKey(code))
           ? _errorMessages[code]!
           : (fieldDetailMessage ??
                 rawMessage ??
                 'Lỗi từ máy chủ ($statusCode)');
+
+      if (statusCode == 429) {
+        final retryAfter = _retryAfterSeconds(error.response);
+        if (retryAfter != null) {
+          localizedMessage =
+              'Máy chủ đang nhận quá nhiều yêu cầu từ kết nối của bạn. '
+              'Vui lòng thử lại sau $retryAfter giây.';
+        }
+      }
 
       if (statusCode == 401 || statusCode == 403) {
         return UnauthorizedFailure(localizedMessage, code);
@@ -108,6 +120,15 @@ Failure mapDioError(DioException error) {
         'Đã có lỗi không mong muốn xảy ra, vui lòng thử lại',
       );
   }
+}
+
+/// Số giây chờ do máy chủ chỉ định trong header `Retry-After` của 429.
+int? _retryAfterSeconds(Response<dynamic>? response) {
+  final raw = response?.headers.value('retry-after');
+  if (raw == null) return null;
+  final seconds = int.tryParse(raw.trim());
+  if (seconds == null || seconds <= 0) return null;
+  return seconds;
 }
 
 String? _extractMessage(dynamic data) {

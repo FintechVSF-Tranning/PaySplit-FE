@@ -85,4 +85,12 @@ abstract class GroupRemoteDataSource {
     @Query('limit') int? limit,
     @Query('cursor') String? cursor,
   });
+
+  /// Khóa gửi hóa đơn (Spec 0008). Thuộc module `bill` nhưng mount trên
+  /// `/groups`, và là một hành động vòng đời nhóm nên đặt cùng chỗ này.
+  @POST('/groups/{id}/bills/lock-submissions')
+  Future<ApiResponse<GroupBillLockModel>> lockBillSubmissions(
+    @Path('id') String id, {
+    @Header('Idempotency-Key') required String idempotencyKey,
+  });
 }

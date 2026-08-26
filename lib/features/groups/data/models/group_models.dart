@@ -20,6 +20,18 @@ class GroupModel with _$GroupModel {
   factory GroupModel.fromJson(Map<String, dynamic> json) => _$GroupModelFromJson(json);
 }
 
+/// Kết quả khóa gửi hóa đơn (`POST /groups/{id}/bills/lock-submissions`).
+@freezed
+class GroupBillLockModel with _$GroupBillLockModel {
+  const factory GroupBillLockModel({
+    @JsonKey(name: 'bill_submission_locked') @Default(true) bool locked,
+    @JsonKey(name: 'bill_submission_locked_at') DateTime? lockedAt,
+  }) = _GroupBillLockModel;
+
+  factory GroupBillLockModel.fromJson(Map<String, dynamic> json) =>
+      _$GroupBillLockModelFromJson(json);
+}
+
 /// Hoạt động gần nhất hiển thị trên thẻ nhóm; `null` khi nhóm chưa có hoạt động.
 @freezed
 class ActivitySummaryModel with _$ActivitySummaryModel {

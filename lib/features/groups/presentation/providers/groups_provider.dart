@@ -2,15 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../../di/injection.dart';
-import '../../data/mock/group_mock_data.dart';
 import '../../domain/entities/group_entity.dart';
-import '../../domain/entities/group_member_entity.dart';
 import '../../domain/usecases/create_group_usecase.dart';
 import '../../domain/usecases/disband_group_usecase.dart';
 import '../../domain/usecases/join_group_usecase.dart';
 import '../../domain/usecases/leave_or_remove_member_usecase.dart';
 import '../../domain/usecases/list_groups_usecase.dart';
 import '../../domain/usecases/rename_group_usecase.dart';
+import '../../../../app/session/session_scope.dart';
 
 /// Trạng thái màn hình danh sách nhóm: giữ danh sách đã tải cùng cờ tải/lỗi và
 /// cursor phân trang của backend.
@@ -137,11 +136,19 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
     });
   }
 
-  /// Đánh dấu nhóm đã khóa hóa đơn **chỉ trong state cục bộ**.
-  ///
-  /// Lời gọi thật là `POST /groups/{id}/bills/lock-submissions` (module `bill`,
-  /// Spec 0008) — nằm ngoài 13 endpoint của module `group` nên chưa được nối.
-  /// Khóa ở backend là một chiều: không có endpoint mở lại.
+  /// Gỡ nhóm khỏi danh sách khi quyền đọc không còn (nhóm bị giải tán, hoặc
+  /// mình bị xóa khỏi nhóm) — biết được qua stream của màn chi tiết.
+  void removeGroupLocally(String groupId) {
+    if (!state.groups.any((g) => g.id == groupId)) return;
+    state = state.copyWith(
+      groups: state.groups.where((g) => g.id != groupId).toList(),
+    );
+  }
+
+  /// Áp trạng thái đã khóa hóa đơn vào danh sách sau khi
+  /// `POST /groups/{id}/bills/lock-submissions` thành công, để không phải tải
+  /// lại cả danh sách chỉ vì một nhóm đổi trạng thái. Khóa ở backend là một
+  /// chiều: không có endpoint mở lại.
   void markGroupClosedLocally(String groupId, String closedAtText) {
     _replace(
       groupId,
@@ -157,38 +164,58 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
         pendingBillCount: g.pendingBillCount,
         status: GroupStatus.closed,
         closedAtText: closedAtText,
+        createdAt: g.createdAt,
       ),
     );
   }
 
-  /// Cập nhật sĩ số sau khi thêm thành viên — **chỉ cục bộ**: backend cố ý
-  /// không có `POST /groups/{id}/members`, người được mời phải tự vào bằng mã
-  /// mời (mục 3.6 của báo cáo đối chiếu).
-  void bumpMemberCountLocally(String groupId, int delta) {
-    if (delta == 0) return;
+  /// Ghi ngược dữ liệu vừa đọc được ở màn chi tiết nhóm vào danh sách.
+  ///
+  /// Danh sách chỉ được tải một lần mỗi phiên, nên khi người khác đổi tên nhóm
+  /// hay có người vào/rời, item ở đây đứng yên cho tới lần mở app sau: mở nhóm
+  /// ra thấy tên mới, back lại vẫn thấy tên cũ. Màn chi tiết có sẵn dữ liệu
+  /// tươi từ `GET /groups/{id}` + stream roster, nên nó trả lại cho danh sách.
+  ///
+  /// Không đụng tới nhóm chưa có trong danh sách (chưa tải tới trang đó).
+  void applyGroupSnapshot({
+    required String groupId,
+    String? name,
+    int? memberCount,
+    bool? isCaptain,
+  }) {
+    final trimmedName = name?.trim();
+    final index = state.groups.indexWhere((g) => g.id == groupId);
+    if (index < 0) return;
+
+    final current = state.groups[index];
+    final nextName = (trimmedName == null || trimmedName.isEmpty)
+        ? current.name
+        : trimmedName;
+    final nextMemberCount = memberCount ?? current.memberCount;
+    final nextIsCaptain = isCaptain ?? current.isCaptain;
+    if (nextName == current.name &&
+        nextMemberCount == current.memberCount &&
+        nextIsCaptain == current.isCaptain) {
+      return;
+    }
+
     _replace(
       groupId,
       (g) => GroupEntity(
         id: g.id,
-        name: g.name,
-        memberCount: g.memberCount + delta,
+        name: nextName,
+        memberCount: nextMemberCount,
         myBalance: g.myBalance,
         inviteCode: g.inviteCode,
-        isCaptain: g.isCaptain,
+        isCaptain: nextIsCaptain,
         lastActivity: g.lastActivity,
         lastActivityAt: g.lastActivityAt,
         pendingBillCount: g.pendingBillCount,
         status: g.status,
         closedAtText: g.closedAtText,
+        createdAt: g.createdAt,
       ),
     );
-  }
-
-  GroupEntity? findById(String groupId) {
-    for (final g in state.groups) {
-      if (g.id == groupId) return g;
-    }
-    return null;
   }
 
   void _replace(String groupId, GroupEntity Function(GroupEntity) transform) {
@@ -215,12 +242,14 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
     pendingBillCount: current.pendingBillCount,
     status: updated.status,
     closedAtText: updated.closedAtText,
+    createdAt: current.createdAt ?? updated.createdAt,
   );
 }
 
-final groupsProvider = StateNotifierProvider<GroupsNotifier, GroupsState>(
-  (ref) => GroupsNotifier(),
-);
+final groupsProvider = StateNotifierProvider<GroupsNotifier, GroupsState>((ref) {
+  ref.watch(sessionRevisionProvider);
+  return GroupsNotifier();
+});
 
 /// Nhóm gần đây — dẫn xuất từ dữ liệu thật của [groupsProvider] (backend chưa
 /// có API "ghé thăm gần đây" riêng), xếp theo hoạt động mới nhất và bỏ nhóm đã
@@ -237,9 +266,3 @@ final recentGroupsProvider = Provider<List<GroupEntity>>((ref) {
     });
   return groups.take(3).toList();
 });
-
-/// Danh bạ gợi ý cho màn hình Thêm thành viên — **vẫn là mock**: backend cố ý
-/// chỉ cho vào nhóm qua mã mời, không có API danh bạ (mục 3.6).
-final recentContactsProvider = Provider<List<GroupMemberEntity>>(
-  (ref) => GroupMockData.recentContacts,
-);

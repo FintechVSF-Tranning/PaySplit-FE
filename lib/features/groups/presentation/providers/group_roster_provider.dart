@@ -10,11 +10,13 @@ import '../../domain/entities/group_member_entity.dart';
 import '../../domain/entities/group_sync_entity.dart';
 import '../../domain/usecases/get_group_detail_usecase.dart';
 import '../../domain/usecases/sync_group_usecase.dart';
+import '../../../../app/session/session_scope.dart';
 
 /// Trạng thái danh sách thành viên của một nhóm, kèm version đang giữ.
 class GroupRosterState {
   const GroupRosterState({
     this.members = const [],
+    this.balances = const {},
     this.version = 0,
     this.callerRole = '',
     this.callerMembershipId = '',
@@ -26,6 +28,11 @@ class GroupRosterState {
   });
 
   final List<GroupMemberEntity> members;
+
+  /// Số dư ròng theo `membership_id`, đọc từ `GET /groups/{id}`. Số dư đổi theo
+  /// hóa đơn và thanh toán chứ không theo roster_version, nên stream roster
+  /// không cập nhật nó — màn hình tải lại khi có thao tác hóa đơn/công nợ.
+  final Map<String, int> balances;
 
   /// Version của sự kiện cuối cùng đã áp. Mọi lần mở stream và mọi lần catch-up
   /// đều xuất phát từ đây, nên nó là thứ duy nhất bắt buộc phải luôn đúng.
@@ -50,6 +57,7 @@ class GroupRosterState {
 
   GroupRosterState copyWith({
     List<GroupMemberEntity>? members,
+    Map<String, int>? balances,
     int? version,
     String? callerRole,
     String? callerMembershipId,
@@ -62,6 +70,7 @@ class GroupRosterState {
   }) {
     return GroupRosterState(
       members: members ?? this.members,
+      balances: balances ?? this.balances,
       version: version ?? this.version,
       callerRole: callerRole ?? this.callerRole,
       callerMembershipId: callerMembershipId ?? this.callerMembershipId,
@@ -111,6 +120,7 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
       (failure) => state = state.copyWith(isLoading: false, failure: failure),
       (detail) => state = state.copyWith(
         members: detail.members,
+        balances: detail.balances,
         version: detail.version,
         callerRole: detail.callerRole,
         callerMembershipId: detail.callerMembershipId,
@@ -163,6 +173,18 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
   }
 
   /// Hàn gắp bằng đường nguội. Public vì màn hình cũng gọi nó khi kéo refresh.
+  /// Áp tên mới ngay sau khi API đổi tên thành công.
+  ///
+  /// Header màn nhóm đọc tên từ roster (nguồn realtime), nên nếu chỉ chờ sự
+  /// kiện `group_renamed` quay về qua SSE thì tên cũ còn nằm trên màn hình cho
+  /// tới lần tải lại — đúng thứ người dùng nhìn thấy. Không đụng tới `version`:
+  /// đây là cập nhật lạc quan tại client, không phải một sự kiện đã áp.
+  void applyLocalRename(String newName) {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || _closed) return;
+    state = state.copyWith(groupName: trimmed);
+  }
+
   Future<void> resync() async {
     if (_closed) return;
     final result = await getIt<SyncGroupUseCase>().call(
@@ -315,9 +337,14 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
 
 /// Roster được key theo `group_id`.
 ///
-/// Cố ý KHÔNG `autoDispose`: người dùng chuyển sang tab Hóa đơn rồi quay lại sẽ
-/// dựng lại kết nối liên tục. Màn hình chi tiết tự gỡ provider khi rời hẳn.
+/// `autoDispose` để kết nối SSE chết theo màn hình. Bốn tab bên trong màn chi
+/// tiết chỉ là widget đổi chỗ, provider vẫn được `watch` suốt nên không có
+/// chuyện dựng lại kết nối khi chuyển tab; chỉ khi rời hẳn màn hình mới đóng.
+/// Không có `autoDispose` thì mỗi nhóm từng mở giữ một stream sống tới lúc
+/// thoát app.
 final groupRosterProvider =
-    StateNotifierProvider.family<GroupRosterNotifier, GroupRosterState, String>(
-      (ref, groupId) => GroupRosterNotifier(groupId),
-    );
+    StateNotifierProvider.autoDispose
+        .family<GroupRosterNotifier, GroupRosterState, String>((ref, groupId) {
+          ref.watch(sessionRevisionProvider);
+          return GroupRosterNotifier(groupId);
+        });

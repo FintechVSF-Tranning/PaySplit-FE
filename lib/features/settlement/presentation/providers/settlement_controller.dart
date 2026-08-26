@@ -9,6 +9,7 @@ import '../../data/datasources/settlement_remote_data_source.dart';
 import '../../data/repositories/settlement_repository_impl.dart';
 import '../../domain/entities/settlement_entities.dart';
 import '../../domain/repositories/settlement_repository.dart';
+import '../../../../app/session/session_scope.dart';
 
 enum SettlementTab { payable, receivable, bills, history }
 
@@ -92,6 +93,7 @@ final settlementRepositoryProvider = Provider<SettlementRepository>((ref) {
 
 final settlementControllerProvider =
     StateNotifierProvider<SettlementController, SettlementState>((ref) {
+      ref.watch(sessionRevisionProvider);
       return SettlementController(ref.watch(settlementRepositoryProvider));
     });
 

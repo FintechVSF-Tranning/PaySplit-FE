@@ -1,13 +1,19 @@
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
-import '../models/bill_model.dart';
+import '../models/bill_list_page_model.dart';
 
 abstract class BillRemoteDataSource {
-  Future<List<BillModel>> getBills({required String groupId, int limit = 20, String? cursor});
+  Future<BillListPageModel> getBills({
+    required String groupId,
+    int limit = 20,
+    String? cursor,
+    List<String> statuses = const [],
+  });
 
   Future<BillDetailEntity> createBillWithPhotos({
     required String groupId,
@@ -20,6 +26,12 @@ abstract class BillRemoteDataSource {
     required String merchantName,
     required int total,
     required List<BillItemEntity> items,
+    int subtotal = 0,
+    int serviceCharge = 0,
+    int vat = 0,
+    int discount = 0,
+    String splitMethod = 'item_ratio',
+    DateTime? billDate,
   });
 
   Future<BillDetailEntity> getBillDetail({
@@ -61,6 +73,11 @@ abstract class BillRemoteDataSource {
   Future<List<BillMemberEntity>> getGroupMembers({
     required String groupId,
   });
+
+  Future<void> deleteDraftBill({
+    required String billId,
+    required String groupId,
+  });
 }
 
 @LazySingleton(as: BillRemoteDataSource)
@@ -80,10 +97,11 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
   }
 
   @override
-  Future<List<BillModel>> getBills({
+  Future<BillListPageModel> getBills({
     required String groupId,
     int limit = 20,
     String? cursor,
+    List<String> statuses = const [],
   }) async {
     final queryParams = <String, dynamic>{
       'group_id': groupId,
@@ -92,6 +110,10 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     if (cursor != null) {
       queryParams['cursor'] = cursor;
     }
+    // BE nhận `status` lặp lại hoặc CSV; Dio serialize List thành dạng lặp.
+    if (statuses.isNotEmpty) {
+      queryParams['status'] = statuses;
+    }
 
     final response = await _dio.get(
       ApiEndpoints.bills,
@@ -99,18 +121,14 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     );
     final rawData = response.data;
     final data = _extractData(rawData);
-    final rawBills = data['bills'] ?? (rawData is Map ? rawData['bills'] : null);
-    if (rawBills is List) {
-      return rawBills
-          .map((e) => BillModel.fromJson(e as Map<String, dynamic>))
-          .toList();
+    if (data['bills'] != null || data['counts'] != null) {
+      return BillListPageModel.fromJson(data);
     }
+    // Dạng cũ: `data` là mảng bill trần.
     if (rawData is Map && rawData['data'] is List) {
-      return (rawData['data'] as List)
-          .map((e) => BillModel.fromJson(e as Map<String, dynamic>))
-          .toList();
+      return BillListPageModel.fromJson({'bills': rawData['data']});
     }
-    return [];
+    return const BillListPageModel(bills: []);
   }
 
   @override
@@ -219,12 +237,27 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     required String merchantName,
     required int total,
     required List<BillItemEntity> items,
+    int subtotal = 0,
+    int serviceCharge = 0,
+    int vat = 0,
+    int discount = 0,
+    String splitMethod = 'item_ratio',
+    DateTime? billDate,
   }) async {
     final response = await _dio.post(
       ApiEndpoints.bills,
       data: {
         'group_id': groupId,
         'merchant_name': merchantName,
+        // Thiếu bất kỳ field nào dưới đây là backend ghi 0 / mặc định `even`:
+        // lần mở lại hóa đơn sẽ mất thuế phí và bị coi là chia đều, xóa sạch
+        // phần gán món người dùng vừa tick.
+        'subtotal': subtotal,
+        'service_charge': serviceCharge,
+        'vat': vat,
+        'discount': discount,
+        'split_method': splitMethod,
+        if (billDate != null) 'bill_date': billDate.toUtc().toIso8601String(),
         'total': total,
         'items': items.map((i) => i.toJson()).toList(),
       },
@@ -259,6 +292,12 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       final billJson = Map<String, dynamic>.from(rawBill);
       if (data['breakdown'] != null) {
         billJson['breakdown'] = data['breakdown'];
+      } else if (rawBill['shares'] is List &&
+          (rawBill['shares'] as List).isNotEmpty) {
+        // BE chỉ tính `breakdown` tạm thời cho bill draft/reviewed. Với bill đã
+        // chốt (finalized) hoặc đã hủy, phần chia đã lưu nằm ở `bill.shares` —
+        // dùng nó để màn chi tiết hiển thị lại đúng số tiền từng người.
+        billJson['breakdown'] = rawBill['shares'];
       }
       if (data['signed_urls'] != null) {
         billJson['signed_urls'] = data['signed_urls'];
@@ -404,6 +443,20 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
           .toList();
     }
     return const [];
+  }
+
+  @override
+  Future<void> deleteDraftBill({
+    required String billId,
+    required String groupId,
+  }) async {
+    await _dio.delete<dynamic>(
+      '${ApiEndpoints.bills}/$billId',
+      queryParameters: {'group_id': groupId},
+      // Xóa là thao tác không hoàn tác được: khóa idempotency để một lần bấm bị
+      // gửi lại (mạng chập chờn) không biến thành lỗi 404 khó hiểu.
+      options: Options(headers: {'Idempotency-Key': const Uuid().v4()}),
+    );
   }
 
   @override

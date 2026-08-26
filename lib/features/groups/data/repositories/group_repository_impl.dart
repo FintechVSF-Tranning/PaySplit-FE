@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:injectable/injectable.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../../core/network/dio_failure_mapper.dart';
@@ -220,6 +221,19 @@ class GroupRepositoryImpl implements GroupRepository {
         items: data.activities.map((a) => a.toEntity()).toList(),
         nextCursor: data.nextCursor,
       );
+    });
+  }
+
+  @override
+  Future<Either<Failure, DateTime>> lockBillSubmissions(String groupId) {
+    return _guard(() async {
+      final data = (await _remote.lockBillSubmissions(
+        groupId,
+        // Khóa là thao tác một chiều: gửi lại vì mạng chập chờn không được
+        // biến thành lỗi, backend replay nguyên kết quả cũ theo khóa này.
+        idempotencyKey: const Uuid().v4(),
+      )).requireData;
+      return data.lockedAt ?? DateTime.now();
     });
   }
 

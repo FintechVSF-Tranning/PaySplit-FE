@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
@@ -7,10 +8,14 @@ import '../../domain/entities/group_bill_entity.dart';
 
 /// Thẻ hóa đơn dạng Receipt Card trong tab "Hóa đơn" của nhóm.
 class GroupBillCard extends StatelessWidget {
-  const GroupBillCard({super.key, required this.bill, this.onTap});
+  const GroupBillCard({super.key, required this.bill, this.onTap, this.onDelete});
 
   final GroupBillEntity bill;
   final VoidCallback? onTap;
+
+  /// Gỡ bỏ hóa đơn. `null` nghĩa là người đang xem không có quyền — nút không
+  /// hiện, thay vì hiện rồi báo lỗi khi bấm.
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +94,21 @@ class GroupBillCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   _StatusPill(status: bill.status),
+                  if (onDelete != null) ...[
+                    const SizedBox(width: 2),
+                    InkWell(
+                      onTap: onDelete,
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.all(5),
+                        child: Icon(
+                          HugeIcons.strokeRoundedDelete02,
+                          size: 17,
+                          color: AppColors.danger,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 12),
@@ -97,40 +117,40 @@ class GroupBillCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _AmountBlock(
-                      label: bill.status == GroupBillStatus.settled
+                      label: bill.status == GroupBillStatus.finalized
                           ? 'Tổng hóa đơn'
                           : 'Tổng tạm tính',
                       value: CurrencyFormatter.vnd(bill.totalAmount),
                     ),
                   ),
-                  Expanded(
-                    child: bill.myShare != null
-                        ? _AmountBlock(
-                            label: 'Phần của bạn',
-                            value: CurrencyFormatter.vnd(bill.myShare!),
-                            alignEnd: true,
-                          )
-                        : Align(
-                            alignment: Alignment.centerRight,
-                            child: Text(
-                              bill.status == GroupBillStatus.voided
-                                  ? 'Hóa đơn đã hủy'
-                                  : 'Chờ phân bổ món',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                          ),
-                  ),
+                  Expanded(child: _MyShareBlock(bill: bill)),
                 ],
               ),
               const SizedBox(height: 12),
 
-              if (bill.status == GroupBillStatus.ocrScanning)
-                const _OcrProgressLine()
-              else if (bill.status == GroupBillStatus.settled) ...[
+              // Ảnh đang được AI bóc tách: chưa có món nào để nói chuyện gán.
+              if (bill.isScanningOcr)
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 13,
+                      height: 13,
+                      child: CircularProgressIndicator(strokeWidth: 1.8),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Đang quét hóa đơn bằng AI...',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.warningText,
+                      ),
+                    ),
+                  ],
+                )
+              // Tiến độ thanh toán chỉ tồn tại sau khi chốt sổ — backend trả
+              // member_count = 0 cho bill chưa chốt nên không vẽ thanh rỗng.
+              else if (bill.status == GroupBillStatus.finalized && bill.memberCount > 0) ...[
                 _PaidProgressBar(ratio: bill.paidRatio),
                 const SizedBox(height: 8),
                 Text(
@@ -143,9 +163,12 @@ class GroupBillCard extends StatelessWidget {
                 ),
               ] else
                 Text(
-                  bill.status == GroupBillStatus.awaitingAllocation
-                      ? 'Cần gán món cho từng thành viên'
-                      : 'Hóa đơn đã bị hủy bỏ',
+                  switch (bill.status) {
+                    GroupBillStatus.draft => 'Cần gán món cho từng thành viên',
+                    GroupBillStatus.reviewed => 'Đã đối soát, chờ chốt sổ',
+                    GroupBillStatus.finalized => 'Đã chốt sổ',
+                    GroupBillStatus.voided => 'Hóa đơn đã bị hủy bỏ',
+                  },
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
@@ -214,50 +237,57 @@ class _PaidProgressBar extends StatelessWidget {
 }
 
 /// Dòng trạng thái OCR có chấm nhấp nháy màu hổ phách.
-class _OcrProgressLine extends StatefulWidget {
-  const _OcrProgressLine();
+/// Cột phải của thẻ: phần tiền của người đang xem, hoặc lý do chưa có.
+class _MyShareBlock extends StatelessWidget {
+  const _MyShareBlock({required this.bill});
 
-  @override
-  State<_OcrProgressLine> createState() => _OcrProgressLineState();
-}
-
-class _OcrProgressLineState extends State<_OcrProgressLine> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final GroupBillEntity bill;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        FadeTransition(
-          opacity: _controller,
-          child: Container(
-            width: 14,
-            height: 3,
-            decoration: BoxDecoration(
-              color: AppColors.warning,
-              borderRadius: BorderRadius.circular(999),
+    if (bill.myShare != null && bill.myShareStatus != GroupBillShareStatus.creditor) {
+      final isSettled = bill.myShareStatus == GroupBillShareStatus.settled;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _AmountBlock(
+            label: 'Phần của bạn',
+            value: CurrencyFormatter.vnd(bill.myShare!),
+            alignEnd: true,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            isSettled ? 'Bạn đã trả xong' : 'Bạn còn phải trả',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isSettled ? AppColors.balancePositive : AppColors.warningText,
             ),
           ),
+        ],
+      );
+    }
+
+    final note = switch (bill.myShareStatus) {
+      GroupBillShareStatus.creditor => 'Bạn đã trả trước',
+      _ => switch (bill.status) {
+        GroupBillStatus.voided => 'Hóa đơn đã hủy',
+        GroupBillStatus.finalized => 'Bạn không có phần trong hóa đơn này',
+        _ => bill.isScanningOcr ? 'Chờ AI bóc tách' : 'Chờ phân bổ món',
+      },
+    };
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Text(
+        note,
+        textAlign: TextAlign.end,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textMuted,
         ),
-        const SizedBox(width: 8),
-        Text(
-          'Đang nhận diện ảnh hóa đơn',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.warningText,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -270,17 +300,17 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg, border) = switch (status) {
-      GroupBillStatus.settled => (
+      GroupBillStatus.finalized => (
         AppColors.successSubtle,
         AppColors.balancePositive,
         AppColors.successBorder,
       ),
-      GroupBillStatus.ocrScanning => (
+      GroupBillStatus.draft => (
         AppColors.warningSubtle,
         AppColors.warningText,
         AppColors.warningBorder,
       ),
-      GroupBillStatus.awaitingAllocation => (
+      GroupBillStatus.reviewed => (
         AppColors.infoSubtle,
         AppColors.infoText,
         AppColors.infoBorder,

@@ -55,4 +55,8 @@ abstract class AuthRemoteDataSource {
   // 204 No Content: envelope không áp dụng, không có body.
   @DELETE(ApiEndpoints.avatar)
   Future<void> deleteAvatar();
+
+  // 204 No Content: thu hồi session (`sid`) phía máy chủ khi đăng xuất.
+  @POST(ApiEndpoints.signOut)
+  Future<void> signOut();
 }

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paysplit/core/network/interceptors/auth_interceptor.dart';
+import 'package:paysplit/core/network/session_events.dart';
 import 'package:paysplit/core/network/token_storage.dart';
 
 /// TokenStorage trong bộ nhớ, không chạm tới FlutterSecureStorage.
@@ -170,6 +171,143 @@ void main() {
 
       await expectLater(dio.get<dynamic>('/groups'), throwsA(isA<DioException>()));
       expect(storage.cleared, isTrue);
+    });
+
+    test('mất phiên thì báo lên UI qua SessionEvents', () async {
+      final storage = _FakeTokenStorage(access: 'expired', refresh: 'refresh-1');
+      final sessionEvents = SessionEvents();
+      addTearDown(sessionEvents.dispose);
+
+      final expired = <void>[];
+      sessionEvents.onExpired.listen(expired.add);
+
+      final adapter = _FakeAdapter((options) {
+        if (options.path == '/auth/refresh') {
+          // Refresh token cũng hỏng: phiên mất hẳn.
+          return _json({'error': 'invalid'}, 401);
+        }
+        return _json({'error': 'unauthorized'}, 401);
+      });
+
+      final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+        ..httpClientAdapter = adapter
+        ..interceptors.add(
+          AuthInterceptor(
+            storage,
+            'http://test',
+            dioFactory: (o) => Dio(o)..httpClientAdapter = adapter,
+            sessionEvents: sessionEvents,
+          ),
+        );
+
+      await expectLater(dio.get<dynamic>('/groups'), throwsA(isA<DioException>()));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(storage.cleared, isTrue);
+      expect(expired, hasLength(1), reason: 'app phải được đưa về màn đăng nhập');
+    });
+
+    test('đăng nhập sai mật khẩu không bị coi là mất phiên', () async {
+      // 401 ở /auth/sign-in nghĩa là sai mật khẩu, không phải phiên hỏng: không
+      // được xóa token của phiên đang dùng, cũng không được đá ai ra.
+      final storage = _FakeTokenStorage(access: 'valid', refresh: 'refresh-1');
+      final sessionEvents = SessionEvents();
+      addTearDown(sessionEvents.dispose);
+      final expired = <void>[];
+      sessionEvents.onExpired.listen(expired.add);
+
+      final adapter = _FakeAdapter((options) => _json({'error': 'invalid'}, 401));
+      final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+        ..httpClientAdapter = adapter
+        ..interceptors.add(
+          AuthInterceptor(
+            storage,
+            'http://test',
+            dioFactory: (o) => Dio(o)..httpClientAdapter = adapter,
+            sessionEvents: sessionEvents,
+          ),
+        );
+
+      await expectLater(
+        dio.post<dynamic>('/auth/sign-in', data: {'email': 'a@b.c'}),
+        throwsA(isA<DioException>()),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(storage.cleared, isFalse);
+      expect(expired, isEmpty);
+    });
+
+    test('làm mới được thì không đá người dùng ra, kể cả nhiều request 401', () async {
+      // Token hết hạn giữa lúc đang dùng app là chuyện thường: refresh chạy,
+      // request được thử lại, và không có sự kiện mất phiên nào.
+      final storage = _FakeTokenStorage(access: 'expired', refresh: 'refresh-1');
+      final sessionEvents = SessionEvents();
+      addTearDown(sessionEvents.dispose);
+      final expired = <void>[];
+      sessionEvents.onExpired.listen(expired.add);
+
+      final adapter = _FakeAdapter((options) {
+        if (options.path == '/auth/refresh') {
+          return _json({
+            'data': {'access_token': 'fresh', 'refresh_token': 'refresh-2'},
+          }, 200);
+        }
+        if (options.headers['Authorization'] == 'Bearer fresh') {
+          return _json({'ok': 'yes'}, 200);
+        }
+        return _json({'error': 'unauthorized'}, 401);
+      });
+
+      final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+        ..httpClientAdapter = adapter
+        ..interceptors.add(
+          AuthInterceptor(
+            storage,
+            'http://test',
+            dioFactory: (o) => Dio(o)..httpClientAdapter = adapter,
+            sessionEvents: sessionEvents,
+          ),
+        );
+
+      final responses = await Future.wait([
+        dio.get<dynamic>('/groups'),
+        dio.get<dynamic>('/bills'),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(responses.every((r) => r.statusCode == 200), isTrue);
+      expect(storage.cleared, isFalse);
+      expect(expired, isEmpty, reason: 'refresh thành công thì không được đá ra');
+    });
+
+    test('nhiều request cùng chết chỉ báo mất phiên một lần', () async {
+      final storage = _FakeTokenStorage(access: 'expired', refresh: 'refresh-1');
+      final sessionEvents = SessionEvents();
+      addTearDown(sessionEvents.dispose);
+      final expired = <void>[];
+      sessionEvents.onExpired.listen(expired.add);
+
+      final adapter = _FakeAdapter((options) => _json({'error': 'unauthorized'}, 401));
+      final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+        ..httpClientAdapter = adapter
+        ..interceptors.add(
+          AuthInterceptor(
+            storage,
+            'http://test',
+            dioFactory: (o) => Dio(o)..httpClientAdapter = adapter,
+            sessionEvents: sessionEvents,
+          ),
+        );
+
+      await Future.wait([
+        dio.get<dynamic>('/groups').catchError((_) => Response<dynamic>(requestOptions: RequestOptions())),
+        dio.get<dynamic>('/bills').catchError((_) => Response<dynamic>(requestOptions: RequestOptions())),
+        dio.get<dynamic>('/notifications').catchError((_) => Response<dynamic>(requestOptions: RequestOptions())),
+      ]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(expired, hasLength(1));
     });
 
     test('không làm mới cho chính endpoint đăng nhập', () async {
