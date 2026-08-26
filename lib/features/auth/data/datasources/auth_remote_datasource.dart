@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import 'package:retrofit/retrofit.dart';
@@ -52,8 +50,7 @@ abstract class AuthRemoteDataSource {
   Future<void> changePassword(@Body() Map<String, dynamic> body);
 
   @PUT(ApiEndpoints.avatar)
-  @MultiPart()
-  Future<ApiResponse<dynamic>> uploadAvatar(@Part(name: 'avatar') File avatar);
+  Future<ApiResponse<dynamic>> uploadAvatar(@Body() FormData formData);
 
   // 204 No Content: envelope không áp dụng, không có body.
   @DELETE(ApiEndpoints.avatar)
