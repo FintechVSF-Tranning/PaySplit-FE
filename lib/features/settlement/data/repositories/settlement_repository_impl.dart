@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../../core/network/dio_failure_mapper.dart';
@@ -7,20 +8,73 @@ import '../../domain/repositories/settlement_repository.dart';
 import '../datasources/settlement_remote_data_source.dart';
 
 class SettlementRepositoryImpl implements SettlementRepository {
-  SettlementRepositoryImpl(this._remoteDataSource);
+  SettlementRepositoryImpl(
+    this._remoteDataSource, {
+    Uuid? uuid,
+    this.maxConcurrentRequests = _defaultMaxConcurrentRequests,
+  }) : _uuid = uuid ?? const Uuid();
+
+  /// Trần số request song song. Không có trần thì một user nhiều nhóm sẽ bắn
+  /// hàng trăm request cùng lúc và ăn rate limit của BE.
+  static const int _defaultMaxConcurrentRequests = 6;
+
+  /// Namespace cố định để sinh Idempotency-Key theo UUID v5. Cùng một thao tác
+  /// logic (retry sau timeout, user bấm lại) phải ra đúng một key thì BE mới
+  /// replay được kết quả cũ thay vì thực thi lần hai.
+  static const String _idempotencyNamespace =
+      '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
 
   final SettlementRemoteDataSource _remoteDataSource;
+  final Uuid _uuid;
+  final int maxConcurrentRequests;
+
+  String _idempotencyKey(String operation) =>
+      _uuid.v5(_idempotencyNamespace, 'paysplit:$operation');
+
+  /// Chạy [tasks] với tối đa [maxConcurrentRequests] request đồng thời, giữ
+  /// nguyên thứ tự kết quả.
+  Future<List<T>> _throttled<T>(List<Future<T> Function()> tasks) async {
+    final results = List<T?>.filled(tasks.length, null);
+    var next = 0;
+
+    Future<void> worker() async {
+      while (true) {
+        final index = next++;
+        if (index >= tasks.length) return;
+        results[index] = await tasks[index]();
+      }
+    }
+
+    final workers = <Future<void>>[];
+    final count = tasks.length < maxConcurrentRequests
+        ? tasks.length
+        : maxConcurrentRequests;
+    for (var i = 0; i < count; i++) {
+      workers.add(worker());
+    }
+    await Future.wait(workers);
+    return results.cast<T>();
+  }
 
   @override
   Future<SettlementDataEntity> loadSettlement() => _guard(_loadSettlement);
 
   Future<SettlementDataEntity> _loadSettlement() async {
     final groupMaps = await _remoteDataSource.listGroups();
-    final groups = await Future.wait(groupMaps.map(_loadGroup));
+    final groups = await _throttled(
+      groupMaps
+          .map(
+            (item) =>
+                () => _loadGroup(item),
+          )
+          .toList(),
+    );
 
+    // payable/receivable giữ mọi khoản còn "sống" (awaiting + pending_confirmation)
+    // để tổng tiền và số lượng trên hero card luôn nói về cùng một tập. Các tab
+    // tự lọc tiếp theo trạng thái chúng muốn hiển thị.
     final payable = <DebtItemEntity>[];
     final receivable = <DebtItemEntity>[];
-    final activeReceivable = <DebtItemEntity>[];
     final bills = <SettlementBillEntity>[];
     final paymentContexts = <String, _PaymentContext>{};
 
@@ -34,10 +88,7 @@ class SettlementRepositoryImpl implements SettlementRepository {
             debt.status == DebtStatus.pendingConfirmation;
 
         if (isPayable && isActive) payable.add(debt);
-        if (isReceivable && isActive) activeReceivable.add(debt);
-        if (isReceivable && debt.status == DebtStatus.awaiting) {
-          receivable.add(debt);
-        }
+        if (isReceivable && isActive) receivable.add(debt);
 
         final paymentId = debt.paymentId;
         if (paymentId != null &&
@@ -51,15 +102,18 @@ class SettlementRepositoryImpl implements SettlementRepository {
       }
     }
 
-    final paymentRecords = await Future.wait(
-      paymentContexts.entries.map((entry) async {
-        final context = entry.value;
-        final payment = await _remoteDataSource.getPayment(
-          context.group.id,
-          context.debt.paymentId!,
-        );
-        return _LoadedPayment(context: context, payment: payment);
-      }),
+    final paymentRecords = await _throttled(
+      paymentContexts.values
+          .map(
+            (context) => () async {
+              final payment = await _remoteDataSource.getPayment(
+                context.group.id,
+                context.debt.paymentId!,
+              );
+              return _LoadedPayment(context: context, payment: payment);
+            },
+          )
+          .toList(),
     );
 
     final pendingProofs = <ProofDetailEntity>[];
@@ -102,7 +156,7 @@ class SettlementRepositoryImpl implements SettlementRepository {
 
     final grouped = _groupPayable(payable);
     final totalPayable = payable.fold<int>(0, (sum, debt) => sum + debt.amount);
-    final totalReceivable = activeReceivable.fold<int>(
+    final totalReceivable = receivable.fold<int>(
       0,
       (sum, debt) => sum + debt.amount,
     );
@@ -111,12 +165,8 @@ class SettlementRepositoryImpl implements SettlementRepository {
       overview: SettlementOverviewEntity(
         totalPayable: totalPayable,
         totalReceivable: totalReceivable,
-        payableCount: payable
-            .where((debt) => debt.status == DebtStatus.awaiting)
-            .length,
-        receivableCount: receivable
-            .where((debt) => debt.status == DebtStatus.awaiting)
-            .length,
+        payableCount: payable.length,
+        receivableCount: receivable.length,
         activeGroupsCount: groups.length,
         pendingProofCount: pendingProofs.length,
       ),
@@ -150,10 +200,16 @@ class SettlementRepositoryImpl implements SettlementRepository {
     if (debtIds.isEmpty) {
       throw ArgumentError.value(debtIds, 'debtIds', 'Must not be empty');
     }
+    // Key bám theo nội dung thao tác: bấm lại đúng nhóm nợ đó sẽ replay kết quả
+    // cũ thay vì tạo payment thứ hai.
+    final sortedDebtIds = [...debtIds]..sort();
     final payment = await _remoteDataSource.generatePaymentQr(
       groupId: groupId,
       creditorId: creditorId,
       debtIds: debtIds,
+      idempotencyKey: _idempotencyKey(
+        'qr:$groupId:$creditorId:${sortedDebtIds.join(",")}',
+      ),
     );
     final recipient = _map(payment['recipient']);
     return PaymentQrEntity(
@@ -184,6 +240,9 @@ class SettlementRepositoryImpl implements SettlementRepository {
         imageName: image.name,
         imageBytes: image.bytes,
         note: note,
+        // Mỗi payment chỉ nhận đúng một biên lai; bị từ chối thì BE tạo payment
+        // mới nên key theo paymentId là đủ và an toàn khi retry.
+        idempotencyKey: _idempotencyKey('proof:$groupId:$paymentId'),
       ),
     );
   }
@@ -192,19 +251,44 @@ class SettlementRepositoryImpl implements SettlementRepository {
   Future<void> confirmPayment({
     required String groupId,
     required String paymentId,
-  }) => _guard(() => _remoteDataSource.confirmPayment(groupId, paymentId));
+  }) => _guard(
+    () => _remoteDataSource.confirmPayment(
+      groupId,
+      paymentId,
+      idempotencyKey: _idempotencyKey('confirm:$groupId:$paymentId'),
+    ),
+  );
 
   @override
   Future<void> rejectPayment({
     required String groupId,
     required String paymentId,
     required String reason,
-  }) =>
-      _guard(() => _remoteDataSource.rejectPayment(groupId, paymentId, reason));
+  }) => _guard(
+    () => _remoteDataSource.rejectPayment(
+      groupId,
+      paymentId,
+      reason,
+      // Lý do nằm trong key: sửa lý do rồi gửi lại là thao tác mới, không phải
+      // retry - nếu không BE sẽ báo lệch canonical request hash.
+      idempotencyKey: _idempotencyKey('reject:$groupId:$paymentId:$reason'),
+    ),
+  );
 
   @override
-  Future<void> remindDebt({required String groupId, required String debtId}) =>
-      _guard(() => _remoteDataSource.remindDebt(groupId, debtId));
+  Future<void> remindDebt({
+    required String groupId,
+    required String debtId,
+  }) => _guard(
+    () => _remoteDataSource.remindDebt(
+      groupId,
+      debtId,
+      // Nhắc nợ là thao tác lặp lại có chủ đích (BE cho tối đa 3 lần và tự
+      // rate limit), nên mỗi lần nhắc là một key mới - khác với các thao tác
+      // chỉ được thực hiện một lần ở trên.
+      idempotencyKey: _uuid.v4(),
+    ),
+  );
 
   Future<T> _guard<T>(Future<T> Function() request) async {
     try {
@@ -230,12 +314,14 @@ class SettlementRepositoryImpl implements SettlementRepository {
       id: id,
       name: name,
       callerMembershipId: callerMembershipId,
-      debts: results[0]
-          .map((debt) => _debtFromMap(debt, groupId: id, groupName: name))
-          .toList(),
-      bills: results[1]
-          .map((bill) => _billFromMap(bill, groupId: id, groupName: name))
-          .toList(),
+      debts: _mapSkippingMalformed(
+        results[0],
+        (debt) => _debtFromMap(debt, groupId: id, groupName: name),
+      ),
+      bills: _mapSkippingMalformed(
+        results[1],
+        (bill) => _billFromMap(bill, groupId: id, groupName: name),
+      ),
     );
   }
 
@@ -279,9 +365,11 @@ class SettlementRepositoryImpl implements SettlementRepository {
       amount: _integer(map['total']),
       status: _string(map['status']),
       createdAt: _date(map['created_at']),
-      payerDisplayName: _string(map['payer_display_name']),
-      paidMemberCount: _integer(map['paid_member_count']),
-      memberCount: _integer(map['member_count']),
+      // payer_display_name / paid_member_count / member_count đến từ BE PR #66.
+      // Nếu BE chưa deploy thì hiển thị thiếu tiến độ, không phải trắng cả trang.
+      payerDisplayName: _optionalString(map['payer_display_name']) ?? '—',
+      paidMemberCount: _optionalInteger(map['paid_member_count']) ?? 0,
+      memberCount: _optionalInteger(map['member_count']) ?? 0,
     );
   }
 
@@ -338,24 +426,27 @@ class SettlementRepositoryImpl implements SettlementRepository {
     }).toList();
   }
 
+  /// Trạng thái lạ (BE thêm giá trị mới, ví dụ 'stalled_confirmation' hay
+  /// 'rejected' đã có sẵn trong enum DB) được coi là voided thay vì ném lỗi:
+  /// mất một dòng còn hơn mất cả bốn tab.
   DebtStatus _debtStatus(String value) {
     return switch (value) {
       'awaiting' => DebtStatus.awaiting,
       'pending_confirmation' => DebtStatus.pendingConfirmation,
       'settled' => DebtStatus.settled,
-      'voided' => DebtStatus.voided,
-      _ => throw FormatException('Unknown debt status: $value'),
+      _ => DebtStatus.voided,
     };
   }
 
+  /// Tương tự [_debtStatus]: giá trị lạ rơi về superseded, tức là không hiển thị
+  /// như một khoản đang chờ xử lý.
   PaymentStatus _paymentStatus(String value) {
     return switch (value) {
       'pending_proof' => PaymentStatus.pendingProof,
       'pending_confirmation' => PaymentStatus.pendingConfirmation,
       'confirmed' => PaymentStatus.confirmed,
       'rejected' => PaymentStatus.rejected,
-      'superseded' => PaymentStatus.superseded,
-      _ => throw FormatException('Unknown payment status: $value'),
+      _ => PaymentStatus.superseded,
     };
   }
 
@@ -363,6 +454,23 @@ class SettlementRepositoryImpl implements SettlementRepository {
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty || parts.first.isEmpty) return '?';
     return parts.take(2).map((part) => part[0].toUpperCase()).join();
+  }
+
+  /// Một bản ghi hỏng chỉ nên mất chính nó. Trước đây mọi FormatException đều
+  /// nổi lên [_guard] và biến thành invalidResponseFailure cho toàn bộ màn hình.
+  List<T> _mapSkippingMalformed<T>(
+    List<Map<String, dynamic>> source,
+    T Function(Map<String, dynamic>) parse,
+  ) {
+    final parsed = <T>[];
+    for (final item in source) {
+      try {
+        parsed.add(parse(item));
+      } on FormatException {
+        continue;
+      }
+    }
+    return parsed;
   }
 
   Map<String, dynamic> _map(dynamic value) {
@@ -391,6 +499,12 @@ class SettlementRepositoryImpl implements SettlementRepository {
       if (parsed != null) return parsed;
     }
     throw const FormatException('Expected an integer VND amount');
+  }
+
+  int? _optionalInteger(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   int _integer(dynamic value) {

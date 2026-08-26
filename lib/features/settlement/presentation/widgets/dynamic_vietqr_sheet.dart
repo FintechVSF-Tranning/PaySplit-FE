@@ -19,6 +19,7 @@ class DynamicVietQrSheet extends StatefulWidget {
     required this.creditorName,
     required this.onSubmitProof,
     this.pickProof,
+    this.lastErrorMessage,
     super.key,
   });
 
@@ -27,6 +28,7 @@ class DynamicVietQrSheet extends StatefulWidget {
   final Future<void> Function(ProofUploadEntity image, String? note)
   onSubmitProof;
   final ProofPicker? pickProof;
+  final String? Function()? lastErrorMessage;
 
   @override
   State<DynamicVietQrSheet> createState() => _DynamicVietQrSheetState();
@@ -90,8 +92,12 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
       Navigator.of(context).pop();
     } catch (_) {
       if (!mounted) return;
+      // Giữ lại message thật của BE (ảnh quá lớn, payment sai trạng thái...)
+      // thay vì thay bằng một câu chung chung.
+      final reported = widget.lastErrorMessage?.call();
       setState(() {
-        _errorMessage = 'Không thể tải biên lai. Vui lòng kiểm tra và thử lại.';
+        _errorMessage =
+            reported ?? 'Không thể tải biên lai. Vui lòng kiểm tra và thử lại.';
       });
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

@@ -99,6 +99,8 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
         builder: (_) => DynamicVietQrSheet(
           payment: payment,
           creditorName: creditorName,
+          lastErrorMessage: () =>
+              ref.read(settlementControllerProvider).errorMessage,
           onSubmitProof: (image, note) async {
             await controller.submitProof(
               groupId: payment.groupId,
@@ -115,12 +117,17 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
         ),
       );
     } catch (_) {
-      if (mounted) {
-        showErrorSnackBar(
-          context,
-          'Không thể tạo VietQR. Vui lòng kiểm tra tài khoản nhận và thử lại.',
-        );
-      }
+      if (!mounted) return;
+      // Controller đã map DioException -> Failure kèm message của BE (ví dụ chủ
+      // nợ chưa cài tài khoản ngân hàng). Ưu tiên message đó thay vì câu chung.
+      final failureMessage = ref
+          .read(settlementControllerProvider)
+          .errorMessage;
+      showErrorSnackBar(
+        context,
+        failureMessage ??
+            'Không thể tạo VietQR. Vui lòng kiểm tra tài khoản nhận và thử lại.',
+      );
     }
   }
 
