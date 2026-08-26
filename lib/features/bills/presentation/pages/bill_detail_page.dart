@@ -515,114 +515,6 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
     );
   }
 
-  Widget _buildStatusBadge(String status, bool isUnsaved, bool isDark) {
-    if (isUnsaved) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF94A3B8)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(HugeIcons.strokeRoundedAlertCircle, size: 12, color: Color(0xFF64748B)),
-            const SizedBox(width: 4),
-            Text(
-              'Chưa lưu',
-              style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF64748B)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    switch (status) {
-      case 'reviewed':
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F766E).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF0F766E).withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(HugeIcons.strokeRoundedCheckmarkCircle02, size: 12, color: Color(0xFF0F766E)),
-              const SizedBox(width: 4),
-              Text(
-                'Đã đối soát',
-                style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF0F766E)),
-              ),
-            ],
-          ),
-        );
-      case 'finalized':
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF16A34A).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(HugeIcons.strokeRoundedCheckmarkBadge01, size: 12, color: Color(0xFF16A34A)),
-              const SizedBox(width: 4),
-              Text(
-                'Đã chốt sổ',
-                style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF16A34A)),
-              ),
-            ],
-          ),
-        );
-      case 'voided':
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFFDC2626).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(HugeIcons.strokeRoundedCancel01, size: 12, color: Color(0xFFDC2626)),
-              const SizedBox(width: 4),
-              Text(
-                'Đã huỷ',
-                style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFDC2626)),
-              ),
-            ],
-          ),
-        );
-      case 'draft':
-      default:
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(HugeIcons.strokeRoundedNote01, size: 12, color: Color(0xFFD97706)),
-              const SizedBox(width: 4),
-              Text(
-                'Bản nháp',
-                style: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFD97706)),
-              ),
-            ],
-          ),
-        );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -670,22 +562,21 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
     final evenSelectedCount = state.activeEvenSplitMemberIds.length;
     final evenPerPersonAmount = state.evenPerPersonAmount;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          context.go(AppRoutes.home);
-        }
-      },
-      child: Scaffold(
-        backgroundColor: bg,
-        appBar: AppBar(
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: AppBar(
           backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
             icon: Icon(HugeIcons.strokeRoundedArrowLeft01, color: textMain),
-            onPressed: () => context.go(AppRoutes.home),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(AppRoutes.home);
+              }
+            },
           ),
           titleSpacing: 0,
           title: Row(
@@ -722,8 +613,8 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
           ),
           actions: [
             Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: _buildStatusBadge(bill.status, isNewUnsavedBill, isDark),
+              padding: const EdgeInsets.only(right: 14),
+              child: _buildStatusBadge(bill.status, isDark: isDark),
             ),
           ],
           bottom: PreferredSize(
@@ -844,89 +735,6 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Status & Role Notification Banners
-                    if (bill.status == 'reviewed') ...[
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F766E).withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF0F766E).withValues(alpha: 0.25)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(HugeIcons.strokeRoundedCheckmarkCircle02, color: Color(0xFF0F766E), size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                isCaptain
-                                    ? 'Hoá đơn đã đối soát hợp lệ. Trưởng nhóm có thể chốt sổ chia tiền.'
-                                    : 'Hoá đơn đã được đối soát. Đang chờ Trưởng nhóm chốt sổ.',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF0F766E),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else if (bill.status == 'finalized') ...[
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A).withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.25)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(HugeIcons.strokeRoundedCheckmarkBadge01, color: Color(0xFF16A34A), size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Hoá đơn đã chốt sổ. Các khoản công nợ đã được ghi vào sổ cái nhóm.',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF16A34A),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else if (!isEditable && !isReadOnlyStatus) ...[
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(HugeIcons.strokeRoundedInformationCircle, color: Color(0xFF64748B), size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Chế độ xem. Chỉ Trưởng nhóm hoặc Người tạo bill mới có quyền chỉnh sửa.',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12,
-                                  color: const Color(0xFF64748B),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
                     // 1. Line Items Section Header
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -975,105 +783,107 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                       ],
                     ),
 
-                    // 2. Concise Even Split Sub-Row with Link to select participants
-                    Row(
-                      children: [
-                        Transform.scale(
-                          scale: 0.75,
-                          alignment: Alignment.centerLeft,
-                          child: Switch.adaptive(
-                            value: isEvenSplit,
-                            activeTrackColor: AppColors.primary,
-                            onChanged: isEditable
-                                ? (val) {
-                                    notifier.setSplitMode(val ? 'even' : 'item_ratio');
-                                  }
-                                : null,
+                    // 2. Concise Even Split Sub-Row with Link to select participants (Only show when user has edit permission)
+                    if (isEditable) ...[
+                      Row(
+                        children: [
+                          Transform.scale(
+                            scale: 0.75,
+                            alignment: Alignment.centerLeft,
+                            child: Switch.adaptive(
+                              value: isEvenSplit,
+                              activeTrackColor: AppColors.primary,
+                              onChanged: isEditable
+                                  ? (val) {
+                                      notifier.setSplitMode(val ? 'even' : 'item_ratio');
+                                    }
+                                  : null,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: isEvenSplit
-                              ? Row(
-                                  children: [
-                                    Expanded(
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          'Chia đều: ${CurrencyFormatter.formatVND(evenPerPersonAmount.toDouble())}/người',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: const Color(0xFF059669),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: isEvenSplit
+                                ? Row(
+                                    children: [
+                                      Expanded(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            'Chia đều: ${CurrencyFormatter.formatVND(evenPerPersonAmount.toDouble())}/người',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF059669),
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '·',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF059669),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    InkWell(
-                                      onTap: isEditable
-                                          ? () {
-                                              SelectEvenSplitMembersModal.show(
-                                                context,
-                                                members: bill.members,
-                                                initialSelectedMemberIds: state.activeEvenSplitMemberIds,
-                                                creditorMemberId: bill.creditorMemberId,
-                                                onConfirm: (selectedIds) {
-                                                  notifier.setEvenSplitMembers(selectedIds);
-                                                },
-                                              );
-                                            }
-                                          : null,
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              '$evenSelectedCount/$totalGroupMemberCount người',
-                                              style: GoogleFonts.plusJakartaSans(
-                                                fontSize: 12.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColors.primary,
-                                                decoration: TextDecoration.underline,
-                                                decorationColor: AppColors.primary,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 2),
-                                            const Icon(
-                                              HugeIcons.strokeRoundedArrowDown01,
-                                              size: 13,
-                                              color: AppColors.primary,
-                                            ),
-                                          ],
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '·',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF059669),
                                         ),
                                       ),
+                                      const SizedBox(width: 4),
+                                      InkWell(
+                                        onTap: isEditable
+                                            ? () {
+                                                SelectEvenSplitMembersModal.show(
+                                                  context,
+                                                  members: bill.members,
+                                                  initialSelectedMemberIds: state.activeEvenSplitMemberIds,
+                                                  creditorMemberId: bill.creditorMemberId,
+                                                  onConfirm: (selectedIds) {
+                                                    notifier.setEvenSplitMembers(selectedIds);
+                                                  },
+                                                );
+                                              }
+                                            : null,
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '$evenSelectedCount/$totalGroupMemberCount người',
+                                                style: GoogleFonts.plusJakartaSans(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.primary,
+                                                  decoration: TextDecoration.underline,
+                                                  decorationColor: AppColors.primary,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 2),
+                                              const Icon(
+                                                HugeIcons.strokeRoundedArrowDown01,
+                                                size: 13,
+                                                color: AppColors.primary,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Text(
+                                    'Chia đều tổng hoá đơn',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: textMuted,
                                     ),
-                                  ],
-                                )
-                              : Text(
-                                  'Chia đều tổng hoá đơn',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: textMuted,
                                   ),
-                                ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                    ],
 
                     // 3. Line Items List (Hỗ trợ thêm, xóa, sửa cả khi bật và tắt chia đều)
                     if (bill.items.isEmpty)
@@ -1142,8 +952,9 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                               item: bill.items[i],
                               members: bill.members,
                               isEvenSplit: isEvenSplit,
-                              onSave: (updated) => notifier.updateItem(updated),
-                              onDelete: () => notifier.deleteItem(bill.items[i].id),
+                              isEditable: isEditable,
+                              onSave: isEditable ? (updated) => notifier.updateItem(updated) : null,
+                              onDelete: isEditable ? () => notifier.deleteItem(bill.items[i].id) : null,
                             );
                           },
                           onDelete: () => notifier.deleteItem(bill.items[i].id),
@@ -1181,6 +992,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                 breakdown: state.breakdown,
                 isSaving: state.isSaving,
                 isFinalizing: state.isFinalizing,
+                isVoiding: state.isVoiding,
                 isCalculatingBreakdown: state.isCalculatingBreakdown,
                 hasBankAccount: hasBankAccount,
                 hasNoItems: hasNoItems,
@@ -1189,6 +1001,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                 isCaptain: isCaptain,
                 isCreditor: isCreditor,
                 isEditable: isEditable,
+                isDirty: state.isDirty,
                 onUpdateBankAccount: () => _showBankUpdateConfirmDialog(context, notifier),
                 onOpenUnassignedDetail: () {
                   final unassignedItems = state.bill.items.where((i) => i.assignments.isEmpty).toList();
@@ -1207,6 +1020,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                 },
                 onSaveDraft: () => notifier.saveDraft(),
                 onReview: () => notifier.reviewBillOnly(),
+                onVoid: () => _showVoidBillDialog(context, notifier),
                 onOpenBreakdown: () async {
                   final officialBreakdown = await notifier.fetchOfficialBreakdown();
                   if (context.mounted) {
@@ -1294,11 +1108,234 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                   final success = await notifier.finalizeBill();
                   if (success && context.mounted) {
                     showSuccessSnackBar(context, 'Chốt hoá đơn thành công!');
-                    context.go(AppRoutes.home);
                   }
                 }
               },
             ),
+      );
+  }
+
+  Future<void> _showVoidBillDialog(BuildContext context, BillDetailNotifier notifier) async {
+    final reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(HugeIcons.strokeRoundedDelete02, color: AppColors.error, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Huỷ hoá đơn đã chốt',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sau khi huỷ, hoá đơn này sẽ bị vô hiệu hoá và toàn bộ công nợ liên quan trong nhóm sẽ được huỷ bỏ.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Lý do huỷ hoá đơn *',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  maxLength: 500,
+                  autofocus: true,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Nhập lý do huỷ (VD: Sai số tiền, tính nhầm món...)',
+                    hintStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    ),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
+                    contentPadding: const EdgeInsets.all(12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Vui lòng nhập lý do huỷ';
+                    }
+                    if (val.trim().length < 3) {
+                      return 'Lý do phải có ít nhất 3 ký tự';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      side: BorderSide(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFD1D5DB),
+                      ),
+                      foregroundColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF4B5563),
+                    ),
+                    child: Text(
+                      'Đóng',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (formKey.currentState?.validate() ?? false) {
+                        Navigator.of(ctx).pop(true);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: AppColors.error,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      'Xác nhận huỷ',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && context.mounted) {
+      final success = await notifier.voidBill(reason: reasonController.text.trim());
+      if (success && context.mounted) {
+        showSuccessSnackBar(context, 'Đã huỷ hoá đơn thành công!');
+      }
+    }
+  }
+
+  Widget _buildStatusBadge(String status, {required bool isDark}) {
+    String label;
+    Color bgColor;
+    Color textColor;
+    Color borderColor;
+
+    switch (status) {
+      case 'reviewed':
+        label = 'Chờ duyệt';
+        bgColor = isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.4) : const Color(0xFFEFF6FF);
+        textColor = isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB);
+        borderColor = isDark ? const Color(0xFF1D4ED8) : const Color(0xFFBFDBFE);
+        break;
+      case 'finalized':
+        label = 'Đã chốt';
+        bgColor = isDark ? const Color(0xFF064E3B).withValues(alpha: 0.4) : const Color(0xFFECFDF5);
+        textColor = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF059669);
+        borderColor = isDark ? const Color(0xFF047857) : const Color(0xFFA7F3D0);
+        break;
+      case 'voided':
+        label = 'Đã hủy';
+        bgColor = isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.4) : const Color(0xFFFEF2F2);
+        textColor = isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626);
+        borderColor = isDark ? const Color(0xFFB91C1C) : const Color(0xFFFECACA);
+        break;
+      case 'draft':
+      default:
+        label = 'Nháp';
+        bgColor = isDark ? const Color(0xFF78350F).withValues(alpha: 0.4) : const Color(0xFFFFFBEB);
+        textColor = isDark ? const Color(0xFFFCD34D) : const Color(0xFFD97706);
+        borderColor = isDark ? const Color(0xFFB45309) : const Color(0xFFFDE68A);
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: textColor,
+        ),
       ),
     );
   }

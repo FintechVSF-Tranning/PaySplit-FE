@@ -20,6 +20,8 @@ class BillDetailState {
   final String? successMessage;
   final String? currentUserId;
   final Set<String>? evenSplitMemberIds;
+  final bool isDirty;
+  final bool isVoiding;
 
   const BillDetailState({
     required this.bill,
@@ -36,6 +38,8 @@ class BillDetailState {
     this.successMessage,
     this.currentUserId,
     this.evenSplitMemberIds,
+    this.isDirty = false,
+    this.isVoiding = false,
   });
 
   BillDetailState copyWith({
@@ -55,6 +59,8 @@ class BillDetailState {
     String? successMessage,
     String? currentUserId,
     Set<String>? evenSplitMemberIds,
+    bool? isDirty,
+    bool? isVoiding,
   }) {
     return BillDetailState(
       bill: bill ?? this.bill,
@@ -71,6 +77,8 @@ class BillDetailState {
       successMessage: successMessage,
       currentUserId: currentUserId ?? this.currentUserId,
       evenSplitMemberIds: evenSplitMemberIds ?? this.evenSplitMemberIds,
+      isDirty: isDirty ?? this.isDirty,
+      isVoiding: isVoiding ?? this.isVoiding,
     );
   }
 
@@ -223,11 +231,40 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       initialBill.copyWith(splitMethod: splitMethod),
       effectiveItems,
     );
+    final effectiveMembers = initialBill.members;
 
     state = state.copyWith(
       bill: syncedBill,
-      breakdown: initialBill.breakdown,
+      breakdown: _enrichBreakdown(initialBill.breakdown, effectiveMembers, initialBill.creditorMemberId),
     );
+  }
+
+  static List<BillShareBreakdownEntity> _enrichBreakdown(
+    List<BillShareBreakdownEntity> list,
+    List<BillMemberEntity> members,
+    String creditorMemberId,
+  ) {
+    if (list.isEmpty) return list;
+    return list.map((item) {
+      final member = members.firstWhere(
+        (m) => m.memberId == item.memberId,
+        orElse: () => BillMemberEntity(
+          memberId: item.memberId,
+          userId: item.userId,
+          displayName: item.displayName,
+          avatarUrl: item.avatarUrl,
+        ),
+      );
+      final isCreditor = item.memberId == creditorMemberId;
+      return item.copyWith(
+        userId: member.userId.isNotEmpty ? member.userId : item.userId,
+        displayName: member.displayName.isNotEmpty && member.displayName != 'Thành viên'
+            ? member.displayName
+            : item.displayName,
+        avatarUrl: member.avatarUrl ?? item.avatarUrl,
+        isCreditor: isCreditor,
+      );
+    }).toList();
   }
 
   static List<BillItemAssignmentEntity> _buildEvenAssignments(List<BillMemberEntity> members) {
@@ -342,6 +379,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       state = state.copyWith(
         bill: syncedBill,
         isLoading: false,
+        isDirty: state.bill.items.isNotEmpty,
       );
       return;
     }
@@ -392,8 +430,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
         state = state.copyWith(
           bill: syncedBill,
-          breakdown: bill.breakdown,
+          breakdown: _enrichBreakdown(bill.breakdown, effectiveMembers, syncedBill.creditorMemberId),
           isLoading: false,
+          isDirty: false,
         );
       },
     );
@@ -545,6 +584,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       );
       state = state.copyWith(
         bill: updatedBill,
+        isDirty: true,
       );
     } else {
       // Chuyển sang Chia theo món: GIỮ NGUYÊN bộ data phân bổ món ăn hiện tại (không xoá)
@@ -554,6 +594,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       );
       state = state.copyWith(
         bill: updatedBill,
+        isDirty: true,
       );
     }
   }
@@ -570,6 +611,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     state = state.copyWith(
       bill: updatedBill,
       evenSplitMemberIds: memberIds,
+      isDirty: true,
     );
   }
 
@@ -611,6 +653,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     state = state.copyWith(
       bill: updatedBill,
+      isDirty: true,
     );
   }
 
@@ -628,6 +671,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     state = state.copyWith(
       bill: updatedBill,
+      isDirty: true,
     );
   }
 
@@ -647,6 +691,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     state = state.copyWith(
       bill: updatedBill,
+      isDirty: true,
     );
   }
 
@@ -662,6 +707,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     state = state.copyWith(
       bill: updatedBill,
+      isDirty: true,
     );
   }
 
@@ -672,6 +718,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     state = state.copyWith(
       bill: updatedBill,
+      isDirty: true,
     );
   }
 
@@ -693,13 +740,16 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     state = state.copyWith(
       bill: updatedBill,
+      isDirty: true,
     );
   }
 
   /// Cập nhật tên quán / địa điểm
   void setMerchantName(String name) {
+    if (state.bill.merchantName == name) return;
     state = state.copyWith(
       bill: state.bill.copyWith(merchantName: name),
+      isDirty: true,
     );
   }
 
@@ -707,6 +757,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   void balanceTotalToComputed() {
     state = state.copyWith(
       bill: state.bill.copyWith(total: state.computedTotal),
+      isDirty: true,
     );
   }
 
@@ -755,8 +806,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
           );
           state = state.copyWith(
             bill: syncedBill,
-            breakdown: createdBill.breakdown,
+            breakdown: _enrichBreakdown(createdBill.breakdown, state.bill.members, syncedBill.creditorMemberId),
             isSaving: false,
+            isDirty: false,
             successMessage: 'Đã tạo hoá đơn nháp thành công!',
           );
           return true;
@@ -791,17 +843,25 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         return false;
       },
       (updatedBill) {
+        final existingItems = state.bill.items;
+        final resolvedItems = updatedBill.items.isNotEmpty ? updatedBill.items : existingItems;
         final syncedBill = _syncBillWithItems(
           updatedBill.copyWith(
+            items: resolvedItems,
             members: state.bill.members,
             photos: state.bill.photos,
           ),
-          updatedBill.items,
+          resolvedItems,
         );
         state = state.copyWith(
           bill: syncedBill,
-          breakdown: updatedBill.breakdown,
+          breakdown: _enrichBreakdown(
+            updatedBill.breakdown.isNotEmpty ? updatedBill.breakdown : state.breakdown,
+            state.bill.members,
+            syncedBill.creditorMemberId,
+          ),
           isSaving: false,
+          isDirty: false,
           successMessage: 'Đã lưu bản nháp và cập nhật phân bổ từ máy chủ!',
         );
         return true;
@@ -841,11 +901,12 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         return null;
       },
       (breakdownList) {
+        final enrichedList = _enrichBreakdown(breakdownList, state.bill.members, state.bill.creditorMemberId);
         state = state.copyWith(
-          breakdown: breakdownList,
+          breakdown: enrichedList,
           isCalculatingBreakdown: false,
         );
-        return breakdownList;
+        return enrichedList;
       },
     );
   }
@@ -898,16 +959,24 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         return false;
       },
       (bill) {
+        final existingItems = state.bill.items;
+        final resolvedItems = bill.items.isNotEmpty ? bill.items : existingItems;
         state = state.copyWith(
           isSaving: false,
           bill: _syncBillWithItems(
             bill.copyWith(
+              items: resolvedItems,
               members: state.bill.members,
               photos: state.bill.photos,
             ),
-            bill.items,
+            resolvedItems,
           ),
-          breakdown: bill.breakdown,
+          breakdown: _enrichBreakdown(
+            bill.breakdown.isNotEmpty ? bill.breakdown : state.breakdown,
+            state.bill.members,
+            state.bill.creditorMemberId,
+          ),
+          isDirty: false,
           successMessage: 'Hoá đơn đã được đối soát hợp lệ! Sẵn sàng để Trưởng nhóm chốt sổ.',
         );
         return true;
@@ -957,15 +1026,22 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         return null;
       },
       (bill) {
+        final existingItems = state.bill.items;
+        final resolvedItems = bill.items.isNotEmpty ? bill.items : existingItems;
         state = state.copyWith(
           bill: _syncBillWithItems(
             bill.copyWith(
+              items: resolvedItems,
               members: state.bill.members,
               photos: state.bill.photos,
             ),
-            bill.items,
+            resolvedItems,
           ),
-          breakdown: bill.breakdown,
+          breakdown: _enrichBreakdown(
+            bill.breakdown.isNotEmpty ? bill.breakdown : state.breakdown,
+            state.bill.members,
+            state.bill.creditorMemberId,
+          ),
         );
         return bill;
       },
@@ -995,6 +1071,73 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
           isFinalizing: false,
           bill: state.bill.copyWith(status: 'finalized'),
           successMessage: 'Hoá đơn đã được chốt sổ thành công!',
+        );
+        return true;
+      },
+    );
+  }
+
+  /// Huỷ hoá đơn đã chốt (Chỉ Trưởng nhóm có quyền)
+  Future<bool> voidBill({required String reason}) async {
+    if (reason.trim().isEmpty) {
+      state = state.copyWith(
+        errorMessage: 'Vui lòng nhập lý do huỷ hoá đơn.',
+      );
+      return false;
+    }
+
+    state = state.copyWith(isVoiding: true);
+
+    final result = await _repository.voidBill(
+      billId: state.bill.id,
+      groupId: state.bill.groupId,
+      version: state.bill.version,
+      reason: reason.trim(),
+    );
+
+    return result.match(
+      (failure) {
+        String friendlyError = failure.message;
+        if (friendlyError.contains('BILL_ALREADY_VOIDED') || friendlyError.contains('already voided')) {
+          friendlyError = 'Hoá đơn này đã bị huỷ trước đó.';
+        } else if (friendlyError.contains('PAYMENT_ALREADY_STARTED') || friendlyError.contains('payment already started')) {
+          friendlyError = 'Không thể huỷ vì đã có thành viên bắt đầu thanh toán cho hoá đơn này.';
+        } else if (friendlyError.contains('CAPTAIN_REQUIRED') || friendlyError.contains('captain required')) {
+          friendlyError = 'Chỉ Trưởng nhóm mới có quyền huỷ hoá đơn đã chốt.';
+        } else if (friendlyError.contains('VERSION_CONFLICT') || friendlyError.contains('version conflict')) {
+          friendlyError = 'Dữ liệu hoá đơn đã bị thay đổi, vui lòng tải lại trang.';
+        } else if (friendlyError.contains('GROUP_ARCHIVED') || friendlyError.contains('group archived')) {
+          friendlyError = 'Nhóm này đã bị giải tán.';
+        }
+
+        state = state.copyWith(
+          isVoiding: false,
+          errorMessage: 'Huỷ hoá đơn thất bại: $friendlyError',
+        );
+        return false;
+      },
+      (voidedBill) {
+        final existingItems = state.bill.items;
+        final resolvedItems = voidedBill.items.isNotEmpty ? voidedBill.items : existingItems;
+        final syncedBill = _syncBillWithItems(
+          voidedBill.copyWith(
+            status: 'voided',
+            items: resolvedItems,
+            members: state.bill.members,
+            photos: state.bill.photos,
+          ),
+          resolvedItems,
+        );
+
+        state = state.copyWith(
+          isVoiding: false,
+          bill: syncedBill,
+          breakdown: _enrichBreakdown(
+            voidedBill.breakdown.isNotEmpty ? voidedBill.breakdown : state.breakdown,
+            state.bill.members,
+            syncedBill.creditorMemberId,
+          ),
+          successMessage: 'Đã huỷ hoá đơn thành công!',
         );
         return true;
       },

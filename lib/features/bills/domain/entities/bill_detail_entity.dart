@@ -246,6 +246,32 @@ class BillShareBreakdownEntity {
     this.isCreditor = false,
   });
 
+  BillShareBreakdownEntity copyWith({
+    String? memberId,
+    String? userId,
+    String? displayName,
+    String? avatarUrl,
+    int? itemsSubtotal,
+    int? serviceShare,
+    int? vatShare,
+    int? generalDiscountShare,
+    int? finalAmount,
+    bool? isCreditor,
+  }) {
+    return BillShareBreakdownEntity(
+      memberId: memberId ?? this.memberId,
+      userId: userId ?? this.userId,
+      displayName: displayName ?? this.displayName,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      itemsSubtotal: itemsSubtotal ?? this.itemsSubtotal,
+      serviceShare: serviceShare ?? this.serviceShare,
+      vatShare: vatShare ?? this.vatShare,
+      generalDiscountShare: generalDiscountShare ?? this.generalDiscountShare,
+      finalAmount: finalAmount ?? this.finalAmount,
+      isCreditor: isCreditor ?? this.isCreditor,
+    );
+  }
+
   factory BillShareBreakdownEntity.fromJson(Map<String, dynamic> json) {
     return BillShareBreakdownEntity(
       memberId: json['member_id'] as String? ?? '',

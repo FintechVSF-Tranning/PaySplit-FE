@@ -44,6 +44,13 @@ abstract class BillRepository {
     required int version,
   });
 
+  Future<Either<Failure, BillDetailEntity>> voidBill({
+    required String billId,
+    required String groupId,
+    required int version,
+    required String reason,
+  });
+
   Future<Either<Failure, List<BillShareBreakdownEntity>>> calculateBreakdown({
     String? billId,
     required String groupId,

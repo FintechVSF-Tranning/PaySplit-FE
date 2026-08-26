@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
+import '../../../../app/router/app_routes.dart';
+import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/currency_formatter.dart';
+import '../../domain/entities/home_activity_entity.dart';
 import '../providers/home_activities_provider.dart';
 
 class RecentActivityTimeline extends ConsumerWidget {
@@ -17,14 +23,19 @@ class RecentActivityTimeline extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Hoạt động gần đây',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: textMain,
-            letterSpacing: -0.2,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Hoạt động gần đây',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: textMain,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         activitiesAsync.when(
@@ -45,20 +56,8 @@ class RecentActivityTimeline extends ConsumerWidget {
               children: [
                 for (int i = 0; i < activities.length; i++) ...[
                   if (i > 0) const SizedBox(height: 8),
-                  Builder(
-                    builder: (context) {
-                      final act = activities[i];
-                      final style = _getStyleForActionType(act.actionType);
-                      final timeAgo = _formatTimeAgo(act.createdAt);
-
-                      return _ActivityCardItem(
-                        icon: style.icon,
-                        iconBg: style.bg,
-                        iconColor: style.color,
-                        description: act.description,
-                        timeAgo: '$timeAgo • ${style.tag}',
-                      );
-                    },
+                  _ActivityCardItem(
+                    activity: activities[i],
                   ),
                 ],
               ],
@@ -80,14 +79,13 @@ class RecentActivityTimeline extends ConsumerWidget {
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: Colors.grey.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
+              shape: BoxShape.circle,
             ),
           ),
           const SizedBox(width: 12),
@@ -105,7 +103,7 @@ class RecentActivityTimeline extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  width: 100,
+                  width: 120,
                   height: 10,
                   decoration: BoxDecoration(
                     color: Colors.grey.withValues(alpha: 0.2),
@@ -123,9 +121,7 @@ class RecentActivityTimeline extends ConsumerWidget {
   Widget _buildEmptyState(bool isDark) {
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-    final textMuted = isDark
-        ? const Color(0xFF94A3B8)
-        : const Color(0xFF64748B);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Container(
       width: double.infinity,
@@ -145,9 +141,7 @@ class RecentActivityTimeline extends ConsumerWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isDark
-                    ? const Color(0xFFF1F5F9)
-                    : const Color(0xFF1E293B),
+                color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
               ),
             ),
             const SizedBox(height: 2),
@@ -164,6 +158,14 @@ class RecentActivityTimeline extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _ActivityCardItem extends StatelessWidget {
+  const _ActivityCardItem({
+    required this.activity,
+  });
+
+  final HomeActivityEntity activity;
 
   static String _formatTimeAgo(DateTime dateTime) {
     final diff = DateTime.now().difference(dateTime);
@@ -181,77 +183,184 @@ class RecentActivityTimeline extends ConsumerWidget {
     return '${dateTime.day}/${dateTime.month}';
   }
 
-  static ({String icon, Color bg, Color color, String tag})
-  _getStyleForActionType(String actionType) {
-    switch (actionType) {
+  ({
+    String actionTitle,
+    String? highlightedText,
+    IconData actionIcon,
+    Color iconColor,
+    Color iconBgColor,
+  }) _parseActivityDisplay() {
+    final actor = activity.actorName.isNotEmpty ? activity.actorName : 'Thành viên';
+    final amount = activity.amount;
+    final formattedAmount = amount != null && amount > 0 ? CurrencyFormatter.formatVND(amount.toDouble()) : null;
+
+    switch (activity.actionType) {
+      case 'finalized_bill':
       case 'bill_finalized':
-      case 'bill_created':
       case 'bill_closed':
         return (
-          icon: '🧾',
-          bg: const Color(0xFFECFDF5),
-          color: const Color(0xFF10B981),
-          tag: 'Hóa đơn',
+          actionTitle: '$actor đã chốt sổ hóa đơn',
+          highlightedText: formattedAmount != null ? ' ($formattedAmount)' : null,
+          actionIcon: HugeIcons.strokeRoundedCheckmarkCircle02,
+          iconColor: const Color(0xFF059669),
+          iconBgColor: const Color(0xFFECFDF5),
         );
+
+      case 'reviewed_bill':
+      case 'bill_reviewed':
+        return (
+          actionTitle: '$actor đã gửi đối soát hóa đơn',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedFileValidation,
+          iconColor: const Color(0xFF2563EB),
+          iconBgColor: const Color(0xFFEFF6FF),
+        );
+
+      case 'updated_bill':
+      case 'bill_updated':
+        return (
+          actionTitle: '$actor đã cập nhật hóa đơn',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedEdit02,
+          iconColor: const Color(0xFFD97706),
+          iconBgColor: const Color(0xFFFFFBEB),
+        );
+
+      case 'created_bill':
+      case 'bill_created':
+        return (
+          actionTitle: '$actor đã tạo hóa đơn mới',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedPlusSignSquare,
+          iconColor: const Color(0xFF0D9488),
+          iconBgColor: const Color(0xFFF0FDFA),
+        );
+
+      case 'voided_bill':
+      case 'bill_voided':
+        return (
+          actionTitle: '$actor đã huỷ hóa đơn',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedDelete02,
+          iconColor: const Color(0xFFDC2626),
+          iconBgColor: const Color(0xFFFEF2F2),
+        );
+
+      case 'payment_submitted':
       case 'proof_submitted':
-      case 'payment_settled':
+        return (
+          actionTitle: '$actor đã gửi minh chứng thanh toán',
+          highlightedText: formattedAmount != null ? ' ($formattedAmount)' : null,
+          actionIcon: HugeIcons.strokeRoundedInvoice,
+          iconColor: const Color(0xFF2563EB),
+          iconBgColor: const Color(0xFFEFF6FF),
+        );
+
       case 'payment_confirmed':
+      case 'payment_settled':
         return (
-          icon: '💳',
-          bg: const Color(0xFFEFF6FF),
-          color: const Color(0xFF3B82F6),
-          tag: 'Thanh toán',
+          actionTitle: '$actor đã xác nhận thanh toán',
+          highlightedText: formattedAmount != null ? ' ($formattedAmount)' : null,
+          actionIcon: HugeIcons.strokeRoundedCreditCard,
+          iconColor: const Color(0xFF059669),
+          iconBgColor: const Color(0xFFECFDF5),
         );
+
+      case 'debt_reminded':
+        return (
+          actionTitle: '$actor đã gửi lời nhắc thanh toán',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedAlertCircle,
+          iconColor: const Color(0xFFD97706),
+          iconBgColor: const Color(0xFFFFFBEB),
+        );
+
       case 'member_joined':
-      case 'member_removed':
         return (
-          icon: '👥',
-          bg: const Color(0xFFF5F3FF),
-          color: const Color(0xFF8B5CF6),
-          tag: 'Thành viên',
+          actionTitle: '$actor đã tham gia nhóm',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedUserAdd01,
+          iconColor: const Color(0xFF7C3AED),
+          iconBgColor: const Color(0xFFF5F3FF),
         );
-      case 'group_created':
-      case 'invite_created':
+
+      case 'member_removed':
+      case 'member_left':
+        return (
+          actionTitle: '$actor đã rời khỏi nhóm',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedUserRemove01,
+          iconColor: const Color(0xFF64748B),
+          iconBgColor: const Color(0xFFF1F5F9),
+        );
+
       case 'captain_transferred':
+        return (
+          actionTitle: '$actor đã chuyển quyền Trưởng nhóm',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedCrown,
+          iconColor: const Color(0xFFD97706),
+          iconBgColor: const Color(0xFFFFFBEB),
+        );
+
       case 'group_renamed':
+        return (
+          actionTitle: '$actor đã đổi tên nhóm',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedEdit02,
+          iconColor: const Color(0xFF7C3AED),
+          iconBgColor: const Color(0xFFF5F3FF),
+        );
+
       default:
         return (
-          icon: '🎉',
-          bg: const Color(0xFFFEF3C7),
-          color: const Color(0xFFD97706),
-          tag: 'Nhóm',
+          actionTitle: activity.description.isNotEmpty ? activity.description : '$actor có hoạt động mới',
+          highlightedText: null,
+          actionIcon: HugeIcons.strokeRoundedNotification01,
+          iconColor: AppColors.primary,
+          iconBgColor: AppColors.primarySubtle,
         );
     }
   }
-}
 
-class _ActivityCardItem extends StatelessWidget {
-  const _ActivityCardItem({
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
-    required this.description,
-    required this.timeAgo,
-  });
-
-  final String icon;
-  final Color iconBg;
-  final Color iconColor;
-  final String description;
-  final String timeAgo;
+  void _handleTap(BuildContext context) {
+    if (activity.billId != null && activity.billId!.isNotEmpty) {
+      context.push(
+        AppRoutes.billDetail,
+        extra: {
+          'billId': activity.billId,
+          'groupId': activity.groupId,
+          'groupName': activity.groupName.isNotEmpty ? activity.groupName : 'Chi tiết nhóm',
+        },
+      );
+    } else if (activity.groupId.isNotEmpty) {
+      context.push(
+        AppRoutes.groupDetail(activity.groupId),
+        extra: {
+          'groupId': activity.groupId,
+          'groupName': activity.groupName.isNotEmpty ? activity.groupName : 'Chi tiết nhóm',
+        },
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF334155);
-    final textMuted = isDark
-        ? const Color(0xFF94A3B8)
-        : const Color(0xFF94A3B8);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    final displayInfo = _parseActivityDisplay();
+    final timeAgo = _formatTimeAgo(activity.createdAt);
+    final groupLabel = activity.groupName.isNotEmpty ? activity.groupName : 'Nhóm';
+
+    final initials = activity.actorName.isNotEmpty
+        ? activity.actorName.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join()
+        : 'TV';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
@@ -264,47 +373,145 @@ class _ActivityCardItem extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(icon, style: const TextStyle(fontSize: 16)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _handleTap(context),
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
               children: [
-                Text(
-                  description,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12.5,
-                    color: textMain,
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
+                // Avatar with Action Badge
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CircleAvatar(
+                      radius: 19,
+                      backgroundColor: isDark ? const Color(0xFF334155) : AppColors.primarySubtle,
+                      backgroundImage: activity.actorAvatarUrl != null && activity.actorAvatarUrl!.isNotEmpty
+                          ? NetworkImage(activity.actorAvatarUrl!)
+                          : null,
+                      child: activity.actorAvatarUrl == null || activity.actorAvatarUrl!.isEmpty
+                          ? Text(
+                              initials,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : AppColors.primary,
+                              ),
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      right: -3,
+                      bottom: -3,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: isDark ? displayInfo.iconColor.withValues(alpha: 0.2) : displayInfo.iconBgColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            displayInfo.actionIcon,
+                            size: 11,
+                            color: displayInfo.iconColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            color: textMain,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                          ),
+                          children: [
+                            TextSpan(text: displayInfo.actionTitle),
+                            if (displayInfo.highlightedText != null)
+                              TextSpan(
+                                text: displayInfo.highlightedText,
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: displayInfo.iconColor,
+                                ),
+                              ),
+                          ],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Text(
+                            timeAgo,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              color: textMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            ' • ',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              color: textMuted,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              groupLabel,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                color: textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  timeAgo,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    color: textMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
+                const SizedBox(width: 6),
+
+                // Arrow indicator
+                Icon(
+                  HugeIcons.strokeRoundedArrowRight01,
+                  size: 16,
+                  color: textMuted.withValues(alpha: 0.6),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

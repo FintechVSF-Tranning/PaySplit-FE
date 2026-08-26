@@ -157,6 +157,28 @@ class BillRepositoryImpl implements BillRepository {
   }
 
   @override
+  Future<Either<Failure, BillDetailEntity>> voidBill({
+    required String billId,
+    required String groupId,
+    required int version,
+    required String reason,
+  }) async {
+    try {
+      final bill = await _remoteDataSource.voidBill(
+        billId: billId,
+        groupId: groupId,
+        version: version,
+        reason: reason,
+      );
+      return Right(bill);
+    } on DioException catch (e) {
+      return Left(mapDioError(e));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, List<BillShareBreakdownEntity>>> calculateBreakdown({
     String? billId,
     required String groupId,
