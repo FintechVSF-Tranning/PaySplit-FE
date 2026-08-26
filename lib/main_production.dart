@@ -8,6 +8,6 @@ Future<void> main() async {
       'API_BASE_URL',
       defaultValue: 'https://paysplitbe.vercel.app/api/v1',
     ),
-    appName: 'PaySplit',
+    appName: const String.fromEnvironment('APP_NAME', defaultValue: 'PaySplit'),
   );
 }
