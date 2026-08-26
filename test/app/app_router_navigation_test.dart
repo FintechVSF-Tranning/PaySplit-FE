@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:paysplit/app/router/app_router.dart';
 import 'package:paysplit/app/router/app_routes.dart';
@@ -110,6 +111,69 @@ void main() {
       tester.widget<AppBottomNavBar>(find.byType(AppBottomNavBar)).currentIndex,
       3,
     );
+  });
+
+  testWidgets(
+    'navigating from Home to the Nhóm tab keeps the bottom bar on Nhóm',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          authControllerProvider.overrideWith(_SignedInAuthController.new),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final router = container.read(appRouterProvider);
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(HomePage), findsOneWidget);
+
+      // Mô phỏng luồng "Tạo nhóm" từ Trang chủ: điều hướng sang tab Nhóm
+      // (context.go) — bottom bar phải highlight đúng tab Nhóm.
+      router.go(AppRoutes.groups);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GroupsPage), findsOneWidget);
+      expect(find.byType(AppBottomNavBar), findsOneWidget);
+      expect(
+        tester
+            .widget<AppBottomNavBar>(find.byType(AppBottomNavBar))
+            .currentIndex,
+        1,
+      );
+    },
+  );
+
+  test('group child screens are registered outside the navigation shell', () {
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(_SignedInAuthController.new),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final router = container.read(appRouterProvider);
+    final shell = router.configuration.routes
+        .whereType<StatefulShellRoute>()
+        .single;
+
+    // Branch "Nhóm" chỉ còn đúng 1 route gốc, không lồng màn hình con.
+    final groupsBranch = shell.branches[1].routes.single as GoRoute;
+    expect(groupsBranch.path, AppRoutes.groups);
+
+    // Chi tiết nhóm & thêm thành viên là route full-screen ngoài shell,
+    // nên bottom navigation bar không hiển thị trên các màn hình này.
+    final detailRoute = router.configuration.routes
+        .whereType<GoRoute>()
+        .firstWhere((route) => route.path == '${AppRoutes.groups}/:groupId');
+    expect((detailRoute.routes.single as GoRoute).path, 'add-members');
   });
 
   testWidgets('Hóa đơn bottom nav opens the bills tab', (tester) async {

@@ -8,6 +8,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
+import '../../../../core/widgets/header_wave_painter.dart';
 import '../../domain/entities/settlement_entities.dart';
 import '../providers/settlement_controller.dart';
 import '../widgets/all_bills_tab.dart';
@@ -257,8 +258,7 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
     final controller = ref.read(settlementControllerProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
-    final textMain = isDark ? AppColors.darkTextMain : AppColors.textMain;
-    final textMuted = isDark ? AppColors.darkTextMuted : AppColors.textMuted;
+    final statusBarHeight = MediaQuery.paddingOf(context).top;
 
     final payableCount = state.payableDebts
         .where((d) => d.status.name == 'awaiting')
@@ -269,238 +269,259 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
 
     return Scaffold(
       backgroundColor: bg,
-      body: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Top Header Bar
-              Row(
+      // Đồng bộ background với Trang chủ: dải sóng Teal nằm trong nội dung
+      // cuộn và di chuyển theo nội dung thay vì đứng yên.
+      body: SingleChildScrollView(
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: CustomPaint(
+                size: Size(double.infinity, 210 + statusBarHeight),
+                painter: HeaderWavePainter(isDark: isDark),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, 12 + statusBarHeight, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  InkWell(
-                    onTap: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go(AppRoutes.home);
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(50),
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDark ? AppColors.darkSurface : Colors.white,
-                        border: Border.all(
-                          color: isDark
-                              ? AppColors.darkBorder
-                              : AppColors.border,
+                  // 1. Top Header Bar (đồng bộ style Header Trang chủ)
+                  Row(
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go(AppRoutes.home);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(50),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.15),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              HugeIcons.strokeRoundedArrowLeft01,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
-                      child: const Center(
-                        child: Icon(
-                          HugeIcons.strokeRoundedArrowLeft01,
-                          size: 18,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Công nợ & Hóa đơn',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            Text(
+                              'Tổng hợp công nợ đa nhóm & đối soát minh chứng',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                color: Colors.white.withValues(alpha: 0.8),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      _HeaderCircleAction(
+                        icon: HugeIcons.strokeRoundedSearch01,
+                        tooltip: 'Tìm kiếm hóa đơn',
+                        onPressed: () =>
+                            showComingSoonSnackBar(context, 'Tìm kiếm hóa đơn'),
+                      ),
+                      const SizedBox(width: 8),
+                      _HeaderCircleAction(
+                        icon: HugeIcons.strokeRoundedBank,
+                        tooltip: 'Cài đặt STK nhận tiền VietQR',
+                        onPressed: () => context.push(AppRoutes.bankSettings),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 16),
+
+                  // 2. Hero Summary Card
+                  SettlementHeroSummaryCard(
+                    overview: state.overview,
+                    onPayDebt: _openBatchPaySheet,
+                    onTapPendingProofAlert: () {
+                      controller.setTab(SettlementTab.receivable);
+                    },
+                  ),
+                  const SizedBox(height: 18),
+
+                  // 3. Segmented Pill Navigation Tabs
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          'Công nợ & Hóa đơn',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: textMain,
-                            letterSpacing: -0.3,
+                        Expanded(
+                          child: _buildTabButton(
+                            title: 'Cần trả ($payableCount)',
+                            tab: SettlementTab.payable,
+                            activeTab: state.currentTab,
+                            isDark: isDark,
+                            onTap: () =>
+                                controller.setTab(SettlementTab.payable),
                           ),
                         ),
-                        Text(
-                          'Tổng hợp công nợ đa nhóm & đối soát minh chứng',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11.5,
-                            color: textMuted,
+                        Expanded(
+                          child: _buildTabButton(
+                            title: 'Cần thu ($receivableCount)',
+                            tab: SettlementTab.receivable,
+                            activeTab: state.currentTab,
+                            isDark: isDark,
+                            onTap: () =>
+                                controller.setTab(SettlementTab.receivable),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Expanded(
+                          child: _buildTabButton(
+                            title: 'Hóa đơn (${state.bills.length})',
+                            tab: SettlementTab.bills,
+                            activeTab: state.currentTab,
+                            isDark: isDark,
+                            onTap: () => controller.setTab(SettlementTab.bills),
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildTabButton(
+                            title: 'Lịch sử',
+                            tab: SettlementTab.history,
+                            activeTab: state.currentTab,
+                            isDark: isDark,
+                            onTap: () =>
+                                controller.setTab(SettlementTab.history),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () =>
-                        showComingSoonSnackBar(context, 'Tìm kiếm hóa đơn'),
-                    icon: const Icon(HugeIcons.strokeRoundedSearch01, size: 18),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  IconButton(
-                    onPressed: () => context.push(AppRoutes.bankSettings),
-                    icon: const Icon(HugeIcons.strokeRoundedBank, size: 18),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'Cài đặt STK nhận tiền VietQR',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
-              // 2. Hero Summary Card
-              SettlementHeroSummaryCard(
-                overview: state.overview,
-                onPayDebt: _openBatchPaySheet,
-                onTapPendingProofAlert: () {
-                  controller.setTab(SettlementTab.receivable);
-                },
-              ),
-              const SizedBox(height: 18),
-
-              // 3. Segmented Pill Navigation Tabs
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildTabButton(
-                        title: 'Cần trả ($payableCount)',
-                        tab: SettlementTab.payable,
-                        activeTab: state.currentTab,
-                        isDark: isDark,
-                        onTap: () => controller.setTab(SettlementTab.payable),
+                  // 4. Tab Panels Content
+                  if (state.errorMessage != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Không tải hoặc cập nhật được dữ liệu. Vui lòng thử lại.',
+                              key: Key('settlement-error-message'),
+                              style: TextStyle(color: Color(0xFFB91C1C)),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: state.isLoading
+                                ? null
+                                : controller.loadData,
+                            child: const Text('Thử lại'),
+                          ),
+                        ],
                       ),
                     ),
-                    Expanded(
-                      child: _buildTabButton(
-                        title: 'Cần thu ($receivableCount)',
-                        tab: SettlementTab.receivable,
-                        activeTab: state.currentTab,
-                        isDark: isDark,
-                        onTap: () =>
-                            controller.setTab(SettlementTab.receivable),
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildTabButton(
-                        title: 'Hóa đơn (${state.bills.length})',
-                        tab: SettlementTab.bills,
-                        activeTab: state.currentTab,
-                        isDark: isDark,
-                        onTap: () => controller.setTab(SettlementTab.bills),
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildTabButton(
-                        title: 'Lịch sử',
-                        tab: SettlementTab.history,
-                        activeTab: state.currentTab,
-                        isDark: isDark,
-                        onTap: () => controller.setTab(SettlementTab.history),
-                      ),
-                    ),
+                    const SizedBox(height: 12),
                   ],
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // 4. Tab Panels Content
-              if (state.errorMessage != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFECACA)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Không tải hoặc cập nhật được dữ liệu. Vui lòng thử lại.',
-                          key: Key('settlement-error-message'),
-                          style: TextStyle(color: Color(0xFFB91C1C)),
+                  if (state.isLoading) ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF0F766E),
                         ),
                       ),
-                      TextButton(
-                        onPressed: state.isLoading ? null : controller.loadData,
-                        child: const Text('Thử lại'),
+                    ),
+                  ] else ...[
+                    if (state.currentTab == SettlementTab.payable) ...[
+                      PayableDebtsTab(
+                        debts: state.payableDebts,
+                        onPaySingleDebt: _openSinglePayQr,
+                      ),
+                    ] else if (state.currentTab ==
+                        SettlementTab.receivable) ...[
+                      ReceivableProofsTab(
+                        pendingProofs: state.pendingProofs,
+                        receivableDebts: state.receivableDebts,
+                        remindedCooldowns: state.remindedCooldowns,
+                        onOpenProofReview: _refreshAndOpenProof,
+                        onConfirmProof: state.isMutating
+                            ? null
+                            : _refreshAndOpenProof,
+                        onRejectProof: state.isMutating ? null : _rejectProof,
+                        onRemindDebt: state.isMutating
+                            ? null
+                            : (debtId, _) {
+                                final debt = state.receivableDebts.firstWhere(
+                                  (item) => item.id == debtId,
+                                );
+                                _remindDebt(debt);
+                              },
+                      ),
+                    ] else if (state.currentTab == SettlementTab.bills) ...[
+                      AllBillsTab(
+                        bills: state.bills,
+                        onTapBill: (id, title) {
+                          showComingSoonSnackBar(
+                            context,
+                            'Chi tiết hóa đơn: $title',
+                          );
+                        },
+                        onScanBill: () {
+                          showComingSoonSnackBar(
+                            context,
+                            'Mở máy quét OCR hóa đơn',
+                          );
+                        },
+                      ),
+                    ] else if (state.currentTab == SettlementTab.history) ...[
+                      SettledHistoryTab(
+                        history: state.settledHistory,
+                        onTapHistoryItem: (item) {
+                          _refreshAndOpenProof(item.proof);
+                        },
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (state.isLoading) ...[
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(
-                    child: CircularProgressIndicator(color: Color(0xFF0F766E)),
-                  ),
-                ),
-              ] else ...[
-                if (state.currentTab == SettlementTab.payable) ...[
-                  PayableDebtsTab(
-                    debts: state.payableDebts,
-                    onPaySingleDebt: _openSinglePayQr,
-                  ),
-                ] else if (state.currentTab == SettlementTab.receivable) ...[
-                  ReceivableProofsTab(
-                    pendingProofs: state.pendingProofs,
-                    receivableDebts: state.receivableDebts,
-                    remindedCooldowns: state.remindedCooldowns,
-                    onOpenProofReview: _refreshAndOpenProof,
-                    onConfirmProof: state.isMutating
-                        ? null
-                        : _refreshAndOpenProof,
-                    onRejectProof: state.isMutating ? null : _rejectProof,
-                    onRemindDebt: state.isMutating
-                        ? null
-                        : (debtId, _) {
-                            final debt = state.receivableDebts.firstWhere(
-                              (item) => item.id == debtId,
-                            );
-                            _remindDebt(debt);
-                          },
-                  ),
-                ] else if (state.currentTab == SettlementTab.bills) ...[
-                  AllBillsTab(
-                    bills: state.bills,
-                    onTapBill: (id, title) {
-                      showComingSoonSnackBar(
-                        context,
-                        'Chi tiết hóa đơn: $title',
-                      );
-                    },
-                    onScanBill: () {
-                      showComingSoonSnackBar(
-                        context,
-                        'Mở máy quét OCR hóa đơn',
-                      );
-                    },
-                  ),
-                ] else if (state.currentTab == SettlementTab.history) ...[
-                  SettledHistoryTab(
-                    history: state.settledHistory,
-                    onTapHistoryItem: (item) {
-                      _refreshAndOpenProof(item.proof);
-                    },
-                  ),
+                  ],
                 ],
-              ],
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -547,6 +568,41 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                 ? (isDark ? Colors.white : const Color(0xFF0F172A))
                 : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Nút hành động tròn mờ trắng trên dải sóng Teal — đồng bộ style với
+/// chuông thông báo ở Header Trang chủ.
+class _HeaderCircleAction extends StatelessWidget {
+  const _HeaderCircleAction({
+    required this.icon,
+    required this.onPressed,
+    this.tooltip,
+  });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip ?? '',
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(50),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.15),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          ),
+          child: Icon(icon, size: 20, color: Colors.white),
         ),
       ),
     );

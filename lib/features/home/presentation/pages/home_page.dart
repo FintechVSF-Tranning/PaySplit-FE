@@ -7,6 +7,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
+import '../../../../core/widgets/header_wave_painter.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
 import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
 import '../../../notifications/presentation/providers/notifications_notifier.dart';
@@ -34,27 +35,29 @@ class _HomePageState extends ConsumerState<HomePage> {
         : 'Hoàng Nam';
 
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
+    final statusBarHeight = MediaQuery.paddingOf(context).top;
 
     return Scaffold(
       backgroundColor: bg,
-      body: Stack(
-        children: [
-          // 1. Organic Curved Top Wave Header Background
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: CustomPaint(
-              size: const Size(double.infinity, 210),
-              painter: _HomeHeaderWavePainter(isDark: isDark),
+      // Background sóng Teal KHÔNG còn cố định: nó nằm bên trong nội dung
+      // cuộn và di chuyển theo cùng nội dung khi người dùng scroll.
+      body: SingleChildScrollView(
+        child: Stack(
+          children: [
+            // 1. Organic Curved Top Wave Header Background (cuộn cùng nội dung)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: CustomPaint(
+                size: Size(double.infinity, 210 + statusBarHeight),
+                painter: HeaderWavePainter(isDark: isDark),
+              ),
             ),
-          ),
 
-          // 2. Scrollable Body
-          SafeArea(
-            bottom: false,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+            // 2. Scrollable Body
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, 12 + statusBarHeight, 16, 96),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -66,7 +69,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       Row(
                         children: [
                           InkWell(
-                            onTap: () => context.push(AppRoutes.profile),
+                            onTap: () => context.go(AppRoutes.profile),
                             borderRadius: BorderRadius.circular(50),
                             child: Container(
                               width: 44,
@@ -181,7 +184,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   // 1. Hero Net Balance Card
                   NetBalanceHeroCard(
-                    onPayVietQr: () => context.push(
+                    onPayVietQr: () => context.go(
                       AppRoutes.settlement,
                       extra: SettlementTab.payable,
                     ),
@@ -200,23 +203,23 @@ class _HomePageState extends ConsumerState<HomePage> {
                         );
                       }
                     },
-                    onCreateGroup: () => context.push(AppRoutes.groups),
+                    onCreateGroup: () => context.go(AppRoutes.groups),
                   ),
                   const SizedBox(height: 22),
 
                   // 2. Actionable Debts Section
                   ActionableDebtsSection(
-                    onViewAll: (tab) => context.push(
+                    onViewAll: (tab) => context.go(
                       AppRoutes.settlement,
                       extra: tab == 0
                           ? SettlementTab.payable
                           : SettlementTab.receivable,
                     ),
-                    onPayQr: (name, amount, ctx) => context.push(
+                    onPayQr: (name, amount, ctx) => context.go(
                       AppRoutes.settlement,
                       extra: SettlementTab.payable,
                     ),
-                    onReviewProof: (name, amount) => context.push(
+                    onReviewProof: (name, amount) => context.go(
                       AppRoutes.settlement,
                       extra: SettlementTab.receivable,
                     ),
@@ -229,15 +232,15 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   // 3. My Groups Carousel
                   MyGroupsCarousel(
-                    onViewAll: () => context.push(AppRoutes.groups),
+                    onViewAll: () => context.go(AppRoutes.groups),
                     onTapGroupItem: (group) {
                       if (group.id.isNotEmpty) {
                         context.push('${AppRoutes.groups}/${group.id}');
                       } else {
-                        context.push(AppRoutes.groups);
+                        context.go(AppRoutes.groups);
                       }
                     },
-                    onCreateGroup: () => context.push(AppRoutes.groups),
+                    onCreateGroup: () => context.go(AppRoutes.groups),
                   ),
                   const SizedBox(height: 22),
 
@@ -246,8 +249,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -263,42 +266,4 @@ class _HomePageState extends ConsumerState<HomePage> {
     return (parts.first.characters.first + parts.last.characters.first)
         .toUpperCase();
   }
-}
-
-class _HomeHeaderWavePainter extends CustomPainter {
-  final bool isDark;
-  _HomeHeaderWavePainter({required this.isDark});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paint = Paint()
-      ..shader = LinearGradient(
-        colors: isDark
-            ? [const Color(0xFF0F766E), const Color(0xFF132A24)]
-            : [
-                const Color(0xFF0F766E),
-                const Color(0xFF115E59),
-                const Color(0xFF134E4A),
-              ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(rect);
-
-    final path = Path();
-    path.lineTo(0, size.height - 35);
-    path.quadraticBezierTo(
-      size.width * 0.5,
-      size.height + 15,
-      size.width,
-      size.height - 35,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

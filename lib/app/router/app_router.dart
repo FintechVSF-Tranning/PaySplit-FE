@@ -137,36 +137,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.groups,
                 builder: (context, state) => const GroupsPage(),
-                routes: [
-                  GoRoute(
-                    path: ':groupId',
-                    builder: (context, state) {
-                      if (state.extra is GroupEntity) {
-                        return GroupDetailPage(
-                          group: state.extra! as GroupEntity,
-                        );
-                      }
-                      final groupId = state.pathParameters['groupId'] ?? '';
-                      final fallbackGroup = GroupEntity(
-                        id: groupId,
-                        name: 'Chi tiết nhóm',
-                        memberCount: 1,
-                        myBalance: 0,
-                        inviteCode: '',
-                        isCaptain: false,
-                        lastActivity: 'Đang tải thông tin...',
-                      );
-                      return GroupDetailPage(group: fallbackGroup);
-                    },
-                    routes: [
-                      GoRoute(
-                        path: 'add-members',
-                        builder: (context, state) =>
-                            AddMembersPage(group: state.extra! as GroupEntity),
-                      ),
-                    ],
-                  ),
-                ],
               ),
             ],
           ),
@@ -209,6 +179,34 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => const ChangePasswordPage(),
               ),
             ],
+          ),
+        ],
+      ),
+      // Các màn hình con dạng Stack của tab Nhóm: đặt ngoài shell để hiển thị
+      // full-screen (ẩn bottom navigation bar) và không làm lệch tab active.
+      GoRoute(
+        path: '${AppRoutes.groups}/:groupId',
+        builder: (context, state) {
+          if (state.extra is GroupEntity) {
+            return GroupDetailPage(group: state.extra! as GroupEntity);
+          }
+          final groupId = state.pathParameters['groupId'] ?? '';
+          final fallbackGroup = GroupEntity(
+            id: groupId,
+            name: 'Chi tiết nhóm',
+            memberCount: 1,
+            myBalance: 0,
+            inviteCode: '',
+            isCaptain: false,
+            lastActivity: 'Đang tải thông tin...',
+          );
+          return GroupDetailPage(group: fallbackGroup);
+        },
+        routes: [
+          GoRoute(
+            path: 'add-members',
+            builder: (context, state) =>
+                AddMembersPage(group: state.extra! as GroupEntity),
           ),
         ],
       ),
