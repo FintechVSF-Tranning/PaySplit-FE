@@ -27,19 +27,35 @@ import '../../features/splash/presentation/pages/splash_page.dart';
 import 'app_routes.dart';
 import 'main_navigation_shell.dart';
 
-final GlobalKey<NavigatorState> rootNavigatorKey =
-    GlobalKey<NavigatorState>(debugLabel: 'root');
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'root',
+);
+
+class _GoRouterRefreshNotifier extends ChangeNotifier {
+  _GoRouterRefreshNotifier(Ref ref) {
+    ref.listen(authControllerProvider, (_, _) => notifyListeners());
+  }
+}
+
+final _goRouterRefreshNotifierProvider = Provider<_GoRouterRefreshNotifier>((
+  ref,
+) {
+  return _GoRouterRefreshNotifier(ref);
+});
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authControllerProvider);
+  final refreshNotifier = ref.watch(_goRouterRefreshNotifierProvider);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authControllerProvider);
       final isAuth = authState.valueOrNull != null;
       final isGoingToSplash = state.matchedLocation == AppRoutes.splash;
-      final isGoingToAuth = state.matchedLocation == AppRoutes.login ||
+      final isGoingToAuth =
+          state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register ||
           state.matchedLocation == AppRoutes.verifyOtp ||
           state.matchedLocation == AppRoutes.forgotPassword ||
@@ -69,7 +85,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.login,
-        builder: (context, state) => const LoginPage(),
+        builder: (context, state) =>
+            LoginPage(resetSuccess: state.extra is bool && state.extra == true),
       ),
       GoRoute(
         path: AppRoutes.register,
@@ -189,11 +206,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Các luồng full-screen (ngoài bottom navigation shell)
       GoRoute(
         path: AppRoutes.scanBill,
-        builder: (context, state) {
+        redirect: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
+          final groupId = extra?['groupId'] as String?;
+          if (groupId == null || groupId.isEmpty) {
+            return AppRoutes.bills;
+          }
+          return null;
+        },
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
           return BillCapturePage(
-            groupId: extra?['groupId'] as String? ?? '01a02363-2432-75f2-a125-8a557f88ecfe',
-            groupName: extra?['groupName'] as String? ?? '1. Tôi là Trưởng nhóm (Phòng Dev)',
+            groupId: extra['groupId'] as String,
+            groupName: extra['groupName'] as String? ?? 'Chi tiết nhóm',
           );
         },
       ),
@@ -247,7 +272,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             creditorMemberId: extra?['creditorMemberId'] as String? ?? '',
             creditorName: extra?['creditorName'] as String? ?? '',
             status: 'draft',
-            merchantName: extra?['merchantName'] as String? ?? 'Đang tải thông tin...',
+            merchantName:
+                extra?['merchantName'] as String? ?? 'Đang tải thông tin...',
             subtotal: 0,
             serviceCharge: 0,
             vat: 0,

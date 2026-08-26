@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,8 +5,10 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
-import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/error/failures.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../../../di/injection.dart';
+import '../../../groups/domain/usecases/list_groups_usecase.dart';
 
 class GroupItemData {
   const GroupItemData({
@@ -35,6 +36,8 @@ class GroupPickerBottomSheet extends StatelessWidget {
     super.key,
   });
 
+  static const int _maxGroups = 100;
+
   final String selectedGroupId;
   final ValueChanged<GroupItemData> onGroupSelected;
   final List<GroupItemData> groups;
@@ -43,46 +46,36 @@ class GroupPickerBottomSheet extends StatelessWidget {
     BuildContext context, {
     required String currentGroupId,
   }) async {
-    List<GroupItemData> realGroups = [];
-    try {
-      final dio = getIt<Dio>();
-      final response = await dio.get(ApiEndpoints.groups);
-      if (response.data is Map<String, dynamic>) {
-        final rawData = response.data as Map<String, dynamic>;
-        final data = rawData['data'] as Map<String, dynamic>? ?? rawData;
-        final list = data['groups'] as List? ?? const [];
-        for (final item in list) {
-          if (item is Map<String, dynamic>) {
-            final group = item['group'] as Map<String, dynamic>? ?? item;
-            final id = group['id'] as String? ?? item['id'] as String? ?? '';
-            final name = group['name'] as String? ?? item['name'] as String? ?? '';
-            final memberCount = item['active_member_count'] as int? ?? group['member_count'] as int? ?? 1;
-            if (id.isNotEmpty) {
-              String emoji = '👥';
-              if (name.contains('Trưởng nhóm') || name.contains('1.')) {
-                emoji = '👑';
-              } else if (name.contains('Người tạo đơn') || name.contains('2.')) {
-                emoji = '🍕';
-              } else if (name.contains('Người bình thường') || name.contains('3.')) {
-                emoji = '🏸';
-              }
+    final result = await getIt<ListGroupsUseCase>().call(
+      const ListGroupsParams(limit: _maxGroups),
+    );
+    if (!context.mounted) return null;
 
-              realGroups.add(GroupItemData(
-                id: id,
-                name: name,
-                emoji: emoji,
-                memberCount: memberCount,
-                balanceText: '0 đ',
-              ));
-            }
-          }
-        }
-      }
-    } catch (_) {
-      // Ignored network errors
+    final failure = result.fold<Failure?>((f) => f, (_) => null);
+    if (failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không tải được danh sách nhóm. ${failure.message}'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return null;
     }
 
-    if (!context.mounted) return null;
+    final realGroups = result.fold<List<GroupItemData>>(
+      (_) => const [],
+      (page) => [
+        for (final group in page.items)
+          GroupItemData(
+            id: group.id,
+            name: group.name,
+            emoji: '👥',
+            memberCount: group.memberCount,
+            balanceText: CurrencyFormatter.vnd(group.myBalance),
+            isPositive: group.myBalance >= 0,
+          ),
+      ],
+    );
 
     return showModalBottomSheet<GroupItemData>(
       context: context,
@@ -102,7 +95,9 @@ class GroupPickerBottomSheet extends StatelessWidget {
     final bg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
 
     return Container(
       decoration: BoxDecoration(
@@ -121,7 +116,9 @@ class GroupPickerBottomSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                color: isDark
+                    ? const Color(0xFF475569)
+                    : const Color(0xFFCBD5E1),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -151,10 +148,7 @@ class GroupPickerBottomSheet extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Hóa đơn chụp sẽ được gán vào nhóm đã chọn để phân bổ chi phí.',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              color: textMuted,
-            ),
+            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
           ),
           const SizedBox(height: 16),
 
@@ -164,7 +158,9 @@ class GroupPickerBottomSheet extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
+                color: isDark
+                    ? const Color(0xFF0F172A)
+                    : const Color(0xFFF8FAF9),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: border),
               ),
@@ -208,10 +204,15 @@ class GroupPickerBottomSheet extends StatelessWidget {
                     height: 44,
                     child: ElevatedButton.icon(
                       onPressed: () {
+                        final router = GoRouter.of(context);
                         Navigator.of(context).pop();
-                        context.push(AppRoutes.groups);
+                        router.push(AppRoutes.groups);
                       },
-                      icon: const Icon(HugeIcons.strokeRoundedPlusSign, size: 18, color: Colors.white),
+                      icon: const Icon(
+                        HugeIcons.strokeRoundedPlusSign,
+                        size: 18,
+                        color: Colors.white,
+                      ),
                       label: Text(
                         'Tạo nhóm mới ngay',
                         style: GoogleFonts.plusJakartaSans(
@@ -246,18 +247,25 @@ class GroupPickerBottomSheet extends StatelessWidget {
                     onTap: () => onGroupSelected(group),
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? (isDark
-                                ? AppColors.primary.withValues(alpha: 0.15)
-                                : AppColors.primarySubtle)
-                            : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9)),
+                                  ? AppColors.primary.withValues(alpha: 0.15)
+                                  : AppColors.primarySubtle)
+                            : (isDark
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFFF8FAF9)),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: isSelected
                               ? AppColors.primary
-                              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                              : (isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0)),
                           width: isSelected ? 1.5 : 1.0,
                         ),
                       ),
@@ -268,14 +276,21 @@ class GroupPickerBottomSheet extends StatelessWidget {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0),
                               ),
                             ),
                             child: Center(
-                              child: Text(group.emoji, style: const TextStyle(fontSize: 20)),
+                              child: Text(
+                                group.emoji,
+                                style: const TextStyle(fontSize: 20),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -290,7 +305,9 @@ class GroupPickerBottomSheet extends StatelessWidget {
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w700,
-                                    color: isSelected ? AppColors.primary : textMain,
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : textMain,
                                   ),
                                 ),
                                 const SizedBox(height: 2),

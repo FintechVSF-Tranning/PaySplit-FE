@@ -421,15 +421,46 @@ class BillStickyBottomBar extends StatelessWidget {
           ],
         );
       } else if (isCreditor) {
-        return Row(
+        return Column(
           children: [
-            Expanded(
-              child: AppButton(
-                label: 'Gửi đối soát',
-                variant: (hasWarnings || !isDirty) ? AppButtonVariant.outline : AppButtonVariant.primary,
-                isLoading: isSaving,
-                onPressed: (isSaving || hasWarnings || !isDirty) ? null : (onReview ?? onFinalize),
+            if (!isDirty && !hasWarnings) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      HugeIcons.strokeRoundedInformationCircle,
+                      size: 13,
+                      color: textMuted,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      'Chưa có thay đổi mới. Hãy chỉnh sửa nội dung hoá đơn trước khi gửi lại đối soát.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        color: textMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: 'Gửi đối soát',
+                    variant: (hasWarnings || !isDirty) ? AppButtonVariant.outline : AppButtonVariant.primary,
+                    isLoading: isSaving,
+                    onPressed: (isSaving || hasWarnings || !isDirty) ? null : (onReview ?? onFinalize),
+                  ),
+                ),
+              ],
             ),
           ],
         );
