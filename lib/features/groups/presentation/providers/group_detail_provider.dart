@@ -160,7 +160,7 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
     state = _copy(group: _copyGroup(myBalance: next));
   }
 
-  /// Khóa bill: chặn thêm/sửa hóa đơn và cố định số tiền mỗi người phải trả.
+  /// Khóa hóa đơn: chặn thêm/sửa hóa đơn và cố định số tiền mỗi người phải trả.
   /// Công nợ vẫn tiếp tục được thanh toán sau khi khóa.
   void closeBook(String closedAtText) {
     state = _copy(
@@ -168,7 +168,7 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
       activities: [
         GroupActivityEntity(
           id: 'a_close_${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Nhóm đã được khóa bill',
+          title: 'Nhóm đã được khóa hóa đơn',
           subtitle: 'Bảng chia tiền đã khóa, phần của mỗi người được giữ nguyên',
           timeText: 'Vừa xong',
           kind: GroupActivityKind.system,
@@ -178,7 +178,7 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
     );
   }
 
-  /// Mở khóa bill để tiếp tục thêm hóa đơn (chỉ trưởng nhóm).
+  /// Mở khóa hóa đơn để tiếp tục thêm hóa đơn (chỉ trưởng nhóm).
 
   GroupEntity _copyGroup({
     String? name,
@@ -226,7 +226,7 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
 
 /// Key của [groupDetailProvider]. Mang theo entity gốc để khởi tạo detail,
 /// nhưng chỉ so sánh theo [GroupEntity.id]: các thao tác trên màn chi tiết
-/// (đổi tên, khóa bill...) đồng bộ ngược về `groupsProvider` nên entity truyền
+/// (đổi tên, khóa hóa đơn...) đồng bộ ngược về `groupsProvider` nên entity truyền
 /// vào sẽ khác đi ở lần mở sau. Nếu key theo cả entity, family coi đó là nhóm
 /// mới và dựng lại notifier từ mock, làm mất state đã thao tác.
 class GroupDetailKey extends Equatable {

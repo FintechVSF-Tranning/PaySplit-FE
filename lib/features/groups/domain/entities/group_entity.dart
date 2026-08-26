@@ -8,7 +8,7 @@ enum GroupStatus {
   /// Đang dùng: còn thêm hóa đơn, còn chia tiền.
   active,
 
-  /// Đã khóa bill: mọi hóa đơn đã chia xong, bảng chia tiền bị khóa. Công nợ
+  /// Đã khóa hóa đơn: mọi hóa đơn đã chia xong, bảng chia tiền bị khóa. Công nợ
   /// vẫn tiếp tục được thanh toán sau khi khóa.
   closed,
 }
@@ -48,7 +48,7 @@ class GroupEntity extends Equatable {
   final int pendingBillCount;
   final GroupStatus status;
 
-  /// Ngày khóa bill hiển thị trên thẻ nhóm, chỉ có khi [isClosed].
+  /// Ngày khóa hóa đơn hiển thị trên thẻ nhóm, chỉ có khi [isClosed].
   final String? closedAtText;
 
   bool get isClosed => status == GroupStatus.closed;

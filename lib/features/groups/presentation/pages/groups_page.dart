@@ -26,7 +26,7 @@ class GroupsPage extends ConsumerStatefulWidget {
 }
 
 class _GroupsPageState extends ConsumerState<GroupsPage> {
-  /// Tách nhóm đang dùng khỏi nhóm đã khóa bill để danh sách chính không bị loãng.
+  /// Tách nhóm đang dùng khỏi nhóm đã khóa hóa đơn để danh sách chính không bị loãng.
   GroupStatus _lifecycle = GroupStatus.active;
 
   @override
@@ -37,9 +37,7 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 
     final activeGroups = groups.where((g) => !g.isClosed).toList();
     final closedGroups = groups.where((g) => g.isClosed).toList();
-    final visibleGroups = _lifecycle == GroupStatus.active
-        ? activeGroups
-        : closedGroups;
+    final visibleGroups = _lifecycle == GroupStatus.active ? activeGroups : closedGroups;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF9),
@@ -104,22 +102,17 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                         const SizedBox(height: 24),
 
                         if (recentGroups.isNotEmpty) ...[
-                          _SectionTitle(
-                            title: 'Nhóm gần đây',
-                            trailing: 'Lịch sử truy cập',
-                          ),
+                          _SectionTitle(title: 'Nhóm gần đây', trailing: 'Lịch sử truy cập'),
                           const SizedBox(height: 10),
                           SizedBox(
                             height: 44,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: recentGroups.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 10),
+                              separatorBuilder: (_, _) => const SizedBox(width: 10),
                               itemBuilder: (context, index) => _RecentGroupChip(
                                 group: recentGroups[index],
-                                onTap: () =>
-                                    _openDetail(context, recentGroups[index]),
+                                onTap: () => _openDetail(context, recentGroups[index]),
                               ),
                             ),
                           ),
@@ -157,15 +150,12 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                   SliverToBoxAdapter(
                     child: _GroupsErrorState(
                       message: groupsState.failure!.message,
-                      onRetry: () =>
-                          ref.read(groupsProvider.notifier).refresh(),
+                      onRetry: () => ref.read(groupsProvider.notifier).refresh(),
                     ),
                   )
                 else if (groups.isEmpty)
                   SliverToBoxAdapter(
-                    child: _EmptyGroupsState(
-                      onCreate: () => _createGroup(context, ref),
-                    ),
+                    child: _EmptyGroupsState(onCreate: () => _createGroup(context, ref)),
                   )
                 else if (visibleGroups.isEmpty)
                   const SliverToBoxAdapter(child: _EmptyClosedState())
@@ -208,25 +198,19 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
   }
 
   Future<void> _joinByQr(BuildContext context, WidgetRef ref) async {
-    final group = await Navigator.of(context).push<GroupEntity>(
-      MaterialPageRoute(builder: (_) => const ScanQrJoinPage()),
-    );
+    final group = await Navigator.of(
+      context,
+    ).push<GroupEntity>(MaterialPageRoute(builder: (_) => const ScanQrJoinPage()));
     if (group == null || !context.mounted) return;
     await _join(context, ref, group);
   }
 
   /// Sheet xem trước chỉ trả về thông tin hiển thị kèm mã mời; việc tham gia
   /// thật sự do `POST /groups/join` thực hiện, sau đó danh sách được tải lại.
-  Future<void> _join(
-    BuildContext context,
-    WidgetRef ref,
-    GroupEntity group,
-  ) async {
+  Future<void> _join(BuildContext context, WidgetRef ref, GroupEntity group) async {
     final code = group.inviteCode;
     if (code == null) return;
-    final failure = await ref
-        .read(groupsProvider.notifier)
-        .joinGroupByCode(code);
+    final failure = await ref.read(groupsProvider.notifier).joinGroupByCode(code);
     if (!context.mounted) return;
     if (failure != null) {
       showErrorSnackBar(context, failure.message);
@@ -245,6 +229,32 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        // Nút quay lại — đồng bộ với header của tab Cài đặt và Hóa đơn.
+        InkWell(
+          onTap: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.15),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            ),
+            child: const Icon(
+              HugeIcons.strokeRoundedArrowLeft01,
+              size: 20,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,11 +291,7 @@ class _Header extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
               border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
-            child: const Icon(
-              HugeIcons.strokeRoundedSearch01,
-              size: 20,
-              color: Colors.white,
-            ),
+            child: const Icon(HugeIcons.strokeRoundedSearch01, size: 20, color: Colors.white),
           ),
         ),
       ],
@@ -295,11 +301,7 @@ class _Header extends StatelessWidget {
 
 /// Ô hành động tham gia nhóm — nền trắng nổi trên dải sóng Teal.
 class _JoinActionTile extends StatelessWidget {
-  const _JoinActionTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _JoinActionTile({required this.icon, required this.label, required this.onTap});
 
   final IconData icon;
   final String label;
@@ -423,9 +425,7 @@ class _RecentGroupChip extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  group.lastActivityAt == null
-                      ? ''
-                      : formatRelativeTime(group.lastActivityAt!),
+                  group.lastActivityAt == null ? '' : formatRelativeTime(group.lastActivityAt!),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w500,
@@ -552,12 +552,7 @@ class _GroupsHeaderWavePainter extends CustomPainter {
 
     final path = Path()
       ..lineTo(0, size.height - 35)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height + 15,
-        size.width,
-        size.height - 35,
-      )
+      ..quadraticBezierTo(size.width * 0.5, size.height + 15, size.width, size.height - 35)
       ..lineTo(size.width, 0)
       ..close();
 
@@ -568,7 +563,7 @@ class _GroupsHeaderWavePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Segmented pill lọc nhóm theo vòng đời: đang hoạt động vs đã khóa bill.
+/// Segmented pill lọc nhóm theo vòng đời: đang hoạt động vs đã khóa hóa đơn.
 class _LifecycleTabs extends StatelessWidget {
   const _LifecycleTabs({
     required this.current,
@@ -603,7 +598,7 @@ class _LifecycleTabs extends StatelessWidget {
           ),
           Expanded(
             child: _LifecycleTabItem(
-              label: 'Đã khóa bill',
+              label: 'Đã khóa hóa đơn',
               count: closedCount,
               isActive: current == GroupStatus.closed,
               onTap: () => onChanged(GroupStatus.closed),
@@ -675,7 +670,7 @@ class _LifecycleTabItem extends StatelessWidget {
   }
 }
 
-/// Trạng thái rỗng của tab "Đã khóa bill".
+/// Trạng thái rỗng của tab "Đã khóa hóa đơn".
 class _EmptyClosedState extends StatelessWidget {
   const _EmptyClosedState();
 
@@ -699,7 +694,7 @@ class _EmptyClosedState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Chưa có nhóm nào khóa bill',
+              'Chưa có nhóm nào khóa hóa đơn',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -708,7 +703,7 @@ class _EmptyClosedState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Khi một nhóm chia xong toàn bộ hóa đơn, hãy khóa bill\nđể chốt bảng chia tiền và lưu lại làm lịch sử.',
+              'Khi một nhóm chia xong toàn bộ hóa đơn, hãy khóa hóa đơn\nđể chốt bảng chia tiền và lưu lại làm lịch sử.',
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12.5,

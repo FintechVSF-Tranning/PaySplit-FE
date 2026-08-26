@@ -6,17 +6,22 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/network/dio_failure_mapper.dart';
 import '../../domain/entities/group_activity_entity.dart';
 import '../../domain/entities/group_entity.dart';
+import '../../domain/entities/group_sync_entity.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../datasources/group_event_stream_datasource.dart';
 import '../datasources/group_remote_datasource.dart';
 import '../models/activity_mapper.dart';
 import '../models/group_mapper.dart';
 import '../models/group_models.dart';
+import '../models/group_sync_models.dart';
+import '../models/group_sync_mapper.dart';
 
 @LazySingleton(as: GroupRepository)
 class GroupRepositoryImpl implements GroupRepository {
-  GroupRepositoryImpl(this._remote);
+  GroupRepositoryImpl(this._remote, this._events);
 
   final GroupRemoteDataSource _remote;
+  final GroupEventStreamDataSource _events;
 
   /// Bọc mọi lời gọi: [DioException] thành [Failure] tương ứng, còn body 2xx
   /// sai shape (ném [StateError]/[TypeError] khi đọc `data`) thành
@@ -71,8 +76,41 @@ class GroupRepositoryImpl implements GroupRepository {
         members: data.members.map((m) => m.toEntity()).toList(),
         balances: balances,
         callerRole: data.callerRole,
+        callerMembershipId: data.callerMembershipId,
+        version: data.version,
         activeBillFinalizeBatchId: data.activeBillFinalizeBatchId,
       );
+    });
+  }
+
+  @override
+  Future<Either<Failure, GroupSyncResult>> syncGroup(String groupId, {required int since}) {
+    return _guard(() async {
+      final data = (await _remote.syncGroup(groupId, since: since)).requireData;
+      return data.toEntity();
+    });
+  }
+
+  @override
+  Stream<GroupSyncEvent> streamGroupEvents(String groupId, {required int since}) {
+    // Stream cố ý KHÔNG bọc Either: lỗi ở đây là "kết nối đứt", không phải một
+    // kết quả nghiệp vụ. Tầng gọi bắt lỗi để quyết định backoff, và dữ liệu
+    // đúng vẫn về được qua syncGroup.
+    return _events.stream(groupId, since: since).expand((frame) {
+      switch (frame.event) {
+        case 'snapshot':
+        case 'sync':
+        case 'heartbeat':
+        case 'close':
+          // Ba loại này không phải sự kiện nhật ký. Snapshot ban đầu được lấy
+          // qua getGroupDetail trước khi mở stream, nên ở đây chỉ cần bỏ qua.
+          return const <GroupSyncEvent>[];
+        default:
+          // Thân frame mang đúng shape với phần tử events của /sync, nên dùng
+          // lại một hàm giải mã cho cả hai kênh.
+          if (frame.data['version'] is! num) return const <GroupSyncEvent>[];
+          return [GroupSyncEventModel.fromJson(frame.data).toEntity()];
+      }
     });
   }
 

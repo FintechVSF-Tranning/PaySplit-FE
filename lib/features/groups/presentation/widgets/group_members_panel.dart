@@ -22,7 +22,7 @@ class GroupMembersPanel extends StatelessWidget {
   final VoidCallback onAddMember;
   final VoidCallback onLeaveGroup;
 
-  /// Nhóm đã khóa bill thì không mời thêm người nữa.
+  /// Nhóm đã khóa hóa đơn thì không mời thêm người nữa.
   final bool canAddMember;
 
   @override

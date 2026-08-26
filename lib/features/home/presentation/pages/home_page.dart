@@ -10,8 +10,10 @@ import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/widgets/header_wave_painter.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
 import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
+import '../../../groups/presentation/widgets/create_group_bottom_sheet.dart';
 import '../../../notifications/presentation/providers/notifications_notifier.dart';
 import '../../../settlement/presentation/providers/settlement_controller.dart';
+import '../providers/home_groups_provider.dart';
 import '../widgets/actionable_debts_section.dart';
 import '../widgets/my_groups_carousel.dart';
 import '../widgets/net_balance_hero_card.dart';
@@ -222,7 +224,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         );
                       }
                     },
-                    onCreateGroup: () => context.go(AppRoutes.groups),
+                    onCreateGroup: _createGroup,
                   ),
                   const SizedBox(height: 22),
 
@@ -254,12 +256,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                     onViewAll: () => context.go(AppRoutes.groups),
                     onTapGroupItem: (group) {
                       if (group.id.isNotEmpty) {
-                        context.push('${AppRoutes.groups}/${group.id}');
+                        context.push(
+                          '${AppRoutes.groups}/${group.id}',
+                        );
                       } else {
                         context.go(AppRoutes.groups);
                       }
                     },
-                    onCreateGroup: () => context.go(AppRoutes.groups),
+                    onCreateGroup: _createGroup,
                   ),
                   const SizedBox(height: 22),
 
@@ -272,6 +276,16 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
       ),
     );
+  }
+
+  /// Mở sheet tạo nhóm ngay tại Tổng quan (thay vì chỉ nhảy sang tab Nhóm),
+  /// sau đó đi tiếp sang màn thêm thành viên và làm mới carousel "Nhóm của tôi".
+  Future<void> _createGroup() async {
+    final group = await CreateGroupBottomSheet.show(context);
+    if (group == null || !mounted) return;
+
+    ref.invalidate(homeGroupsProvider);
+    await context.push<void>(AppRoutes.addMembers(group.id), extra: group);
   }
 
   static String _getInitials(String name) {

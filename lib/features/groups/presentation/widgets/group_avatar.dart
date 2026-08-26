@@ -23,7 +23,7 @@ class GroupAvatar extends StatelessWidget {
   final double size;
   final BoxShape shape;
 
-  /// Làm mờ cho nhóm đã khóa bill.
+  /// Làm mờ cho nhóm đã khóa hóa đơn.
   final bool muted;
 
   /// Bảng màu avatar. Dùng chỉ số ổn định từ id thay vì `hashCode` của chuỗi vì

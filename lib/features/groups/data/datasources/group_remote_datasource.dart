@@ -5,6 +5,7 @@ import 'package:retrofit/retrofit.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/network/api_response.dart';
 import '../models/group_models.dart';
+import '../models/group_sync_models.dart';
 
 part 'group_remote_datasource.g.dart';
 
@@ -70,6 +71,13 @@ abstract class GroupRemoteDataSource {
     @Path('memberId') String memberId,
     @Body() Map<String, dynamic> body,
   );
+
+  /// Catch-up nguội. `since` bỏ trống hoặc 0 luôn cho ra snapshot.
+  @GET('/groups/{id}/sync')
+  Future<ApiResponse<GroupSyncResponseModel>> syncGroup(
+    @Path('id') String id, {
+    @Query('since') int? since,
+  });
 
   @GET('/groups/{id}/activities')
   Future<ApiResponse<ActivityListResponseModel>> listActivities(

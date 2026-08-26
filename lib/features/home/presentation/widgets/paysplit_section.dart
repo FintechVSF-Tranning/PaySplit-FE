@@ -61,7 +61,7 @@ class PaySplitSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _SplitBillBanner(onTap: () => context.push(AppRoutes.bills)),
+          _SplitBillBanner(onTap: () => context.go(AppRoutes.bills)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -73,7 +73,7 @@ class PaySplitSection extends StatelessWidget {
                     onTap: () {
                       final route = entry.route;
                       if (route != null) {
-                        context.push(route);
+                        context.go(route);
                       } else {
                         showComingSoonSnackBar(context, entry.label.replaceAll('\n', ' '));
                       }
