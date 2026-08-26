@@ -12,7 +12,6 @@ import '../../features/auth/presentation/providers/auth_controller.dart';
 import '../../features/bills/domain/entities/bill_detail_entity.dart';
 import '../../features/bills/presentation/pages/bill_capture_page.dart';
 import '../../features/bills/presentation/pages/bill_detail_page.dart';
-import '../../features/bills/presentation/pages/bills_page.dart';
 import '../../features/groups/domain/entities/group_entity.dart';
 import '../../features/groups/presentation/pages/add_members_page.dart';
 import '../../features/groups/presentation/pages/group_detail_page.dart';
@@ -23,8 +22,11 @@ import '../../features/profile/presentation/pages/bank_settings_page.dart';
 import '../../features/profile/presentation/pages/change_password_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/settlement/presentation/pages/settlement_page.dart';
+import '../../features/settlement/presentation/providers/settlement_controller.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import 'app_routes.dart';
+import 'main_navigation_shell.dart';
 
 class _GoRouterRefreshNotifier extends ChangeNotifier {
   _GoRouterRefreshNotifier(Ref ref) {
@@ -32,7 +34,9 @@ class _GoRouterRefreshNotifier extends ChangeNotifier {
   }
 }
 
-final _goRouterRefreshNotifierProvider = Provider<_GoRouterRefreshNotifier>((ref) {
+final _goRouterRefreshNotifierProvider = Provider<_GoRouterRefreshNotifier>((
+  ref,
+) {
   return _GoRouterRefreshNotifier(ref);
 });
 
@@ -48,7 +52,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = authState.valueOrNull != null;
 
       final loc = state.matchedLocation;
-      final isAuthFlow = loc == AppRoutes.welcome ||
+      final isAuthFlow =
+          loc == AppRoutes.welcome ||
           loc == AppRoutes.login ||
           loc == AppRoutes.register ||
           loc == AppRoutes.verifyOtp ||
@@ -56,7 +61,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           loc == AppRoutes.resetPassword;
 
       if (isLoading) {
-        return (loc == AppRoutes.splash || isAuthFlow) ? null : AppRoutes.splash;
+        return (loc == AppRoutes.splash || isAuthFlow)
+            ? null
+            : AppRoutes.splash;
       }
 
       if (!isLoggedIn) {
@@ -108,20 +115,108 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return ResetPasswordPage(email: email);
         },
       ),
-      GoRoute(
-        path: AppRoutes.home,
-        builder: (context, state) => const HomePage(),
+      StatefulShellRoute(
+        builder: (context, state, navigationShell) =>
+            MainNavigationShell(navigationShell: navigationShell),
+        navigatorContainerBuilder: MainNavigationShell.branchContainerBuilder,
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                builder: (context, state) => const HomePage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.groups,
+                builder: (context, state) => const GroupsPage(),
+                routes: [
+                  GoRoute(
+                    path: ':groupId',
+                    builder: (context, state) {
+                      if (state.extra is GroupEntity) {
+                        return GroupDetailPage(
+                          group: state.extra! as GroupEntity,
+                        );
+                      }
+                      final groupId = state.pathParameters['groupId'] ?? '';
+                      final fallbackGroup = GroupEntity(
+                        id: groupId,
+                        name: 'Chi tiết nhóm',
+                        memberCount: 1,
+                        myBalance: 0,
+                        inviteCode: '',
+                        isCaptain: false,
+                        lastActivity: 'Đang tải thông tin...',
+                      );
+                      return GroupDetailPage(group: fallbackGroup);
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'add-members',
+                        builder: (context, state) =>
+                            AddMembersPage(group: state.extra! as GroupEntity),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.bills,
+                builder: (context, state) {
+                  final tab =
+                      state.extra as SettlementTab? ?? SettlementTab.bills;
+                  return SettlementPage(initialTab: tab);
+                },
+              ),
+              GoRoute(
+                path: AppRoutes.settlement,
+                builder: (context, state) {
+                  final tab =
+                      state.extra as SettlementTab? ?? SettlementTab.payable;
+                  return SettlementPage(initialTab: tab);
+                },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile,
+                builder: (context, state) => const ProfilePage(),
+              ),
+              GoRoute(
+                path: AppRoutes.editProfile,
+                builder: (context, state) => const EditProfilePage(),
+              ),
+              GoRoute(
+                path: AppRoutes.bankSettings,
+                builder: (context, state) => const BankSettingsPage(),
+              ),
+              GoRoute(
+                path: AppRoutes.changePassword,
+                builder: (context, state) => const ChangePasswordPage(),
+              ),
+            ],
+          ),
+        ],
       ),
-      GoRoute(
-        path: AppRoutes.bills,
-        builder: (context, state) => const BillsPage(),
-      ),
+      // Các luồng full-screen (ngoài bottom navigation shell).
       GoRoute(
         path: AppRoutes.scanBill,
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           return BillCapturePage(
-            groupId: extra?['groupId'] as String? ?? '01a02363-242d-7cee-ae30-8f61857fd62c',
+            groupId:
+                extra?['groupId'] as String? ??
+                '01a02363-242d-7cee-ae30-8f61857fd62c',
             groupName: extra?['groupName'] as String? ?? 'Phòng Dev Cty',
           );
         },
@@ -141,17 +236,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             final bill = extra!['bill'] as BillDetailEntity;
             return BillDetailPage(
               initialBill: bill,
-              autoStartOcr: extra['autoStartOcr'] as bool? ?? (bill.photos.isNotEmpty && bill.items.isEmpty),
+              autoStartOcr:
+                  extra['autoStartOcr'] as bool? ??
+                  (bill.photos.isNotEmpty && bill.items.isEmpty),
             );
           }
           final initialBill = BillDetailEntity(
             id: extra?['billId'] as String? ?? '',
-            groupId: extra?['groupId'] as String? ?? '01a02363-242d-7cee-ae30-8f61857fd62c',
+            groupId:
+                extra?['groupId'] as String? ??
+                '01a02363-242d-7cee-ae30-8f61857fd62c',
             groupName: extra?['groupName'] as String? ?? 'Phòng Dev Cty',
-            creditorMemberId: extra?['creditorMemberId'] as String? ?? '01a02363-242f-72df-b61e-05e551f3360b',
-            creditorName: extra?['creditorName'] as String? ?? 'Nguyen Trong Tin',
+            creditorMemberId:
+                extra?['creditorMemberId'] as String? ??
+                '01a02363-242f-72df-b61e-05e551f3360b',
+            creditorName:
+                extra?['creditorName'] as String? ?? 'Nguyen Trong Tin',
             status: 'draft',
-            merchantName: extra?['merchantName'] as String? ?? 'Lẩu gà lá é Tao Ngộ',
+            merchantName:
+                extra?['merchantName'] as String? ?? 'Lẩu gà lá é Tao Ngộ',
             subtotal: 750000,
             serviceCharge: 50000,
             vat: 60000,
@@ -237,58 +340,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.groups,
-        builder: (context, state) => const GroupsPage(),
-        routes: [
-          GoRoute(
-            path: ':groupId',
-            builder: (context, state) {
-              if (state.extra is GroupEntity) {
-                return GroupDetailPage(group: state.extra! as GroupEntity);
-              }
-              final groupId = state.pathParameters['groupId'] ?? '';
-              final fallbackGroup = GroupEntity(
-                id: groupId,
-                name: 'Chi tiết nhóm',
-                emoji: '👥',
-                memberCount: 1,
-                myBalance: 0,
-                inviteCode: '',
-                isCaptain: false,
-                lastActivity: 'Đang tải thông tin...',
-                lastActivityAt: DateTime.now(),
-              );
-              return GroupDetailPage(group: fallbackGroup);
-            },
-            routes: [
-              GoRoute(
-                path: 'add-members',
-                builder: (context, state) =>
-                    AddMembersPage(group: state.extra! as GroupEntity),
-              ),
-            ],
-          ),
-        ],
-      ),
-      GoRoute(
         path: AppRoutes.notifications,
         builder: (context, state) => const NotificationsPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.profile,
-        builder: (context, state) => const ProfilePage(),
-      ),
-      GoRoute(
-        path: AppRoutes.editProfile,
-        builder: (context, state) => const EditProfilePage(),
-      ),
-      GoRoute(
-        path: AppRoutes.bankSettings,
-        builder: (context, state) => const BankSettingsPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.changePassword,
-        builder: (context, state) => const ChangePasswordPage(),
       ),
     ],
   );

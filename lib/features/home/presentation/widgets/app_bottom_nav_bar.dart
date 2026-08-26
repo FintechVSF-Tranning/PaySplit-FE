@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+const appBottomNavigationTransitionDuration = Duration(milliseconds: 160);
+
 /// DTO cấu hình cho mỗi mục trong Bottom Navigation Bar
 class BottomNavItemData {
   final IconData icon;
@@ -51,7 +53,7 @@ class AppBottomNavBar extends StatelessWidget {
     BottomNavItemData(
       icon: HugeIcons.strokeRoundedSettings01,
       label: 'Cài đặt',
-      route: '/settings',
+      route: '/profile',
     ),
   ];
 
@@ -104,47 +106,66 @@ class _BottomNavItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     const activeColor = Color(0xFF0F766E); // Deep Teal
     const inactiveColor = Color(0xFF676E5F); // Olive Muted Text
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
-    return InkWell(
-      onTap: onTap,
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 1. Icon tab
-            Icon(
-              item.icon,
-              size: 20,
-              color: isSelected ? activeColor : inactiveColor,
-            ),
-            const SizedBox(height: 3),
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: item.label,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: isSelected ? 1 : 0),
+        duration: disableAnimations
+            ? Duration.zero
+            : appBottomNavigationTransitionDuration,
+        curve: Curves.easeOutCubic,
+        builder: (context, progress, child) {
+          final color = Color.lerp(inactiveColor, activeColor, progress)!;
 
-            // 2. Nhãn text
-            Text(
-              item.label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 10.5,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? activeColor : inactiveColor,
+          return InkWell(
+            onTap: onTap,
+            excludeFromSemantics: true,
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Transform.scale(
+                    scale: 1 + (0.05 * progress),
+                    child: Icon(item.icon, size: 20, color: color),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    item.label,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Opacity(
+                    opacity: progress,
+                    child: Transform.scale(
+                      scale: 0.75 + (0.25 * progress),
+                      child: Container(
+                        width: 4,
+                        height: 4,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: activeColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 2),
-
-            // 3. Dấu chấm Active Dot Indicator
-            Container(
-              width: 4,
-              height: 4,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? activeColor : Colors.transparent,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

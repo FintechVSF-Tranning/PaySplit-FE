@@ -28,22 +28,26 @@ abstract class ApiEndpoints {
   static String vietQr(String billId) => '/bills/$billId/vietqr';
 
   // --- Groups (module `group`) ---
-  static const String groups = '/groups';
   static String groupById(String id) => '/groups/$id';
   static String groupInvites(String id) => '/groups/$id/invites';
-  static String groupInviteById(String id, String inviteId) => '/groups/$id/invites/$inviteId';
+  static String groupInviteById(String id, String inviteId) =>
+      '/groups/$id/invites/$inviteId';
   static String invitePreview(String code) => '/groups/invites/$code';
   static const String joinGroup = '/groups/join';
-  static String groupMember(String id, String memberId) => '/groups/$id/members/$memberId';
-  static String groupMemberRole(String id, String memberId) => '/groups/$id/members/$memberId/role';
+  static String groupMember(String id, String memberId) =>
+      '/groups/$id/members/$memberId';
+  static String groupMemberRole(String id, String memberId) =>
+      '/groups/$id/members/$memberId/role';
   static String groupActivities(String id) => '/groups/$id/activities';
 
   // --- Settlement (tab Công nợ, mount trên /groups) ---
   static String groupDebts(String groupId) => '/groups/$groupId/debts';
-  static String groupExpensesMe(String groupId) => '/groups/$groupId/expenses/me';
+  static String groupExpensesMe(String groupId) =>
+      '/groups/$groupId/expenses/me';
   static String remindDebt(String groupId, String debtId) =>
       '/groups/$groupId/debts/$debtId/remind';
-  static String groupPaymentQr(String groupId) => '/groups/$groupId/payments/qr';
+  static String groupPaymentQr(String groupId) =>
+      '/groups/$groupId/payments/qr';
   static String groupPayment(String groupId, String paymentId) =>
       '/groups/$groupId/payments/$paymentId';
   static String groupPaymentProof(String groupId, String paymentId) =>
@@ -52,10 +56,4 @@ abstract class ApiEndpoints {
       '/groups/$groupId/payments/$paymentId/confirm';
   static String rejectGroupPayment(String groupId, String paymentId) =>
       '/groups/$groupId/payments/$paymentId/reject';
-
-  // --- Group bill close v1 (Spec 0008, mount trên /groups) ---
-  static String lockBillSubmissions(String groupId) => '/groups/$groupId/bills/lock-submissions';
-  static String finalizeAllBills(String groupId) => '/groups/$groupId/bills/finalize-all';
-  static String billFinalizeBatch(String groupId, String batchId) =>
-      '/groups/$groupId/bill-finalize-batches/$batchId';
 }

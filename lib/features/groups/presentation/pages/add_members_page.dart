@@ -46,10 +46,14 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
   }
 
   void _finish(List<GroupMemberEntity> contacts) {
-    final selected = contacts.where((c) => _selectedIds.contains(c.id)).toList();
+    final selected = contacts
+        .where((c) => _selectedIds.contains(c.id))
+        .toList();
     // Backend không có `POST /groups/{id}/members`: người được mời phải tự vào
     // bằng mã mời, nên ở đây chỉ cập nhật sĩ số hiển thị (mục 3.6).
-    ref.read(groupsProvider.notifier).bumpMemberCountLocally(widget.group.id, selected.length);
+    ref
+        .read(groupsProvider.notifier)
+        .bumpMemberCountLocally(widget.group.id, selected.length);
 
     final message = selected.isEmpty
         ? 'Đã tạo nhóm ${widget.group.name}'
@@ -124,7 +128,8 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
                           icon: HugeIcons.strokeRoundedLink01,
                           title: 'Tạo link mời',
                           subtitle: 'Gửi qua Zalo, Messenger',
-                          onTap: () => InviteLinkBottomSheet.show(context, widget.group),
+                          onTap: () =>
+                              InviteLinkBottomSheet.show(context, widget.group),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -133,7 +138,8 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
                           icon: HugeIcons.strokeRoundedQrCode,
                           title: 'Tạo QR mời',
                           subtitle: 'Quét trực tiếp tại chỗ',
-                          onTap: () => InviteQrBottomSheet.show(context, widget.group),
+                          onTap: () =>
+                              InviteQrBottomSheet.show(context, widget.group),
                         ),
                       ),
                     ],
@@ -170,7 +176,8 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
 
                   _SearchField(
                     controller: _searchController,
-                    onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                    onChanged: (value) =>
+                        setState(() => _query = value.trim().toLowerCase()),
                   ),
                   const SizedBox(height: 12),
 
@@ -202,8 +209,14 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
 
                   const SizedBox(height: 8),
                   TextButton.icon(
-                    onPressed: () => showComingSoonSnackBar(context, 'Mời qua số điện thoại'),
-                    icon: const Icon(HugeIcons.strokeRoundedUserAdd01, size: 18),
+                    onPressed: () => showComingSoonSnackBar(
+                      context,
+                      'Mời qua số điện thoại',
+                    ),
+                    icon: const Icon(
+                      HugeIcons.strokeRoundedUserAdd01,
+                      size: 18,
+                    ),
                     label: Text(
                       'Mời bằng số điện thoại',
                       style: GoogleFonts.plusJakartaSans(
@@ -233,7 +246,9 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: _selectedIds.isEmpty ? AppColors.textMuted : AppColors.textMain,
+                        color: _selectedIds.isEmpty
+                            ? AppColors.textMuted
+                            : AppColors.textMain,
                       ),
                     ),
                   ),
@@ -470,7 +485,11 @@ class _SearchField extends StatelessWidget {
 }
 
 class _ContactTile extends StatelessWidget {
-  const _ContactTile({required this.member, required this.isSelected, required this.onTap});
+  const _ContactTile({
+    required this.member,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   final GroupMemberEntity member;
   final bool isSelected;
@@ -548,12 +567,18 @@ class _ContactTile extends StatelessWidget {
                 color: isSelected ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: isSelected ? AppColors.primary : AppColors.borderStrong,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.borderStrong,
                   width: 1.5,
                 ),
               ),
               child: isSelected
-                  ? const Icon(HugeIcons.strokeRoundedTick01, size: 15, color: Colors.white)
+                  ? const Icon(
+                      HugeIcons.strokeRoundedTick01,
+                      size: 15,
+                      color: Colors.white,
+                    )
                   : null,
             ),
           ],

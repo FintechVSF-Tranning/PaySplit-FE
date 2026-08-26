@@ -11,7 +11,7 @@ class ActionableDebtsSection extends StatefulWidget {
     super.key,
   });
 
-  final VoidCallback? onViewAll;
+  final void Function(int selectedTab)? onViewAll;
   final void Function(String name, String amount, String context)? onPayQr;
   final void Function(String name, String amount)? onReviewProof;
   final void Function(String name)? onRemind;
@@ -46,7 +46,7 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
               ),
             ),
             InkWell(
-              onTap: widget.onViewAll,
+              onTap: () => widget.onViewAll?.call(_selectedTab),
               child: Text(
                 'Xem tất cả (5)',
                 style: GoogleFonts.plusJakartaSans(

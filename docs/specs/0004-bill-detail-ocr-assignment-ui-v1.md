@@ -100,7 +100,7 @@ Màn hình **Chi Tiết OCR Hóa Đơn & Gán Món Ăn (Smart OCR & Item Assignm
     - **Tóm tắt cá nhân**: Hiển thị phần tiền của người đang đăng nhập (`Phần của bạn: 349.500 đ`). Bấm vào mở Bottom Sheet xem bảng phân bổ chi tiết toàn nhóm (`BreakdownBottomSheet`).
     - **Nút Thao tác**:
       - Nếu là Creditor/Captain & Trạng thái Draft: Nút `[ Lưu nháp ]` (`PUT /api/v1/bills/{id}`) và `[ Xét duyệt (Review) ]` (`POST /api/v1/bills/{id}/review`).
-      - Nếu là Captain và bill vẫn là `draft` nhưng version hiện tại đã review: Nút `[ Xác nhận & Chốt hóa đơn (Finalize) ⚡ ]` (`POST /api/v1/bills/{id}/finalize`).
+      - Nếu là Captain và bill vẫn là `draft` nhưng version hiện tại đã review: Nút `[ Xác nhận & Chốt hóa đơn (Finalize) ]` (`POST /api/v1/bills/{id}/finalize`).
       - Nếu là Creditor nhưng không phải current Captain: Không hiển thị nút Finalize, kể cả với bill do chính họ tạo và đã review.
       - Nếu bill `finalized`: Chỉ hiển thị immutable breakdown và settlement progress. Mọi edit, OCR, save, review, delete và finalize action đều bị ẩn.
       - Nếu là Member thường: Nút `[ Xem chi tiết phần chia ]`.

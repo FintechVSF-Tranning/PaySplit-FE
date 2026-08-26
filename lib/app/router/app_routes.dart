@@ -8,6 +8,7 @@ abstract class AppRoutes {
   static const String resetPassword = '/reset-password';
   static const String home = '/home';
   static const String bills = '/bills';
+  static const String settlement = '/settlement';
   static const String scanBill = '/scan-bill';
   static const String billDetail = '/bill-detail';
   static const String groups = '/groups';

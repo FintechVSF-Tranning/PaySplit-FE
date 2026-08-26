@@ -5,14 +5,15 @@ import 'package:paysplit/features/home/domain/entities/home_group_item_entity.da
 import 'package:paysplit/features/home/presentation/pages/home_page.dart';
 import 'package:paysplit/features/home/presentation/providers/home_groups_provider.dart';
 import 'package:paysplit/features/home/presentation/widgets/actionable_debts_section.dart';
-import 'package:paysplit/features/home/presentation/widgets/app_bottom_nav_bar.dart';
 import 'package:paysplit/features/home/presentation/widgets/my_groups_carousel.dart';
 import 'package:paysplit/features/home/presentation/widgets/net_balance_hero_card.dart';
 import 'package:paysplit/features/home/presentation/widgets/recent_activity_timeline.dart';
 
 void main() {
   group('HomePage Widget Tests', () {
-    testWidgets('HomePage renders all 5 main sections, header, and bottom navigation', (tester) async {
+    testWidgets('HomePage renders all 5 main sections and header', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -20,19 +21,19 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            homeGroupsProvider.overrideWith((ref) => Future.value([
-              const HomeGroupItemEntity(
-                id: '1',
-                name: 'Phòng Dev Cty',
-                currency: 'VND',
-                callerRole: 'captain',
-                activeMemberCount: 5,
-              ),
-            ])),
+            homeGroupsProvider.overrideWith(
+              (ref) => Future.value([
+                const HomeGroupItemEntity(
+                  id: '1',
+                  name: 'Phòng Dev Cty',
+                  currency: 'VND',
+                  callerRole: 'captain',
+                  activeMemberCount: 5,
+                ),
+              ]),
+            ),
           ],
-          child: const MaterialApp(
-            home: HomePage(),
-          ),
+          child: const MaterialApp(home: HomePage()),
         ),
       );
       await tester.pumpAndSettle();
@@ -64,13 +65,6 @@ void main() {
       // 5. Recent Activity Timeline
       expect(find.byType(RecentActivityTimeline), findsOneWidget);
       expect(find.text('Hoạt động gần đây'), findsOneWidget);
-
-      // 6. Bottom Navigation Bar
-      expect(find.byType(AppBottomNavBar), findsOneWidget);
-      expect(find.text('Tổng quan'), findsOneWidget);
-      expect(find.text('Nhóm'), findsOneWidget);
-      expect(find.text('Hóa đơn'), findsOneWidget);
-      expect(find.text('Cài đặt'), findsOneWidget);
     });
 
     testWidgets('Tapping Cần thu tab switches debt cards', (tester) async {
@@ -81,19 +75,19 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            homeGroupsProvider.overrideWith((ref) => Future.value([
-              const HomeGroupItemEntity(
-                id: '1',
-                name: 'Phòng Dev Cty',
-                currency: 'VND',
-                callerRole: 'captain',
-                activeMemberCount: 5,
-              ),
-            ])),
+            homeGroupsProvider.overrideWith(
+              (ref) => Future.value([
+                const HomeGroupItemEntity(
+                  id: '1',
+                  name: 'Phòng Dev Cty',
+                  currency: 'VND',
+                  callerRole: 'captain',
+                  activeMemberCount: 5,
+                ),
+              ]),
+            ),
           ],
-          child: const MaterialApp(
-            home: HomePage(),
-          ),
+          child: const MaterialApp(home: HomePage()),
         ),
       );
       await tester.pumpAndSettle();

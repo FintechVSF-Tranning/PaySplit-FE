@@ -6,7 +6,7 @@ Future<void> main() async {
     flavor: Flavor.development,
     apiBaseUrl: const String.fromEnvironment(
       'API_BASE_URL',
-      defaultValue: 'https://dev-api.paysplit.app/v1',
+      defaultValue: 'https://paysplitbe.vercel.app/api/v1',
     ),
     appName: 'PaySplit Dev',
   );

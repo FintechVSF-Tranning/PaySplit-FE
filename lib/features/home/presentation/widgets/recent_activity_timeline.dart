@@ -75,7 +75,9 @@ class RecentActivityTimeline extends ConsumerWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +123,9 @@ class RecentActivityTimeline extends ConsumerWidget {
   Widget _buildEmptyState(bool isDark) {
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
 
     return Container(
       width: double.infinity,
@@ -141,7 +145,9 @@ class RecentActivityTimeline extends ConsumerWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+                color: isDark
+                    ? const Color(0xFFF1F5F9)
+                    : const Color(0xFF1E293B),
               ),
             ),
             const SizedBox(height: 2),
@@ -175,25 +181,46 @@ class RecentActivityTimeline extends ConsumerWidget {
     return '${dateTime.day}/${dateTime.month}';
   }
 
-  static ({String icon, Color bg, Color color, String tag}) _getStyleForActionType(String actionType) {
+  static ({String icon, Color bg, Color color, String tag})
+  _getStyleForActionType(String actionType) {
     switch (actionType) {
       case 'bill_finalized':
       case 'bill_created':
       case 'bill_closed':
-        return (icon: '🧾', bg: const Color(0xFFECFDF5), color: const Color(0xFF10B981), tag: 'Hóa đơn');
+        return (
+          icon: '🧾',
+          bg: const Color(0xFFECFDF5),
+          color: const Color(0xFF10B981),
+          tag: 'Hóa đơn',
+        );
       case 'proof_submitted':
       case 'payment_settled':
       case 'payment_confirmed':
-        return (icon: '💳', bg: const Color(0xFFEFF6FF), color: const Color(0xFF3B82F6), tag: 'Thanh toán');
+        return (
+          icon: '💳',
+          bg: const Color(0xFFEFF6FF),
+          color: const Color(0xFF3B82F6),
+          tag: 'Thanh toán',
+        );
       case 'member_joined':
       case 'member_removed':
-        return (icon: '👥', bg: const Color(0xFFF5F3FF), color: const Color(0xFF8B5CF6), tag: 'Thành viên');
+        return (
+          icon: '👥',
+          bg: const Color(0xFFF5F3FF),
+          color: const Color(0xFF8B5CF6),
+          tag: 'Thành viên',
+        );
       case 'group_created':
       case 'invite_created':
       case 'captain_transferred':
       case 'group_renamed':
       default:
-        return (icon: '🎉', bg: const Color(0xFFFEF3C7), color: const Color(0xFFD97706), tag: 'Nhóm');
+        return (
+          icon: '🎉',
+          bg: const Color(0xFFFEF3C7),
+          color: const Color(0xFFD97706),
+          tag: 'Nhóm',
+        );
     }
   }
 }
@@ -219,7 +246,9 @@ class _ActivityCardItem extends StatelessWidget {
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF334155);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF94A3B8);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

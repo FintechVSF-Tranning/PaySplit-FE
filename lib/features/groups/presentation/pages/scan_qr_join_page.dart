@@ -27,7 +27,8 @@ class ScanQrJoinPage extends StatefulWidget {
   State<ScanQrJoinPage> createState() => _ScanQrJoinPageState();
 }
 
-class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProviderStateMixin {
+class _ScanQrJoinPageState extends State<ScanQrJoinPage>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _scanLineController;
   bool _isTorchOn = false;
 
@@ -56,7 +57,10 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
   Future<void> _onCodeDetected(String raw) async {
     final code = extractInviteCode(raw);
     if (code.length != kInviteCodeLength) {
-      showErrorSnackBar(context, 'Mã QR này không phải lời mời vào nhóm PaySplit.');
+      showErrorSnackBar(
+        context,
+        'Mã QR này không phải lời mời vào nhóm PaySplit.',
+      );
       return;
     }
 
@@ -115,7 +119,9 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
       backgroundColor: const Color(0xFF0B1120),
       body: Stack(
         children: [
-          Positioned.fill(child: _ViewfinderPlaceholder(controller: _scanLineController)),
+          Positioned.fill(
+            child: _ViewfinderPlaceholder(controller: _scanLineController),
+          ),
 
           SafeArea(
             child: Column(
@@ -185,7 +191,9 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
                           icon: HugeIcons.strokeRoundedLink01,
                           label: 'Nhập link',
                           onTap: () async {
-                            final group = await JoinByLinkBottomSheet.show(context);
+                            final group = await JoinByLinkBottomSheet.show(
+                              context,
+                            );
                             if (group != null && context.mounted) {
                               Navigator.of(context).pop(group);
                             }
@@ -226,7 +234,9 @@ class _ViewfinderPlaceholder extends StatelessWidget {
           height: 250,
           child: Stack(
             children: [
-              Positioned.fill(child: CustomPaint(painter: _ViewfinderCornersPainter())),
+              Positioned.fill(
+                child: CustomPaint(painter: _ViewfinderCornersPainter()),
+              ),
               AnimatedBuilder(
                 animation: controller,
                 builder: (context, _) {
@@ -327,7 +337,11 @@ class _GlassIconButton extends StatelessWidget {
 }
 
 class _GhostAction extends StatelessWidget {
-  const _GhostAction({required this.icon, required this.label, required this.onTap});
+  const _GhostAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
