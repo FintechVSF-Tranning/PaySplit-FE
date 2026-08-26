@@ -38,7 +38,7 @@ class GroupListCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          // Nhóm đã khóa bill hạ tông xuống nền xám và bỏ đổ bóng: vẫn đọc được
+          // Nhóm đã khóa hóa đơn hạ tông xuống nền xám và bỏ đổ bóng: vẫn đọc được
           // nhưng lùi lại phía sau các nhóm đang hoạt động.
           color: isClosed ? AppColors.surfaceSubtle : AppColors.surface,
           borderRadius: BorderRadius.circular(18),
@@ -152,7 +152,7 @@ class GroupListCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        // Nhóm khóa bill vẫn có thể còn nợ, nên nhãn phải nói rõ
+                        // Nhóm khóa hóa đơn vẫn có thể còn nợ, nên nhãn phải nói rõ
                         // là số tiền đã được chốt chứ không phải đã trả xong.
                         isClosed && group.myBalance != 0 ? 'Đã khóa, cần trả' : balanceLabel,
                         style: GoogleFonts.plusJakartaSans(
@@ -186,7 +186,7 @@ class GroupListCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   isClosed && group.closedAtText != null
-                      ? 'Khóa bill ${group.closedAtText}'
+                      ? 'Khóa hóa đơn ${group.closedAtText}'
                       : group.lastActivityAt == null
                       ? ''
                       : formatRelativeTime(group.lastActivityAt!),
@@ -229,7 +229,7 @@ class _CaptainBadge extends StatelessWidget {
   }
 }
 
-/// Huy hiệu nhóm đã khóa bill — tông slate trung tính để không tranh màu với
+/// Huy hiệu nhóm đã khóa hóa đơn — tông slate trung tính để không tranh màu với
 /// các pill tài chính (xanh/đỏ) nằm cùng thẻ.
 class _ClosedBadge extends StatelessWidget {
   const _ClosedBadge();
@@ -253,7 +253,7 @@ class _ClosedBadge extends StatelessWidget {
           ),
           const SizedBox(width: 3),
           Text(
-            'Đã khóa bill',
+            'Đã khóa hóa đơn',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 10,
               fontWeight: FontWeight.w700,

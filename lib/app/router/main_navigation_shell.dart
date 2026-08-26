@@ -54,10 +54,9 @@ class MainNavigationShell extends StatelessWidget {
       bottomNavigationBar: AppBottomNavBar(
         currentIndex: navigationShell.currentIndex,
         onTap: (index) {
-          navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
-          );
+          // Luôn quay về route gốc của branch khi bấm tab: tránh trường hợp
+          // rời tab Nhóm khi đang ở màn chi tiết rồi quay lại vẫn thấy chi tiết.
+          navigationShell.goBranch(index, initialLocation: true);
         },
       ),
     );

@@ -9,8 +9,10 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
 import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
+import '../../../groups/presentation/widgets/create_group_bottom_sheet.dart';
 import '../../../notifications/presentation/providers/notifications_notifier.dart';
 import '../../../settlement/presentation/providers/settlement_controller.dart';
+import '../providers/home_groups_provider.dart';
 import '../widgets/actionable_debts_section.dart';
 import '../widgets/my_groups_carousel.dart';
 import '../widgets/net_balance_hero_card.dart';
@@ -66,7 +68,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       Row(
                         children: [
                           InkWell(
-                            onTap: () => context.push(AppRoutes.profile),
+                            onTap: () => context.go(AppRoutes.profile),
                             borderRadius: BorderRadius.circular(50),
                             child: Container(
                               width: 44,
@@ -181,7 +183,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   // 1. Hero Net Balance Card
                   NetBalanceHeroCard(
-                    onPayVietQr: () => context.push(
+                    onPayVietQr: () => context.go(
                       AppRoutes.settlement,
                       extra: SettlementTab.payable,
                     ),
@@ -200,23 +202,23 @@ class _HomePageState extends ConsumerState<HomePage> {
                         );
                       }
                     },
-                    onCreateGroup: () => context.push(AppRoutes.groups),
+                    onCreateGroup: _createGroup,
                   ),
                   const SizedBox(height: 22),
 
                   // 2. Actionable Debts Section
                   ActionableDebtsSection(
-                    onViewAll: (tab) => context.push(
+                    onViewAll: (tab) => context.go(
                       AppRoutes.settlement,
                       extra: tab == 0
                           ? SettlementTab.payable
                           : SettlementTab.receivable,
                     ),
-                    onPayQr: (name, amount, ctx) => context.push(
+                    onPayQr: (name, amount, ctx) => context.go(
                       AppRoutes.settlement,
                       extra: SettlementTab.payable,
                     ),
-                    onReviewProof: (name, amount) => context.push(
+                    onReviewProof: (name, amount) => context.go(
                       AppRoutes.settlement,
                       extra: SettlementTab.receivable,
                     ),
@@ -229,15 +231,15 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                   // 3. My Groups Carousel
                   MyGroupsCarousel(
-                    onViewAll: () => context.push(AppRoutes.groups),
+                    onViewAll: () => context.go(AppRoutes.groups),
                     onTapGroupItem: (group) {
                       if (group.id.isNotEmpty) {
-                        context.push('${AppRoutes.groups}/${group.id}');
+                        context.go('${AppRoutes.groups}/${group.id}');
                       } else {
-                        context.push(AppRoutes.groups);
+                        context.go(AppRoutes.groups);
                       }
                     },
-                    onCreateGroup: () => context.push(AppRoutes.groups),
+                    onCreateGroup: _createGroup,
                   ),
                   const SizedBox(height: 22),
 
@@ -250,6 +252,16 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       ),
     );
+  }
+
+  /// Mở sheet tạo nhóm ngay tại Tổng quan (thay vì chỉ nhảy sang tab Nhóm),
+  /// sau đó đi tiếp sang màn thêm thành viên và làm mới carousel "Nhóm của tôi".
+  Future<void> _createGroup() async {
+    final group = await CreateGroupBottomSheet.show(context);
+    if (group == null || !mounted) return;
+
+    ref.invalidate(homeGroupsProvider);
+    context.go(AppRoutes.addMembers(group.id), extra: group);
   }
 
   static String _getInitials(String name) {

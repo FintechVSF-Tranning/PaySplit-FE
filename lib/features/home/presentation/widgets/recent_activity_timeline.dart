@@ -334,7 +334,7 @@ class _ActivityCardItem extends StatelessWidget {
         },
       );
     } else if (activity.groupId.isNotEmpty) {
-      context.push(
+      context.go(
         AppRoutes.groupDetail(activity.groupId),
         extra: {
           'groupId': activity.groupId,

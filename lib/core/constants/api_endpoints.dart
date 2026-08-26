@@ -40,6 +40,13 @@ abstract class ApiEndpoints {
       '/groups/$id/members/$memberId/role';
   static String groupActivities(String id) => '/groups/$id/activities';
 
+  /// Catch-up nguội: trả delta hoặc snapshot tùy khoảng cách giữa `since` và
+  /// version hiện tại của nhóm.
+  static String groupSync(String id) => '/groups/$id/sync';
+
+  /// Kênh nóng SSE (`text/event-stream`), không bọc envelope.
+  static String groupEvents(String id) => '/groups/$id/events';
+
   // --- Settlement (tab Công nợ, mount trên /groups) ---
   static String groupDebts(String groupId) => '/groups/$groupId/debts';
   static String groupExpensesMe(String groupId) =>

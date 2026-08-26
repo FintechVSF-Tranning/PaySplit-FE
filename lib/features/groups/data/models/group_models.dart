@@ -127,6 +127,15 @@ class GroupDetailResponseModel with _$GroupDetailResponseModel {
     @Default(<MemberModel>[]) List<MemberModel> members,
     @Default(<BalanceModel>[]) List<BalanceModel> balances,
     @JsonKey(name: 'caller_role') required String callerRole,
+
+    /// membership_id của chính người gọi — client dùng để đánh dấu "tôi" trong
+    /// [members] mà không phải suy từ vai trò (nhiều thành viên cùng vai trò).
+    @JsonKey(name: 'caller_membership_id') @Default('') String callerMembershipId,
+
+    /// roster_version của nhóm tại thời điểm đọc — điểm xuất phát cho stream
+    /// và cho mọi lần catch-up. Danh sách [members] ở trên là trạng thái tại
+    /// đúng version này (backend đọc cả hai trong một ảnh chụp).
+    @Default(0) int version,
     // Chỉ Captain mới nhận được hai field batch dưới đây.
     @JsonKey(name: 'active_bill_finalize_batch_id') String? activeBillFinalizeBatchId,
     @JsonKey(name: 'latest_bill_finalize_batch_id') String? latestBillFinalizeBatchId,

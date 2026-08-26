@@ -28,10 +28,10 @@ class GroupMemberSettingItem {
 /// - 4 Section chính:
 ///   1. Thông tin nhóm: Monogram, Tên nhóm (có nút Đổi tên cho Captain), Tiền tệ VND, Ngày tạo
 ///   2. Quản trị thành viên: Nút Chuyển quyền Trưởng nhóm, Danh sách thành viên kèm nút Xóa
-///   3. Trạng thái bill: Nút Khóa bill nhóm (chỉ Captain, chỉ khi mọi hóa đơn đã chia xong)
+///   3. Trạng thái bill: Nút Khóa hóa đơn nhóm (chỉ Captain, chỉ khi mọi hóa đơn đã chia xong)
 ///   4. Vùng nguy hiểm (Danger Zone): Nút Rời nhóm (kiểm tra sạch nợ), Giải tán nhóm (chỉ Captain)
 ///
-/// Khóa bill là điểm không quay lui của vòng đời nhóm: sau khi khóa, mọi hành
+/// Khóa hóa đơn là điểm không quay lui của vòng đời nhóm: sau khi khóa, mọi hành
 /// động quản trị (đổi tên, chuyển quyền, xóa/rời thành viên) đều bị vô hiệu để
 /// bảng chia tiền đã chốt không thể bị thay đổi gián tiếp. Chỉ còn Giải tán
 /// nhóm sáng — lối thoát duy nhất sau khi cả nhóm đã tất toán.
@@ -44,13 +44,13 @@ class GroupSettingsBottomSheet extends StatefulWidget {
   final int currentUserNetBalance; // Dùng để kiểm tra sạch nợ khi rời nhóm (0đ)
   final List<GroupMemberSettingItem> members;
 
-  /// Nhóm đã khóa bill hay chưa — quyết định trạng thái mở/khóa của cả sheet.
+  /// Nhóm đã khóa hóa đơn hay chưa — quyết định trạng thái mở/khóa của cả sheet.
   final bool isClosed;
 
-  /// Ngày khóa bill, hiển thị trong thẻ trạng thái khi [isClosed].
+  /// Ngày khóa hóa đơn, hiển thị trong thẻ trạng thái khi [isClosed].
   final String? closedAtText;
 
-  /// Số hóa đơn còn đang chia dở; > 0 thì chưa được phép khóa bill.
+  /// Số hóa đơn còn đang chia dở; > 0 thì chưa được phép khóa hóa đơn.
   final int pendingBillCount;
 
   final Future<bool> Function(String newName)? onRenameGroup;
@@ -394,7 +394,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     }
   }
 
-  // 4. Khóa bill nhóm
+  // 4. Khóa hóa đơn nhóm
   Future<void> _handleCloseBook() async {
     setState(() => _isProcessing = true);
     try {
@@ -952,7 +952,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     );
   }
 
-  /// Thẻ trạng thái bill. Đang mở → mô tả + nút Khóa bill (chỉ Trưởng nhóm,
+  /// Thẻ trạng thái bill. Đang mở → mô tả + nút Khóa hóa đơn (chỉ Trưởng nhóm,
   /// chỉ bật khi không còn hóa đơn chia dở). Đã khóa → thẻ tổng kết tĩnh, nói
   /// rõ vì sao phần còn lại của sheet bị mờ và mở khóa ở đâu.
   Widget _buildBillStatusCard() {
@@ -975,8 +975,8 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                 children: [
                   Text(
                     _closedAtText == null
-                        ? 'Nhóm đã khóa bill'
-                        : 'Nhóm đã khóa bill ngày $_closedAtText',
+                        ? 'Nhóm đã khóa hóa đơn'
+                        : 'Nhóm đã khóa hóa đơn ngày $_closedAtText',
                     style: const TextStyle(
                       fontFamily: 'Roboto Slab',
                       fontSize: 13,
@@ -1020,7 +1020,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Khóa bill nhóm',
+                  'Khóa hóa đơn nhóm',
                   style: TextStyle(
                     fontFamily: 'Roboto Slab',
                     fontSize: 13,
@@ -1034,7 +1034,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                       ? 'Chỉ Trưởng nhóm mới khóa được bảng chia tiền của nhóm.'
                       : isReady
                       ? 'Chốt bảng chia tiền và cố định phần mỗi người phải trả. Sau khi khóa chỉ còn Giải tán nhóm khả dụng.'
-                      : 'Còn ${widget.pendingBillCount} hóa đơn chưa chia xong. Hoàn tất chia tiền rồi mới khóa bill được.',
+                      : 'Còn ${widget.pendingBillCount} hóa đơn chưa chia xong. Hoàn tất chia tiền rồi mới khóa hóa đơn được.',
                   style: const TextStyle(
                     fontFamily: 'Roboto Slab',
                     fontSize: 11,
@@ -1062,7 +1062,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               ),
               icon: const Icon(Icons.lock_outline_rounded, size: 13),
               label: const Text(
-                'Khóa bill',
+                'Khóa hóa đơn',
                 style: TextStyle(
                   fontFamily: 'Roboto Slab',
                   fontSize: 12,
@@ -1105,7 +1105,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                     const SizedBox(height: 2),
                     Text(
                       _isClosed
-                          ? 'Nhóm đã khóa bill nên không thể rời. Hãy giải tán nhóm sau khi cả nhóm tất toán.'
+                          ? 'Nhóm đã khóa hóa đơn nên không thể rời. Hãy giải tán nhóm sau khi cả nhóm tất toán.'
                           : 'Bạn chỉ có thể rời nhóm khi không còn bất kỳ khoản nợ nào.',
                       style: const TextStyle(
                         fontFamily: 'Roboto Slab',

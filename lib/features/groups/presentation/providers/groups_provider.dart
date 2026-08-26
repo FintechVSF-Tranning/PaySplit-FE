@@ -137,7 +137,7 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
     });
   }
 
-  /// Đánh dấu nhóm đã khóa bill **chỉ trong state cục bộ**.
+  /// Đánh dấu nhóm đã khóa hóa đơn **chỉ trong state cục bộ**.
   ///
   /// Lời gọi thật là `POST /groups/{id}/bills/lock-submissions` (module `bill`,
   /// Spec 0008) — nằm ngoài 13 endpoint của module `group` nên chưa được nối.
@@ -222,9 +222,21 @@ final groupsProvider = StateNotifierProvider<GroupsNotifier, GroupsState>(
   (ref) => GroupsNotifier(),
 );
 
-/// Nhóm ghé thăm gần đây — **vẫn là mock**: backend chưa có API cho tính năng
-/// này (mục 3.5 của báo cáo đối chiếu).
-final recentGroupsProvider = Provider<List<GroupEntity>>((ref) => GroupMockData.recentGroups);
+/// Nhóm gần đây — dẫn xuất từ dữ liệu thật của [groupsProvider] (backend chưa
+/// có API "ghé thăm gần đây" riêng), xếp theo hoạt động mới nhất và bỏ nhóm đã
+/// khóa; tối đa 3 nhóm.
+final recentGroupsProvider = Provider<List<GroupEntity>>((ref) {
+  final groups = ref.watch(groupsProvider).groups.where((g) => !g.isClosed).toList()
+    ..sort((a, b) {
+      final aAt = a.lastActivityAt;
+      final bAt = b.lastActivityAt;
+      if (aAt == null && bAt == null) return 0;
+      if (aAt == null) return 1;
+      if (bAt == null) return -1;
+      return bAt.compareTo(aAt);
+    });
+  return groups.take(3).toList();
+});
 
 /// Danh bạ gợi ý cho màn hình Thêm thành viên — **vẫn là mock**: backend cố ý
 /// chỉ cho vào nhóm qua mã mời, không có API danh bạ (mục 3.6).

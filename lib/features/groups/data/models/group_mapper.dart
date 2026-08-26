@@ -26,7 +26,7 @@ extension GroupModelMapper on GroupModel {
       lastActivityAt: lastActivityAt,
       pendingBillCount: pendingBillCount,
       // Khóa gửi hóa đơn của backend là một chiều; FE ánh xạ sang trạng thái
-      // "đã khóa bill" của UI.
+      // "đã khóa hóa đơn" của UI.
       status: billSubmissionLocked ? GroupStatus.closed : GroupStatus.active,
       closedAtText: billSubmissionLockedAt == null ? null : _formatDate(billSubmissionLockedAt!),
     );

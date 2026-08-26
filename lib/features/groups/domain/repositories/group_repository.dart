@@ -4,6 +4,7 @@ import '../../../../core/error/failures.dart';
 import '../entities/group_activity_entity.dart';
 import '../entities/group_entity.dart';
 import '../entities/group_member_entity.dart';
+import '../entities/group_sync_entity.dart';
 
 /// Một trang kết quả phân trang cursor của backend.
 class GroupPage<T> {
@@ -24,15 +25,24 @@ class GroupDetailResult {
     required this.members,
     required this.balances,
     required this.callerRole,
+    this.callerMembershipId = '',
+    this.version = 0,
     this.activeBillFinalizeBatchId,
   });
 
   final GroupEntity group;
   final List<GroupMemberEntity> members;
 
+  /// roster_version của nhóm tại thời điểm đọc. [members] là trạng thái tại
+  /// đúng version này, nên đây là điểm xuất phát hợp lệ cho stream và catch-up.
+  final int version;
+
   /// Số dư ròng theo `membership_id`.
   final Map<String, int> balances;
   final String callerRole;
+
+  /// membership_id của chính người gọi trong nhóm này.
+  final String callerMembershipId;
 
   /// Chỉ Captain mới nhận được; `null` với thành viên thường hoặc khi không có
   /// batch chốt hóa đơn nào đang chạy.
@@ -96,6 +106,14 @@ abstract class GroupRepository {
   Future<Either<Failure, GroupPage<GroupEntity>>> listGroups({int? limit, String? cursor});
 
   Future<Either<Failure, GroupDetailResult>> getGroupDetail(String groupId);
+
+  /// Catch-up nguội: xin phần còn thiếu kể từ [since], hoặc một snapshot khi
+  /// client tụt quá xa. `since = 0` luôn cho ra snapshot.
+  Future<Either<Failure, GroupSyncResult>> syncGroup(String groupId, {required int since});
+
+  /// Kênh nóng. Stream kết thúc bình thường khi server đóng kết nối và ném lỗi
+  /// khi mạng đứt — tầng gọi chịu trách nhiệm kết nối lại với version mới nhất.
+  Stream<GroupSyncEvent> streamGroupEvents(String groupId, {required int since});
 
   Future<Either<Failure, GroupEntity>> renameGroup(String groupId, String name);
 
