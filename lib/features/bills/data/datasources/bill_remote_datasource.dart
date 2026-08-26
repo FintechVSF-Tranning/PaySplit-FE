@@ -45,6 +45,13 @@ abstract class BillRemoteDataSource {
     required int version,
   });
 
+  Future<BillDetailEntity> voidBill({
+    required String billId,
+    required String groupId,
+    required int version,
+    required String reason,
+  });
+
   Future<List<BillShareBreakdownEntity>> calculateBreakdown({
     String? billId,
     required String groupId,
@@ -148,7 +155,7 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       // Polling GET /api/v1/bills/{id}?group_id={groupId} for OCR results
       if (initialBill.id.isNotEmpty) {
         const pollInterval = Duration(milliseconds: 1500);
-        const maxAttempts = 20; // ~30s
+        const maxAttempts = 40; // ~60s
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
           await Future.delayed(pollInterval);
           try {
@@ -163,6 +170,12 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
               final billWithContext = Map<String, dynamic>.from(detailBillJson);
               if (detailData['ocr_job'] != null) {
                 billWithContext['ocr_job'] = detailData['ocr_job'];
+                if (detailData['ocr_job'] is Map<String, dynamic>) {
+                  final jobMap = detailData['ocr_job'] as Map<String, dynamic>;
+                  if (jobMap['candidate'] != null) {
+                    billWithContext['candidate'] = jobMap['candidate'];
+                  }
+                }
               }
               if (detailData['candidate'] != null) {
                 billWithContext['candidate'] = detailData['candidate'];
@@ -173,8 +186,10 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
               }
 
               final ocrJob = detailData['ocr_job'];
-              if (ocrJob is Map && ocrJob['status'] == 'failed') {
-                break;
+              if (ocrJob is Map) {
+                if (ocrJob['status'] == 'failed') {
+                  break;
+                }
               }
 
               if (detailBillJson['ocr_jobs'] is List) {
@@ -250,6 +265,15 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       }
       if (data['ocr_job'] != null) {
         billJson['ocr_job'] = data['ocr_job'];
+        if (data['ocr_job'] is Map<String, dynamic>) {
+          final jobMap = data['ocr_job'] as Map<String, dynamic>;
+          if (jobMap['candidate'] != null) {
+            billJson['candidate'] = jobMap['candidate'];
+          }
+        }
+      }
+      if (data['candidate'] != null) {
+        billJson['candidate'] = data['candidate'];
       }
       return BillDetailEntity.fromJson(billJson);
     }
@@ -326,6 +350,30 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       queryParameters: {'group_id': groupId},
       data: {'version': version},
     );
+  }
+
+  @override
+  Future<BillDetailEntity> voidBill({
+    required String billId,
+    required String groupId,
+    required int version,
+    required String reason,
+  }) async {
+    final response = await _dio.post(
+      '${ApiEndpoints.bills}/$billId/void',
+      queryParameters: {'group_id': groupId},
+      data: {
+        'version': version,
+        'reason': reason,
+      },
+    );
+    final rawData = response.data;
+    final data = _extractData(rawData);
+    final billMap = data['bill'] ?? rawData['bill'] ?? data;
+    if (billMap is Map<String, dynamic>) {
+      return BillDetailEntity.fromJson(billMap);
+    }
+    return getBillDetail(billId: billId, groupId: groupId);
   }
 
   @override

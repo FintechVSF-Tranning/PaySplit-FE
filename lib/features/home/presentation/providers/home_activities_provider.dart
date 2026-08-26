@@ -29,7 +29,11 @@ final homeActivitiesProvider = FutureProvider.autoDispose<List<HomeActivityEntit
           final activitiesList = data['activities'] as List? ?? const [];
 
           return activitiesList
-              .map((a) => HomeActivityEntity.fromJson(a as Map<String, dynamic>, fallbackGroupId: group.id))
+              .map((a) => HomeActivityEntity.fromJson(
+                    a as Map<String, dynamic>,
+                    fallbackGroupId: group.id,
+                    groupName: group.name,
+                  ))
               .toList();
         }
       } catch (_) {

@@ -446,7 +446,7 @@ void main() {
 
       // Check sticky bottom bar
       expect(find.byType(BillStickyBottomBar), findsOneWidget);
-      expect(find.text('Chốt hoá đơn ⚡'), findsOneWidget);
+      expect(find.text('Chốt hoá đơn'), findsOneWidget);
       expect(find.text('Lưu nháp'), findsOneWidget);
     });
   });

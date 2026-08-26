@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/failures.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
@@ -20,6 +21,8 @@ class BillDetailState {
   final String? successMessage;
   final String? currentUserId;
   final Set<String>? evenSplitMemberIds;
+  final bool isDirty;
+  final bool isVoiding;
 
   const BillDetailState({
     required this.bill,
@@ -36,6 +39,8 @@ class BillDetailState {
     this.successMessage,
     this.currentUserId,
     this.evenSplitMemberIds,
+    this.isDirty = false,
+    this.isVoiding = false,
   });
 
   BillDetailState copyWith({
@@ -55,6 +60,8 @@ class BillDetailState {
     String? successMessage,
     String? currentUserId,
     Set<String>? evenSplitMemberIds,
+    bool? isDirty,
+    bool? isVoiding,
   }) {
     return BillDetailState(
       bill: bill ?? this.bill,
@@ -62,15 +69,20 @@ class BillDetailState {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       isFinalizing: isFinalizing ?? this.isFinalizing,
-      isCalculatingBreakdown: isCalculatingBreakdown ?? this.isCalculatingBreakdown,
+      isCalculatingBreakdown:
+          isCalculatingBreakdown ?? this.isCalculatingBreakdown,
       isOcrScanning: isOcrScanning ?? this.isOcrScanning,
       ocrScanStep: clearOcrScanStep ? null : (ocrScanStep ?? this.ocrScanStep),
-      ocrCandidate: clearOcrCandidate ? null : (ocrCandidate ?? this.ocrCandidate),
+      ocrCandidate: clearOcrCandidate
+          ? null
+          : (ocrCandidate ?? this.ocrCandidate),
       ocrErrorMessage: ocrErrorMessage,
       errorMessage: errorMessage,
       successMessage: successMessage,
       currentUserId: currentUserId ?? this.currentUserId,
       evenSplitMemberIds: evenSplitMemberIds ?? this.evenSplitMemberIds,
+      isDirty: isDirty ?? this.isDirty,
+      isVoiding: isVoiding ?? this.isVoiding,
     );
   }
 
@@ -90,7 +102,8 @@ class BillDetailState {
   }
 
   /// Số lượng món chưa được gán cho ai trong nhóm
-  int get unassignedCount => bill.items.where((i) => i.assignments.isEmpty).length;
+  int get unassignedCount =>
+      bill.items.where((i) => i.assignments.isEmpty).length;
 
   /// Kiểm tra xem user hiện tại có phải là Chủ chi của hoá đơn hay không
   bool get isCurrentUserCreditor {
@@ -98,9 +111,12 @@ class BillDetailState {
       return myShare!.isCreditor;
     }
     final myMember = bill.members.cast<BillMemberEntity?>().firstWhere(
-          (m) => currentUserId != null && m?.userId.isNotEmpty == true && m?.userId == currentUserId,
-          orElse: () => null,
-        );
+      (m) =>
+          currentUserId != null &&
+          m?.userId.isNotEmpty == true &&
+          m?.userId == currentUserId,
+      orElse: () => null,
+    );
     if (myMember != null && bill.creditorMemberId.isNotEmpty) {
       return myMember.memberId == bill.creditorMemberId;
     }
@@ -111,7 +127,9 @@ class BillDetailState {
   BillShareBreakdownEntity? get myShare {
     if (breakdown.isEmpty) return null;
     return breakdown.firstWhere(
-      (b) => (currentUserId != null && b.userId == currentUserId) || b.memberId == bill.creditorMemberId,
+      (b) =>
+          (currentUserId != null && b.userId == currentUserId) ||
+          b.memberId == bill.creditorMemberId,
       orElse: () => breakdown.first,
     );
   }
@@ -127,12 +145,15 @@ class BillDetailState {
     }
 
     final myMember = bill.members.cast<BillMemberEntity?>().firstWhere(
-          (m) => currentUserId != null && m?.userId.isNotEmpty == true && m?.userId == currentUserId,
-          orElse: () => bill.members.cast<BillMemberEntity?>().firstWhere(
-                (m) => m?.memberId == bill.creditorMemberId,
-                orElse: () => bill.members.isNotEmpty ? bill.members.first : null,
-              ),
-        );
+      (m) =>
+          currentUserId != null &&
+          m?.userId.isNotEmpty == true &&
+          m?.userId == currentUserId,
+      orElse: () => bill.members.cast<BillMemberEntity?>().firstWhere(
+        (m) => m?.memberId == bill.creditorMemberId,
+        orElse: () => bill.members.isNotEmpty ? bill.members.first : null,
+      ),
+    );
 
     if (myMember == null) return computedTotal;
 
@@ -149,8 +170,13 @@ class BillDetailState {
     // item_ratio: Tổng các món gán cho user + tỷ lệ phụ thu/VAT/giảm giá
     double myItemSum = 0;
     for (final item in bill.items) {
-      final totalWeight = item.assignments.fold<double>(0, (s, a) => s + a.weight);
-      final myAssignment = item.assignments.cast<BillItemAssignmentEntity?>().firstWhere(
+      final totalWeight = item.assignments.fold<double>(
+        0,
+        (s, a) => s + a.weight,
+      );
+      final myAssignment = item.assignments
+          .cast<BillItemAssignmentEntity?>()
+          .firstWhere(
             (a) => a?.memberId == myMember.memberId,
             orElse: () => null,
           );
@@ -161,7 +187,8 @@ class BillDetailState {
 
     if (computedNetItemsTotal > 0) {
       final ratio = myItemSum / computedNetItemsTotal;
-      final adjustmentShare = (bill.serviceCharge + bill.vat - bill.generalDiscount) * ratio;
+      final adjustmentShare =
+          (bill.serviceCharge + bill.vat - bill.generalDiscount) * ratio;
       final total = (myItemSum + adjustmentShare).round();
       return total > 0 ? total : 0;
     }
@@ -186,7 +213,11 @@ class BillDetailState {
 
   /// Tổng tính toán toàn bộ hoá đơn = Net Items + Service Charge + VAT - General Discount
   int get computedTotal {
-    final total = computedNetItemsTotal + bill.serviceCharge + bill.vat - bill.generalDiscount;
+    final total =
+        computedNetItemsTotal +
+        bill.serviceCharge +
+        bill.vat -
+        bill.generalDiscount;
     return total > 0 ? total : 0;
   }
 
@@ -205,16 +236,16 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   final BillRepository _repository;
 
   BillDetailNotifier(this._repository, BillDetailEntity initialBill)
-      : super(
-          BillDetailState(
-            bill: initialBill,
-          ),
-        ) {
-    final splitMethod = initialBill.splitMethod.isNotEmpty ? initialBill.splitMethod : 'item_ratio';
+    : super(BillDetailState(bill: initialBill)) {
+    final splitMethod = initialBill.splitMethod.isNotEmpty
+        ? initialBill.splitMethod
+        : 'item_ratio';
     final isEven = splitMethod == 'even';
     final effectiveItems = initialBill.items.map((item) {
       if (isEven && item.assignments.isEmpty) {
-        return item.copyWith(assignments: _buildEvenAssignments(initialBill.members));
+        return item.copyWith(
+          assignments: _buildEvenAssignments(initialBill.members),
+        );
       }
       return item;
     }).toList();
@@ -223,14 +254,50 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       initialBill.copyWith(splitMethod: splitMethod),
       effectiveItems,
     );
+    final effectiveMembers = initialBill.members;
 
     state = state.copyWith(
       bill: syncedBill,
-      breakdown: initialBill.breakdown,
+      breakdown: _enrichBreakdown(
+        initialBill.breakdown,
+        effectiveMembers,
+        initialBill.creditorMemberId,
+      ),
     );
   }
 
-  static List<BillItemAssignmentEntity> _buildEvenAssignments(List<BillMemberEntity> members) {
+  static List<BillShareBreakdownEntity> _enrichBreakdown(
+    List<BillShareBreakdownEntity> list,
+    List<BillMemberEntity> members,
+    String creditorMemberId,
+  ) {
+    if (list.isEmpty) return list;
+    return list.map((item) {
+      final member = members.firstWhere(
+        (m) => m.memberId == item.memberId,
+        orElse: () => BillMemberEntity(
+          memberId: item.memberId,
+          userId: item.userId,
+          displayName: item.displayName,
+          avatarUrl: item.avatarUrl,
+        ),
+      );
+      final isCreditor = item.memberId == creditorMemberId;
+      return item.copyWith(
+        userId: member.userId.isNotEmpty ? member.userId : item.userId,
+        displayName:
+            member.displayName.isNotEmpty && member.displayName != 'Thành viên'
+            ? member.displayName
+            : item.displayName,
+        avatarUrl: member.avatarUrl ?? item.avatarUrl,
+        isCreditor: isCreditor,
+      );
+    }).toList();
+  }
+
+  static List<BillItemAssignmentEntity> _buildEvenAssignments(
+    List<BillMemberEntity> members,
+  ) {
     if (members.isEmpty) return const [];
     final count = members.length;
     return members.map((m) {
@@ -244,10 +311,15 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     }).toList();
   }
 
-  static List<BillItemEntity> _buildEvenItems(List<BillItemEntity> items, List<BillMemberEntity> members) {
+  static List<BillItemEntity> _buildEvenItems(
+    List<BillItemEntity> items,
+    List<BillMemberEntity> members,
+  ) {
     final evenAssignments = _buildEvenAssignments(members);
     return items.map((item) {
-      return item.copyWith(assignments: List<BillItemAssignmentEntity>.from(evenAssignments));
+      return item.copyWith(
+        assignments: List<BillItemAssignmentEntity>.from(evenAssignments),
+      );
     }).toList();
   }
 
@@ -291,40 +363,51 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     // 1. Tải danh sách thành viên nhóm
     final membersResult = await _repository.getGroupMembers(groupId: groupId);
     List<BillMemberEntity> members = [];
-    membersResult.match(
-      (failure) => null,
-      (mList) => members = mList,
-    );
+    membersResult.match((failure) => null, (mList) => members = mList);
 
     // 2. Nếu là hoá đơn mới chưa lưu trên DB (billId rỗng hoặc bắt đầu bằng draft-):
     // Chỉ cập nhật danh sách thành viên nhóm để gán người ăn, KHÔNG gọi GET bill lên server
     if (billId.isEmpty || billId.startsWith('draft-')) {
-      final effectiveMembers = members.isNotEmpty ? members : state.bill.members;
-      final splitMethod = state.bill.splitMethod.isNotEmpty ? state.bill.splitMethod : 'item_ratio';
+      final effectiveMembers = members.isNotEmpty
+          ? members
+          : state.bill.members;
+      final splitMethod = state.bill.splitMethod.isNotEmpty
+          ? state.bill.splitMethod
+          : 'item_ratio';
       final isEven = splitMethod == 'even';
 
       // Tự động gán Chủ chi (Creditor) là user hiện tại hoặc Captain nhóm
       String creditorId = state.bill.creditorMemberId;
       String creditorName = state.bill.creditorName;
 
-      final currentMember = effectiveMembers.cast<BillMemberEntity?>().firstWhere(
-            (m) => m?.userId.isNotEmpty == true && m?.userId == state.currentUserId,
+      final currentMember = effectiveMembers
+          .cast<BillMemberEntity?>()
+          .firstWhere(
+            (m) =>
+                m?.userId.isNotEmpty == true &&
+                m?.userId == state.currentUserId,
             orElse: () => null,
           );
-      final captainMember = effectiveMembers.cast<BillMemberEntity?>().firstWhere(
-            (m) => m?.role == 'captain',
-            orElse: () => null,
-          );
+      final captainMember = effectiveMembers
+          .cast<BillMemberEntity?>()
+          .firstWhere((m) => m?.role == 'captain', orElse: () => null);
 
-      final selectedCreditor = currentMember ?? captainMember ?? (effectiveMembers.isNotEmpty ? effectiveMembers.first : null);
-      if (selectedCreditor != null && (creditorId.isEmpty || !effectiveMembers.any((m) => m.memberId == creditorId))) {
+      final selectedCreditor =
+          currentMember ??
+          captainMember ??
+          (effectiveMembers.isNotEmpty ? effectiveMembers.first : null);
+      if (selectedCreditor != null &&
+          (creditorId.isEmpty ||
+              !effectiveMembers.any((m) => m.memberId == creditorId))) {
         creditorId = selectedCreditor.memberId;
         creditorName = selectedCreditor.displayName;
       }
 
       final processedItems = state.bill.items.map((item) {
         if (isEven && item.assignments.isEmpty) {
-          return item.copyWith(assignments: _buildEvenAssignments(effectiveMembers));
+          return item.copyWith(
+            assignments: _buildEvenAssignments(effectiveMembers),
+          );
         }
         return item;
       }).toList();
@@ -342,38 +425,51 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       state = state.copyWith(
         bill: syncedBill,
         isLoading: false,
+        isDirty: state.bill.items.isNotEmpty,
       );
       return;
     }
 
     // 3. Tải chi tiết hoá đơn đã lưu từ server (khi billId là UUID thực tế)
-    final billResult = await _repository.getBillDetail(billId: billId, groupId: groupId);
+    final billResult = await _repository.getBillDetail(
+      billId: billId,
+      groupId: groupId,
+    );
     billResult.match(
       (failure) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: failure.message,
-        );
+        state = state.copyWith(isLoading: false, errorMessage: failure.message);
       },
       (bill) {
         final effectiveMembers = members.isNotEmpty ? members : bill.members;
-        final splitMethod = bill.splitMethod.isNotEmpty ? bill.splitMethod : 'item_ratio';
+        final splitMethod = bill.splitMethod.isNotEmpty
+            ? bill.splitMethod
+            : 'item_ratio';
         final isEven = splitMethod == 'even';
 
         final processedItems = bill.items.map((item) {
           if (isEven && item.assignments.isEmpty) {
-            return item.copyWith(assignments: _buildEvenAssignments(effectiveMembers));
+            return item.copyWith(
+              assignments: _buildEvenAssignments(effectiveMembers),
+            );
           }
           return item;
         }).toList();
 
         String creditorName = bill.creditorName;
         if (creditorName.isEmpty || creditorName == 'Chủ hoá đơn') {
-          final matchedCreditor = effectiveMembers.cast<BillMemberEntity?>().firstWhere(
-                (m) => m?.memberId == bill.creditorMemberId || (state.currentUserId != null && m?.userId == state.currentUserId),
-                orElse: () => effectiveMembers.cast<BillMemberEntity?>().firstWhere(
+          final matchedCreditor = effectiveMembers
+              .cast<BillMemberEntity?>()
+              .firstWhere(
+                (m) =>
+                    m?.memberId == bill.creditorMemberId ||
+                    (state.currentUserId != null &&
+                        m?.userId == state.currentUserId),
+                orElse: () =>
+                    effectiveMembers.cast<BillMemberEntity?>().firstWhere(
                       (m) => m?.role == 'captain',
-                      orElse: () => effectiveMembers.isNotEmpty ? effectiveMembers.first : null,
+                      orElse: () => effectiveMembers.isNotEmpty
+                          ? effectiveMembers.first
+                          : null,
                     ),
               );
           if (matchedCreditor != null) {
@@ -392,8 +488,13 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
         state = state.copyWith(
           bill: syncedBill,
-          breakdown: bill.breakdown,
+          breakdown: _enrichBreakdown(
+            bill.breakdown,
+            effectiveMembers,
+            syncedBill.creditorMemberId,
+          ),
           isLoading: false,
+          isDirty: false,
         );
       },
     );
@@ -416,14 +517,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     // 1. Tải trước danh sách thành viên nhóm nếu chưa có
     if (state.bill.members.isEmpty) {
       final membersResult = await _repository.getGroupMembers(groupId: groupId);
-      membersResult.match(
-        (failure) => null,
-        (mList) {
-          state = state.copyWith(
-            bill: state.bill.copyWith(members: mList),
-          );
-        },
-      );
+      membersResult.match((failure) => null, (mList) {
+        state = state.copyWith(bill: state.bill.copyWith(members: mList));
+      });
     }
 
     state = state.copyWith(
@@ -432,7 +528,8 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     final result = await _repository.createBillWithPhotos(
       groupId: groupId,
-      merchantName: merchantName ?? state.bill.merchantName ?? 'Hoá đơn chi tiêu',
+      merchantName:
+          merchantName ?? state.bill.merchantName ?? 'Hoá đơn chi tiêu',
       photos: photos,
     );
 
@@ -446,7 +543,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       },
       (candidateBill) {
         final enrichedCandidate = candidateBill.copyWith(
-          members: candidateBill.members.isNotEmpty ? candidateBill.members : state.bill.members,
+          members: candidateBill.members.isNotEmpty
+              ? candidateBill.members
+              : state.bill.members,
           photos: photos,
         );
 
@@ -463,7 +562,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   void applyOcrCandidate() {
     if (state.ocrCandidate == null) return;
     final candidate = state.ocrCandidate!;
-    final effectiveMembers = candidate.members.isNotEmpty ? candidate.members : state.bill.members;
+    final effectiveMembers = candidate.members.isNotEmpty
+        ? candidate.members
+        : state.bill.members;
 
     final candidateItems = candidate.items.asMap().entries.map((entry) {
       final idx = entry.key;
@@ -479,18 +580,28 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     }).toList();
 
     final isEven = state.bill.splitMethod == 'even';
-    final activeItems = isEven ? _buildEvenItems(candidateItems, effectiveMembers) : candidateItems;
+    final activeItems = isEven
+        ? _buildEvenItems(candidateItems, effectiveMembers)
+        : candidateItems;
 
-    String creditorId = candidate.creditorMemberId.isNotEmpty ? candidate.creditorMemberId : state.bill.creditorMemberId;
+    String creditorId = candidate.creditorMemberId.isNotEmpty
+        ? candidate.creditorMemberId
+        : state.bill.creditorMemberId;
     String creditorName = candidate.creditorName;
 
     if (creditorName.isEmpty || creditorName == 'Chủ hoá đơn') {
-      final matchedCreditor = effectiveMembers.cast<BillMemberEntity?>().firstWhere(
-            (m) => m?.memberId == creditorId || (state.currentUserId != null && m?.userId == state.currentUserId),
+      final matchedCreditor = effectiveMembers
+          .cast<BillMemberEntity?>()
+          .firstWhere(
+            (m) =>
+                m?.memberId == creditorId ||
+                (state.currentUserId != null &&
+                    m?.userId == state.currentUserId),
             orElse: () => effectiveMembers.cast<BillMemberEntity?>().firstWhere(
-                  (m) => m?.role == 'captain',
-                  orElse: () => effectiveMembers.isNotEmpty ? effectiveMembers.first : null,
-                ),
+              (m) => m?.role == 'captain',
+              orElse: () =>
+                  effectiveMembers.isNotEmpty ? effectiveMembers.first : null,
+            ),
           );
       if (matchedCreditor != null) {
         creditorId = matchedCreditor.memberId;
@@ -503,7 +614,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         id: candidate.id.isNotEmpty ? candidate.id : state.bill.id,
         creditorMemberId: creditorId,
         creditorName: creditorName,
-        merchantName: candidate.merchantName?.isNotEmpty == true ? candidate.merchantName : state.bill.merchantName,
+        merchantName: candidate.merchantName?.isNotEmpty == true
+            ? candidate.merchantName
+            : state.bill.merchantName,
         billDate: candidate.billDate ?? state.bill.billDate,
         serviceCharge: candidate.serviceCharge,
         vat: candidate.vat,
@@ -518,16 +631,14 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     state = state.copyWith(
       bill: updatedBill,
       clearOcrCandidate: true,
-      successMessage: 'Đã áp dụng ${candidateItems.length} món từ kết quả OCR vào hoá đơn!',
+      successMessage:
+          'Đã áp dụng ${candidateItems.length} món từ kết quả OCR vào hoá đơn!',
     );
   }
 
   /// Bỏ qua / Huỷ OCR candidate (người dùng chọn tự nhập tay)
   void dismissOcrCandidate() {
-    state = state.copyWith(
-      clearOcrCandidate: true,
-      isOcrScanning: false,
-    );
+    state = state.copyWith(clearOcrCandidate: true, isOcrScanning: false);
   }
 
   /// Đổi chế độ chia tiền: Theo món (`item_ratio`) vs Chia đều (`even`)
@@ -537,31 +648,34 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     if (mode == 'even') {
       // Chuyển sang Chia đều: gán các thành viên tham gia chia đều vào tất cả các món
       final targetMemberIds = state.activeEvenSplitMemberIds;
-      final selectedMembers = state.bill.members.where((m) => targetMemberIds.contains(m.memberId)).toList();
-      final evenItems = _buildEvenItems(state.bill.items, selectedMembers.isNotEmpty ? selectedMembers : state.bill.members);
+      final selectedMembers = state.bill.members
+          .where((m) => targetMemberIds.contains(m.memberId))
+          .toList();
+      final evenItems = _buildEvenItems(
+        state.bill.items,
+        selectedMembers.isNotEmpty ? selectedMembers : state.bill.members,
+      );
       final updatedBill = _syncBillWithItems(
         state.bill.copyWith(splitMethod: 'even'),
         evenItems,
       );
-      state = state.copyWith(
-        bill: updatedBill,
-      );
+      state = state.copyWith(bill: updatedBill, isDirty: true);
     } else {
       // Chuyển sang Chia theo món: GIỮ NGUYÊN bộ data phân bổ món ăn hiện tại (không xoá)
       final updatedBill = _syncBillWithItems(
         state.bill.copyWith(splitMethod: 'item_ratio'),
         state.bill.items,
       );
-      state = state.copyWith(
-        bill: updatedBill,
-      );
+      state = state.copyWith(bill: updatedBill, isDirty: true);
     }
   }
 
   /// Cập nhật danh sách thành viên tham gia chia đều
   void setEvenSplitMembers(Set<String> memberIds) {
     if (memberIds.isEmpty) return;
-    final selectedMembers = state.bill.members.where((m) => memberIds.contains(m.memberId)).toList();
+    final selectedMembers = state.bill.members
+        .where((m) => memberIds.contains(m.memberId))
+        .toList();
     final evenItems = _buildEvenItems(state.bill.items, selectedMembers);
     final updatedBill = _syncBillWithItems(
       state.bill.copyWith(splitMethod: 'even'),
@@ -570,6 +684,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     state = state.copyWith(
       bill: updatedBill,
       evenSplitMemberIds: memberIds,
+      isDirty: true,
     );
   }
 
@@ -577,14 +692,22 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   void toggleMemberAssignment(String itemId, String memberId) {
     final member = state.bill.members.firstWhere(
       (m) => m.memberId == memberId,
-      orElse: () => BillMemberEntity(memberId: memberId, userId: '', displayName: 'Thành viên'),
+      orElse: () => BillMemberEntity(
+        memberId: memberId,
+        userId: '',
+        displayName: 'Thành viên',
+      ),
     );
 
     final updatedItems = state.bill.items.map((item) {
       if (item.id != itemId) return item;
 
-      final existingAssignments = List<BillItemAssignmentEntity>.from(item.assignments);
-      final index = existingAssignments.indexWhere((a) => a.memberId == memberId);
+      final existingAssignments = List<BillItemAssignmentEntity>.from(
+        item.assignments,
+      );
+      final index = existingAssignments.indexWhere(
+        (a) => a.memberId == memberId,
+      );
 
       if (index >= 0) {
         existingAssignments.removeAt(index);
@@ -609,9 +732,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     final updatedBill = _syncBillWithItems(state.bill, updatedItems);
 
-    state = state.copyWith(
-      bill: updatedBill,
-    );
+    state = state.copyWith(bill: updatedBill, isDirty: true);
   }
 
   /// Gán tất cả thành viên trong nhóm vào món này (chế độ chia theo món)
@@ -621,14 +742,14 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     final updatedItems = state.bill.items.map((item) {
       if (item.id != itemId) return item;
-      return item.copyWith(assignments: List<BillItemAssignmentEntity>.from(evenAssignments));
+      return item.copyWith(
+        assignments: List<BillItemAssignmentEntity>.from(evenAssignments),
+      );
     }).toList();
 
     final updatedBill = _syncBillWithItems(state.bill, updatedItems);
 
-    state = state.copyWith(
-      bill: updatedBill,
-    );
+    state = state.copyWith(bill: updatedBill, isDirty: true);
   }
 
   /// Cập nhật thông tin món ăn (tên, số lượng, đơn giá, chiết khấu riêng)
@@ -645,24 +766,22 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     final updatedBill = _syncBillWithItems(state.bill, updatedItems);
 
-    state = state.copyWith(
-      bill: updatedBill,
-    );
+    state = state.copyWith(bill: updatedBill, isDirty: true);
   }
 
   /// Thêm món mới vào hoá đơn
   void addItem(BillItemEntity newItem) {
     final isEven = state.bill.splitMethod == 'even';
     final effectiveItem = isEven
-        ? newItem.copyWith(assignments: _buildEvenAssignments(state.bill.members))
+        ? newItem.copyWith(
+            assignments: _buildEvenAssignments(state.bill.members),
+          )
         : newItem;
 
     final updatedItems = [...state.bill.items, effectiveItem];
     final updatedBill = _syncBillWithItems(state.bill, updatedItems);
 
-    state = state.copyWith(
-      bill: updatedBill,
-    );
+    state = state.copyWith(bill: updatedBill, isDirty: true);
   }
 
   /// Xoá món khỏi hoá đơn
@@ -670,9 +789,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     final updatedItems = state.bill.items.where((i) => i.id != itemId).toList();
     final updatedBill = _syncBillWithItems(state.bill, updatedItems);
 
-    state = state.copyWith(
-      bill: updatedBill,
-    );
+    state = state.copyWith(bill: updatedBill, isDirty: true);
   }
 
   /// Cập nhật Thuế, Phí, Khuyến mãi chung và Tổng cộng
@@ -691,15 +808,15 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       total: total,
     );
 
-    state = state.copyWith(
-      bill: updatedBill,
-    );
+    state = state.copyWith(bill: updatedBill, isDirty: true);
   }
 
   /// Cập nhật tên quán / địa điểm
   void setMerchantName(String name) {
+    if (state.bill.merchantName == name) return;
     state = state.copyWith(
       bill: state.bill.copyWith(merchantName: name),
+      isDirty: true,
     );
   }
 
@@ -707,6 +824,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   void balanceTotalToComputed() {
     state = state.copyWith(
       bill: state.bill.copyWith(total: state.computedTotal),
+      isDirty: true,
     );
   }
 
@@ -718,7 +836,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       unitPrice: amount,
       lineTotal: amount,
       finalPrice: amount,
-      assignments: state.bill.splitMethod == 'even' ? _buildEvenAssignments(state.bill.members) : const [],
+      assignments: state.bill.splitMethod == 'even'
+          ? _buildEvenAssignments(state.bill.members)
+          : const [],
     );
     addItem(newItem);
   }
@@ -727,7 +847,8 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   Future<bool> saveDraft() async {
     state = state.copyWith(isSaving: true);
 
-    final isNewBill = state.bill.id.isEmpty || state.bill.id.startsWith('draft-');
+    final isNewBill =
+        state.bill.id.isEmpty || state.bill.id.startsWith('draft-');
 
     if (isNewBill) {
       final result = await _repository.createManualBill(
@@ -755,8 +876,13 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
           );
           state = state.copyWith(
             bill: syncedBill,
-            breakdown: createdBill.breakdown,
+            breakdown: _enrichBreakdown(
+              createdBill.breakdown,
+              state.bill.members,
+              syncedBill.creditorMemberId,
+            ),
             isSaving: false,
+            isDirty: false,
             successMessage: 'Đã tạo hoá đơn nháp thành công!',
           );
           return true;
@@ -791,17 +917,29 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         return false;
       },
       (updatedBill) {
+        final existingItems = state.bill.items;
+        final resolvedItems = updatedBill.items.isNotEmpty
+            ? updatedBill.items
+            : existingItems;
         final syncedBill = _syncBillWithItems(
           updatedBill.copyWith(
+            items: resolvedItems,
             members: state.bill.members,
             photos: state.bill.photos,
           ),
-          updatedBill.items,
+          resolvedItems,
         );
         state = state.copyWith(
           bill: syncedBill,
-          breakdown: updatedBill.breakdown,
+          breakdown: _enrichBreakdown(
+            updatedBill.breakdown.isNotEmpty
+                ? updatedBill.breakdown
+                : state.breakdown,
+            state.bill.members,
+            syncedBill.creditorMemberId,
+          ),
           isSaving: false,
+          isDirty: false,
           successMessage: 'Đã lưu bản nháp và cập nhật phân bổ từ máy chủ!',
         );
         return true;
@@ -841,11 +979,16 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         return null;
       },
       (breakdownList) {
+        final enrichedList = _enrichBreakdown(
+          breakdownList,
+          state.bill.members,
+          state.bill.creditorMemberId,
+        );
         state = state.copyWith(
-          breakdown: breakdownList,
+          breakdown: enrichedList,
           isCalculatingBreakdown: false,
         );
-        return breakdownList;
+        return enrichedList;
       },
     );
   }
@@ -854,6 +997,37 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   Future<List<BillShareBreakdownEntity>> fetchOfficialBreakdown() async {
     final breakdown = await calculateBreakdown();
     return breakdown ?? state.breakdown;
+  }
+
+  /// Chuyển [Failure] thành thông báo tiếng Việt dựa trên `failure.code` ổn
+  /// định do backend trả về, thay vì khớp theo câu chữ của message.
+  String _friendlyBillError(Failure failure) {
+    switch (failure.code) {
+      case 'ITEM_UNASSIGNED':
+        return 'Có món ăn chưa được gán cho thành viên nào. Vui lòng chọn người ăn cho tất cả các món.';
+      case 'CREDITOR_REQUIRED':
+        return 'Vui lòng chọn Người thanh toán (Chủ chi) trước khi chốt hoá đơn.';
+      case 'SUBTOTAL_MISMATCH':
+        return 'Tổng tiền các món không khớp với tiền hàng tạm tính.';
+      case 'TOTAL_MISMATCH':
+        return 'Tổng thanh toán không khớp với công thức tiền món + phí/thuế - giảm giá.';
+      case 'DISCOUNT_EXCEEDS_BILL':
+        return 'Tiền giảm giá vượt quá tổng giá trị hoá đơn.';
+      case 'INACTIVE_MEMBER_ASSIGNED':
+        return 'Có thành viên đã rời nhóm trong danh sách chia tiền.';
+      case 'BILL_ALREADY_VOIDED':
+        return 'Hoá đơn này đã bị huỷ trước đó.';
+      case 'PAYMENT_ALREADY_STARTED':
+        return 'Không thể huỷ vì đã có thành viên bắt đầu thanh toán cho hoá đơn này.';
+      case 'CAPTAIN_REQUIRED':
+        return 'Chỉ Trưởng nhóm mới có quyền huỷ hoá đơn đã chốt.';
+      case 'VERSION_CONFLICT':
+        return 'Dữ liệu hoá đơn đã bị thay đổi, vui lòng tải lại trang.';
+      case 'GROUP_ARCHIVED':
+        return 'Nhóm này đã bị giải tán.';
+      default:
+        return failure.message;
+    }
   }
 
   /// Thực hiện riêng bước Đối soát (Review Bill) chuyển status từ draft -> reviewed
@@ -876,39 +1050,36 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     return reviewResult.match(
       (failure) {
-        String friendlyError = failure.message;
-        if (friendlyError.contains('ITEM_UNASSIGNED') || friendlyError.contains('item unassigned')) {
-          friendlyError = 'Có món ăn chưa được gán cho thành viên nào. Vui lòng chọn người ăn cho tất cả các món.';
-        } else if (friendlyError.contains('CREDITOR_REQUIRED') || friendlyError.contains('creditor required')) {
-          friendlyError = 'Vui lòng chọn Người thanh toán (Chủ chi) trước khi chốt hoá đơn.';
-        } else if (friendlyError.contains('SUBTOTAL_MISMATCH') || friendlyError.contains('subtotal mismatch')) {
-          friendlyError = 'Tổng tiền các món không khớp với tiền hàng tạm tính.';
-        } else if (friendlyError.contains('TOTAL_MISMATCH') || friendlyError.contains('total mismatch')) {
-          friendlyError = 'Tổng thanh toán không khớp với công thức tiền món + phí/thuế - giảm giá.';
-        } else if (friendlyError.contains('DISCOUNT_EXCEEDS_BILL') || friendlyError.contains('discount exceeds')) {
-          friendlyError = 'Tiền giảm giá vượt quá tổng giá trị hoá đơn.';
-        } else if (friendlyError.contains('INACTIVE_MEMBER_ASSIGNED')) {
-          friendlyError = 'Có thành viên đã rời nhóm trong danh sách chia tiền.';
-        }
-
         state = state.copyWith(
           isSaving: false,
-          errorMessage: 'Đối soát hoá đơn không đạt: $friendlyError',
+          errorMessage:
+              'Đối soát hoá đơn không đạt: ${_friendlyBillError(failure)}',
         );
         return false;
       },
       (bill) {
+        final existingItems = state.bill.items;
+        final resolvedItems = bill.items.isNotEmpty
+            ? bill.items
+            : existingItems;
         state = state.copyWith(
           isSaving: false,
           bill: _syncBillWithItems(
             bill.copyWith(
+              items: resolvedItems,
               members: state.bill.members,
               photos: state.bill.photos,
             ),
-            bill.items,
+            resolvedItems,
           ),
-          breakdown: bill.breakdown,
-          successMessage: 'Hoá đơn đã được đối soát hợp lệ! Sẵn sàng để Trưởng nhóm chốt sổ.',
+          breakdown: _enrichBreakdown(
+            bill.breakdown.isNotEmpty ? bill.breakdown : state.breakdown,
+            state.bill.members,
+            state.bill.creditorMemberId,
+          ),
+          isDirty: false,
+          successMessage:
+              'Hoá đơn đã được đối soát hợp lệ! Sẵn sàng để Trưởng nhóm chốt sổ.',
         );
         return true;
       },
@@ -935,37 +1106,32 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     final reviewedBill = reviewResult.match(
       (failure) {
-        String friendlyError = failure.message;
-        if (friendlyError.contains('ITEM_UNASSIGNED') || friendlyError.contains('item unassigned')) {
-          friendlyError = 'Có món ăn chưa được gán cho thành viên nào. Vui lòng chọn người ăn cho tất cả các món.';
-        } else if (friendlyError.contains('CREDITOR_REQUIRED') || friendlyError.contains('creditor required')) {
-          friendlyError = 'Vui lòng chọn Người thanh toán (Chủ chi) trước khi chốt hoá đơn.';
-        } else if (friendlyError.contains('SUBTOTAL_MISMATCH') || friendlyError.contains('subtotal mismatch')) {
-          friendlyError = 'Tổng tiền các món không khớp với tiền hàng tạm tính.';
-        } else if (friendlyError.contains('TOTAL_MISMATCH') || friendlyError.contains('total mismatch')) {
-          friendlyError = 'Tổng thanh toán không khớp với công thức tiền món + phí/thuế - giảm giá.';
-        } else if (friendlyError.contains('DISCOUNT_EXCEEDS_BILL') || friendlyError.contains('discount exceeds')) {
-          friendlyError = 'Tiền giảm giá vượt quá tổng giá trị hoá đơn.';
-        } else if (friendlyError.contains('INACTIVE_MEMBER_ASSIGNED')) {
-          friendlyError = 'Có thành viên đã rời nhóm trong danh sách chia tiền.';
-        }
-
         state = state.copyWith(
           isFinalizing: false,
-          errorMessage: 'Đối soát hoá đơn không đạt: $friendlyError',
+          errorMessage:
+              'Đối soát hoá đơn không đạt: ${_friendlyBillError(failure)}',
         );
         return null;
       },
       (bill) {
+        final existingItems = state.bill.items;
+        final resolvedItems = bill.items.isNotEmpty
+            ? bill.items
+            : existingItems;
         state = state.copyWith(
           bill: _syncBillWithItems(
             bill.copyWith(
+              items: resolvedItems,
               members: state.bill.members,
               photos: state.bill.photos,
             ),
-            bill.items,
+            resolvedItems,
           ),
-          breakdown: bill.breakdown,
+          breakdown: _enrichBreakdown(
+            bill.breakdown.isNotEmpty ? bill.breakdown : state.breakdown,
+            state.bill.members,
+            state.bill.creditorMemberId,
+          ),
         );
         return bill;
       },
@@ -1000,12 +1166,70 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       },
     );
   }
+
+  /// Huỷ hoá đơn đã chốt (Chỉ Trưởng nhóm có quyền)
+  Future<bool> voidBill({required String reason}) async {
+    if (reason.trim().isEmpty) {
+      state = state.copyWith(errorMessage: 'Vui lòng nhập lý do huỷ hoá đơn.');
+      return false;
+    }
+
+    state = state.copyWith(isVoiding: true);
+
+    final result = await _repository.voidBill(
+      billId: state.bill.id,
+      groupId: state.bill.groupId,
+      version: state.bill.version,
+      reason: reason.trim(),
+    );
+
+    return result.match(
+      (failure) {
+        state = state.copyWith(
+          isVoiding: false,
+          errorMessage: 'Huỷ hoá đơn thất bại: ${_friendlyBillError(failure)}',
+        );
+        return false;
+      },
+      (voidedBill) {
+        final existingItems = state.bill.items;
+        final resolvedItems = voidedBill.items.isNotEmpty
+            ? voidedBill.items
+            : existingItems;
+        final syncedBill = _syncBillWithItems(
+          voidedBill.copyWith(
+            status: 'voided',
+            items: resolvedItems,
+            members: state.bill.members,
+            photos: state.bill.photos,
+          ),
+          resolvedItems,
+        );
+
+        state = state.copyWith(
+          isVoiding: false,
+          bill: syncedBill,
+          breakdown: _enrichBreakdown(
+            voidedBill.breakdown.isNotEmpty
+                ? voidedBill.breakdown
+                : state.breakdown,
+            state.bill.members,
+            syncedBill.creditorMemberId,
+          ),
+          successMessage: 'Đã huỷ hoá đơn thành công!',
+        );
+        return true;
+      },
+    );
+  }
 }
 
 final billDetailNotifierProvider =
-    StateNotifierProvider.family<BillDetailNotifier, BillDetailState, BillDetailEntity>(
-  (ref, initialBill) {
-    final repository = getIt<BillRepository>();
-    return BillDetailNotifier(repository, initialBill);
-  },
-);
+    StateNotifierProvider.family<
+      BillDetailNotifier,
+      BillDetailState,
+      BillDetailEntity
+    >((ref, initialBill) {
+      final repository = getIt<BillRepository>();
+      return BillDetailNotifier(repository, initialBill);
+    });

@@ -18,7 +18,6 @@ abstract class ApiEndpoints {
   static const String calculateBill = '/bills/calculate';
   static String calculateBillById(String id) => '/bills/$id/calculate';
   static const String scanReceipt = '/bills/scan';
-  static const String groups = '/groups';
 
   static const String notifications = '/notifications';
   static const String notificationsUnreadCount = '/notifications/unread-count';
@@ -28,6 +27,7 @@ abstract class ApiEndpoints {
   static String vietQr(String billId) => '/bills/$billId/vietqr';
 
   // --- Groups (module `group`) ---
+  static const String groups = '/groups';
   static String groupById(String id) => '/groups/$id';
   static String groupInvites(String id) => '/groups/$id/invites';
   static String groupInviteById(String id, String inviteId) =>
