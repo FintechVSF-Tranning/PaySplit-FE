@@ -348,6 +348,7 @@ class SettlementRepositoryImpl implements SettlementRepository {
       status: _debtStatus(_string(map['status'])),
       createdAt: _date(map['created_at']),
       reminderCount: _integer(map['reminder_count']),
+      lastRemindedAt: _optionalDate(map['last_reminded_at']),
       paymentId: _optionalString(map['payment_id']),
     );
   }
@@ -514,6 +515,13 @@ class SettlementRepositoryImpl implements SettlementRepository {
       if (parsed != null) return parsed;
     }
     throw const FormatException('Expected an integer');
+  }
+
+  DateTime? _optionalDate(dynamic value) {
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
   }
 
   DateTime _date(dynamic value) {

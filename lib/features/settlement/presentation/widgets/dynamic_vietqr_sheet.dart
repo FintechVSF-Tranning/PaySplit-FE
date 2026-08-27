@@ -320,12 +320,16 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                               color: Color(0xFF0F766E),
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              'Chạm vào mã để xem phóng to',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF0F766E),
+                            Flexible(
+                              child: Text(
+                                'Chạm vào mã để xem phóng to',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF0F766E),
+                                ),
                               ),
                             ),
                           ],
@@ -534,12 +538,16 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                                         color: Color(0xFF059669),
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        'Đã chọn ảnh (chạm để xem)',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: const Color(0xFF059669),
+                                      Expanded(
+                                        child: Text(
+                                          'Đã chọn ảnh (chạm để xem)',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF059669),
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -557,6 +565,8 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                                   ),
                                   Text(
                                     _formatFileSize(_selectedProof!.bytes.length),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 10.5,
                                       color: textMuted,
@@ -568,6 +578,8 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                           ),
                           IconButton(
                             tooltip: 'Đổi ảnh khác',
+                            padding: const EdgeInsets.all(6),
+                            constraints: const BoxConstraints(),
                             onPressed: _isSubmitting ? null : _pickProof,
                             icon: const Icon(
                               HugeIcons.strokeRoundedExchange01,
@@ -578,6 +590,8 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                           ),
                           IconButton(
                             tooltip: 'Gỡ ảnh',
+                            padding: const EdgeInsets.all(6),
+                            constraints: const BoxConstraints(),
                             onPressed: _isSubmitting ? null : _removeProof,
                             icon: const Icon(
                               HugeIcons.strokeRoundedDelete02,

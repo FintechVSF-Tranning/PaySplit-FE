@@ -8,6 +8,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/time_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/widgets/header_wave_painter.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
@@ -284,6 +285,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       payableDebts: settlementState.payableDebts,
                       receivableDebts: settlementState.receivableDebts,
                       pendingProofs: settlementState.pendingProofs,
+                      remindedCooldowns: settlementState.remindedCooldowns,
                       isLoading: settlementState.isLoading && settlementState.overview == null,
                       onViewAll: (tab) => context.go(
                         AppRoutes.settlement,
@@ -390,6 +392,15 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _handleRemindDebt(DebtItemEntity debt) async {
+    final cooldown = ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ?? 0;
+    if (cooldown > 0) {
+      final timeStr = TimeFormatter.formatRemainingCooldown(cooldown);
+      showErrorSnackBar(
+        context,
+        'Khoản nợ này vừa được gửi lời nhắc. Vui lòng đợi thêm $timeStr nữa.',
+      );
+      return;
+    }
     try {
       await ref.read(settlementControllerProvider.notifier).remindDebt(
             groupId: debt.groupId,

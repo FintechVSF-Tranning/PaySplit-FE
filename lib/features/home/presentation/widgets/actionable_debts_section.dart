@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/time_formatter.dart';
 import '../../../settlement/domain/entities/settlement_entities.dart';
 
 class ActionableDebtsSection extends StatefulWidget {
@@ -10,6 +11,7 @@ class ActionableDebtsSection extends StatefulWidget {
     this.payableDebts = const [],
     this.receivableDebts = const [],
     this.pendingProofs = const [],
+    this.remindedCooldowns = const {},
     this.isLoading = false,
     this.onViewAll,
     this.onPayQr,
@@ -21,6 +23,7 @@ class ActionableDebtsSection extends StatefulWidget {
   final List<DebtItemEntity> payableDebts;
   final List<DebtItemEntity> receivableDebts;
   final List<ProofDetailEntity> pendingProofs;
+  final Map<String, int> remindedCooldowns;
   final bool isLoading;
 
   final void Function(int selectedTab)? onViewAll;
@@ -154,6 +157,14 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
                       .firstOrNull;
                 }
 
+                final cooldown = widget.remindedCooldowns[debt.id] ??
+                    (debt.lastRemindedAt != null
+                        ? ((24 * 3600) -
+                            DateTime.now()
+                                .difference(debt.lastRemindedAt!)
+                                .inSeconds)
+                        : 0);
+
                 return _DebtCardItem(
                   name: debt.debtorName,
                   avatarUrl: debt.debtorAvatar,
@@ -161,6 +172,7 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
                   amount: '+${CurrencyFormatter.formatVND(debt.amount)}',
                   isPayable: false,
                   isReviewProof: isPendingProof,
+                  cooldownSeconds: cooldown > 0 ? cooldown : 0,
                   onAction: () {
                     if (isPendingProof && matchedProof != null) {
                       widget.onReviewProof?.call(matchedProof);
@@ -334,6 +346,7 @@ class _DebtCardItem extends StatelessWidget {
     required this.amount,
     required this.isPayable,
     this.isReviewProof = false,
+    this.cooldownSeconds = 0,
     this.onAction,
   });
 
@@ -343,6 +356,7 @@ class _DebtCardItem extends StatelessWidget {
   final String amount;
   final bool isPayable;
   final bool isReviewProof;
+  final int cooldownSeconds;
   final VoidCallback? onAction;
 
   static String _getInitials(String name) {
@@ -545,17 +559,27 @@ class _DebtCardItem extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                      color: cooldownSeconds > 0
+                          ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
+                          : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: border),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(HugeIcons.strokeRoundedNotification03, size: 12, color: textMuted),
+                        Icon(
+                          cooldownSeconds > 0
+                              ? HugeIcons.strokeRoundedClock01
+                              : HugeIcons.strokeRoundedNotification03,
+                          size: 12,
+                          color: textMuted,
+                        ),
                         const SizedBox(width: 4),
                         Text(
-                          'Nhắc nợ',
+                          cooldownSeconds > 0
+                              ? TimeFormatter.formatRemainingCooldown(cooldownSeconds)
+                              : 'Nhắc nợ',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,

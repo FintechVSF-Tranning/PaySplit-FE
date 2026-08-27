@@ -425,6 +425,85 @@ void main() {
       expect(find.text('Vé xe Limousine Đà Lạt'), findsOneWidget);
       expect(find.text('Xóa lọc'), findsNothing);
     });
+
+    testWidgets(
+      'ReceivableProofsTab displays concise cooldown (22h, 1p) on button and warns on tap',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 2.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        final debts = [
+          DebtItemEntity(
+            id: 'debt-rec-cooldown-22h',
+            groupId: 'group-dev',
+            groupName: 'Phòng Dev',
+            billId: 'bill-1',
+            billTitle: 'Lẩu gà',
+            debtorId: 'member-an',
+            debtorName: 'Nguyễn An',
+            debtorAvatar: 'NA',
+            creditorId: 'member-me',
+            creditorName: 'Tôi',
+            creditorAvatar: 'T',
+            amount: 150000,
+            status: DebtStatus.awaiting,
+            createdAt: DateTime.now(),
+          ),
+          DebtItemEntity(
+            id: 'debt-rec-cooldown-1p',
+            groupId: 'group-dev',
+            groupName: 'Phòng Dev',
+            billId: 'bill-2',
+            billTitle: 'Cà phê',
+            debtorId: 'member-binh',
+            debtorName: 'Trần Bình',
+            debtorAvatar: 'TB',
+            creditorId: 'member-me',
+            creditorName: 'Tôi',
+            creditorAvatar: 'T',
+            amount: 50000,
+            status: DebtStatus.awaiting,
+            createdAt: DateTime.now(),
+          ),
+        ];
+
+        String? remindedId;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: ReceivableProofsTab(
+                  pendingProofs: const [],
+                  receivableDebts: debts,
+                  remindedCooldowns: const {
+                    'debt-rec-cooldown-22h': 22 * 3600,
+                    'debt-rec-cooldown-1p': 60,
+                  },
+                  onOpenProofReview: (_) {},
+                  onConfirmProof: (_) {},
+                  onRejectProof: (_) {},
+                  onRemindDebt: (id, _) {
+                    remindedId = id;
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // 1. Buttons show concise cooldown format: 22h and 1p
+        expect(find.text('22h'), findsOneWidget);
+        expect(find.text('1p'), findsOneWidget);
+        expect(find.text('Nhắc nợ'), findsNothing);
+
+        // 2. Tapping calls onRemindDebt so the page can show warning with remaining time
+        await tester.tap(find.text('22h'));
+        await tester.pump();
+        expect(remindedId, 'debt-rec-cooldown-22h');
+      },
+    );
   });
 }
 

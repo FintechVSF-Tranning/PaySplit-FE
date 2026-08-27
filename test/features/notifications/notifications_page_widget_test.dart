@@ -110,5 +110,60 @@ void main() {
 
       expect(find.text('Hộp thư thông báo trống'), findsOneWidget);
     });
+
+    testWidgets('Automatically localizes legacy English notification strings on display', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final legacyItems = [
+        NotificationEntity.fromJson({
+          'id': 'legacy-1',
+          'user_id': 'u1',
+          'type': 'payment_submitted',
+          'title': 'Payment proof submitted',
+          'body': 'A payment proof is waiting for your confirmation',
+          'payload': {'group_id': 'g1'},
+          'created_at': DateTime.now().toIso8601String(),
+        }),
+        NotificationEntity.fromJson({
+          'id': 'legacy-2',
+          'user_id': 'u1',
+          'type': 'payment_created',
+          'title': 'PaySplit update',
+          'body': 'payment created',
+          'payload': {'group_id': 'g1'},
+          'created_at': DateTime.now().toIso8601String(),
+        }),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            notificationsProvider.overrideWith(
+              (ref) => _FakeNotificationsNotifier(legacyItems),
+            ),
+          ],
+          child: const MaterialApp(home: NotificationsPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Payment proof submitted'), findsNothing);
+      expect(find.text('Minh chứng thanh toán mới'), findsOneWidget);
+      expect(
+        find.text('Có minh chứng chuyển tiền mới đang chờ bạn xác nhận.'),
+        findsOneWidget,
+      );
+
+      expect(find.text('PaySplit update'), findsNothing);
+      expect(find.text('Yêu cầu thanh toán mới'), findsOneWidget);
+      expect(
+        find.text('Đã tạo mã thanh toán VietQR cho khoản nợ.'),
+        findsOneWidget,
+      );
+    });
   });
 }

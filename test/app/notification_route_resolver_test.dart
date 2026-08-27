@@ -3,11 +3,12 @@ import 'package:paysplit/app/router/app_routes.dart';
 import 'package:paysplit/app/router/group_detail_route_args.dart';
 import 'package:paysplit/app/router/notification_route_resolver.dart';
 import 'package:paysplit/features/groups/presentation/pages/group_detail_page.dart';
+import 'package:paysplit/features/settlement/presentation/providers/settlement_controller.dart';
 
 void main() {
   group('NotificationRouteResolver', () {
     test(
-      'bill_bulk_finalize_completed hợp lệ -> route đến Group Detail kèm openBatchId',
+      'bill_bulk_finalize_completed hợp lệ -> route đến Group Detail kèm openBatchId và Tab bills',
       () {
         final route = NotificationRouteResolver.resolve(
           type: 'bill_bulk_finalize_completed',
@@ -33,30 +34,121 @@ void main() {
     });
 
     test(
-      'bill_bulk_finalize_completed thiếu batch_id -> vẫn route đến group nhưng openBatchId null',
+      'payment_submitted có group_id -> route đến Group Detail với Tab debts',
       () {
         final route = NotificationRouteResolver.resolve(
-          type: 'bill_bulk_finalize_completed',
+          type: 'payment_submitted',
+          payload: {'group_id': 'g-123', 'payment_id': 'p-1'},
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.groupDetail('g-123'));
+        expect(route.extra, isA<GroupDetailRouteArgs>());
+        final args = route.extra! as GroupDetailRouteArgs;
+        expect(args.initialTab, GroupHubTab.debts);
+      },
+    );
+
+    test(
+      'payment_submitted không có group_id -> route đến Settlement Tab receivable',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'payment_submitted',
+          payload: {'payment_id': 'p-1'},
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.settlement);
+        expect(route.extra, SettlementTab.receivable);
+      },
+    );
+
+    test(
+      'payment_confirmed có group_id -> route đến Group Detail với Tab debts',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'payment_confirmed',
           payload: {'group_id': 'g-123'},
         );
 
         expect(route, isNotNull);
         expect(route!.path, AppRoutes.groupDetail('g-123'));
         final args = route.extra! as GroupDetailRouteArgs;
-        expect(args.openBatchId, isNull);
+        expect(args.initialTab, GroupHubTab.debts);
       },
     );
 
-    test('loại thông báo không được hỗ trợ -> trả null', () {
+    test(
+      'payment_rejected có group_id -> route đến Group Detail với Tab debts',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'payment_rejected',
+          payload: {'group_id': 'g-123'},
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.groupDetail('g-123'));
+        final args = route.extra! as GroupDetailRouteArgs;
+        expect(args.initialTab, GroupHubTab.debts);
+      },
+    );
+
+    test(
+      'debt_reminded không có group_id -> route đến Settlement Tab payable',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'debt_reminded',
+          payload: {'debt_id': 'd-1'},
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.settlement);
+        expect(route.extra, SettlementTab.payable);
+      },
+    );
+
+    test(
+      'bill_finalized có bill_id -> route đến Bill Detail kèm extra map',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'bill_finalized',
+          payload: {'bill_id': 'b-123', 'group_id': 'g-456'},
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.billDetail);
+        expect(route.extra, isA<Map<String, dynamic>>());
+        final map = route.extra! as Map<String, dynamic>;
+        expect(map['billId'], 'b-123');
+        expect(map['groupId'], 'g-456');
+      },
+    );
+
+    test(
+      'group_invitation có group_id -> route đến Group Detail với Tab bills',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'group_invitation',
+          payload: {'group_id': 'g-789'},
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.groupDetail('g-789'));
+        final args = route.extra! as GroupDetailRouteArgs;
+        expect(args.initialTab, GroupHubTab.bills);
+      },
+    );
+
+    test('loại thông báo không được hỗ trợ và không có ID nhận diện -> trả null', () {
       final route = NotificationRouteResolver.resolve(
         type: 'unknown_type',
-        payload: {'group_id': 'g-1'},
+        payload: {'foo': 'bar'},
       );
 
       expect(route, isNull);
     });
 
-    test('payload rỗng hoặc sai kiểu không gây crash', () {
+    test('payload rỗng không gây crash và trả null', () {
       final route = NotificationRouteResolver.resolve(
         type: 'bill_bulk_finalize_completed',
         payload: {},

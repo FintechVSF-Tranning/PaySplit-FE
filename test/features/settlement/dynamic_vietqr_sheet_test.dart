@@ -218,6 +218,38 @@ void main() {
       expect(find.text('Minh chứng chuyển tiền'), findsNothing);
       expect(find.byType(DynamicVietQrSheet), findsOneWidget);
     });
+
+    testWidgets('does not overflow on narrow screens like iPhone SE (375px and 320px width)', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(375, 667);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        _testApp(
+          pickProof: () async => ProofUploadEntity(
+            bytes: Uint8List.fromList(const [1, 2, 3]),
+            name: 'very_long_file_name_for_receipt_proof_image.png',
+          ),
+          onSubmitProof: (_, _) async {},
+        ),
+      );
+      await tester.tap(find.text('Mở VietQR'));
+      await tester.pumpAndSettle();
+
+      final uploadBtn = find.text('Tải ảnh biên lai đã chuyển');
+      await tester.ensureVisible(uploadBtn);
+      await tester.pump();
+      await tester.tap(uploadBtn);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Đã chọn ảnh'), findsOneWidget);
+    });
   });
 }
 

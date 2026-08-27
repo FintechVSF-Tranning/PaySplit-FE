@@ -64,6 +64,8 @@ const Map<String, String> _errorMessages = {
   'BANK_ACCOUNT_REQUIRED':
       'Người nhận cần cài tài khoản ngân hàng trước khi chốt hóa đơn.',
   'INVALID_CURSOR': 'Dữ liệu phân trang không hợp lệ. Hãy tải lại danh sách.',
+  'REMINDER_RATE_LIMITED':
+      'Khoản nợ này vừa được gửi lời nhắc. Vui lòng đợi đến lượt nhắc tiếp theo.',
 };
 
 Failure mapDioError(DioException error) {

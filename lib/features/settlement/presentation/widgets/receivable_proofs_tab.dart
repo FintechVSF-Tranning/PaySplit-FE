@@ -4,6 +4,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/time_formatter.dart';
 import '../../domain/entities/settlement_entities.dart';
 
 class ReceivableProofsTab extends StatelessWidget {
@@ -470,7 +471,7 @@ class ReceivableProofsTab extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         InkWell(
-                          onTap: isCooldownActive || onRemindDebt == null
+                          onTap: onRemindDebt == null
                               ? null
                               : () => onRemindDebt!(debt.id, debt.debtorName),
                           borderRadius: BorderRadius.circular(8),
@@ -496,7 +497,9 @@ class ReceivableProofsTab extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  HugeIcons.strokeRoundedNotification01,
+                                  isCooldownActive
+                                      ? HugeIcons.strokeRoundedClock01
+                                      : HugeIcons.strokeRoundedNotification01,
                                   size: 13,
                                   color: isCooldownActive
                                       ? textMuted
@@ -505,7 +508,9 @@ class ReceivableProofsTab extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Text(
                                   isCooldownActive
-                                      ? 'Chờ ${cooldown}s'
+                                      ? TimeFormatter.formatRemainingCooldown(
+                                          cooldown,
+                                        )
                                       : 'Nhắc nợ',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 11.5,

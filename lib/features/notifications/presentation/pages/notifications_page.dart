@@ -580,16 +580,22 @@ class _NotificationCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon
+            // Icon Hugeicons
             Container(
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: style.bg,
+                color: isDark
+                    ? style.color.withValues(alpha: 0.15)
+                    : style.bg,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(
-                child: Text(style.icon, style: const TextStyle(fontSize: 18)),
+                child: Icon(
+                  style.icon,
+                  size: 19,
+                  color: style.color,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -604,7 +610,7 @@ class _NotificationCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          notification.title,
+                          notification.displayTitle,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13.5,
                             fontWeight: notification.isRead
@@ -631,7 +637,7 @@ class _NotificationCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    notification.body,
+                    notification.displayBody,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12.5,
                       color: isDark
@@ -658,23 +664,82 @@ class _NotificationCard extends StatelessWidget {
     );
   }
 
-  static ({String icon, Color bg}) _getStyle(String type) {
+  static ({IconData icon, Color color, Color bg}) _getStyle(String type) {
     switch (type) {
       case 'debt_reminder':
+      case 'debt_reminded':
+      case 'payment_reminder':
+        return (
+          icon: HugeIcons.strokeRoundedNotification03,
+          color: const Color(0xFFD97706),
+          bg: const Color(0xFFFEF3C7),
+        );
       case 'stalled_payment_reminder':
-        return (icon: '⏰', bg: const Color(0xFFFEF3C7));
+      case 'payment_stalled_confirmation':
+        return (
+          icon: HugeIcons.strokeRoundedClock01,
+          color: const Color(0xFFD97706),
+          bg: const Color(0xFFFEF3C7),
+        );
       case 'bill_finalized':
       case 'created_bill':
-        return (icon: '🧾', bg: const Color(0xFFECFDF5));
+      case 'new_bill':
+        return (
+          icon: HugeIcons.strokeRoundedInvoice01,
+          color: const Color(0xFF0F766E),
+          bg: const Color(0xFFF0FDFA),
+        );
+      case 'bill_updated':
+        return (
+          icon: HugeIcons.strokeRoundedEdit02,
+          color: const Color(0xFF0F766E),
+          bg: const Color(0xFFF0FDFA),
+        );
+      case 'bill_bulk_finalize_completed':
+        return (
+          icon: HugeIcons.strokeRoundedReceiptDollar,
+          color: const Color(0xFF0F766E),
+          bg: const Color(0xFFF0FDFA),
+        );
+      case 'payment_created':
+        return (
+          icon: HugeIcons.strokeRoundedQrCode,
+          color: const Color(0xFF0F766E),
+          bg: const Color(0xFFF0FDFA),
+        );
       case 'proof_submitted':
       case 'payment_submitted':
+        return (
+          icon: HugeIcons.strokeRoundedImage01,
+          color: const Color(0xFF2563EB),
+          bg: const Color(0xFFEFF6FF),
+        );
       case 'payment_confirmed':
-        return (icon: '💳', bg: const Color(0xFFEFF6FF));
+        return (
+          icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+          color: const Color(0xFF059669),
+          bg: const Color(0xFFECFDF5),
+        );
+      case 'payment_rejected':
+        return (
+          icon: HugeIcons.strokeRoundedCancelCircle,
+          color: const Color(0xFFDC2626),
+          bg: const Color(0xFFFEF2F2),
+        );
       case 'group_invite':
+      case 'group_invitation':
       case 'member_joined':
-        return (icon: '👥', bg: const Color(0xFFF5F3FF));
+        return (
+          icon: HugeIcons.strokeRoundedUserGroup,
+          color: const Color(0xFF7C3AED),
+          bg: const Color(0xFFF5F3FF),
+        );
       default:
-        return (icon: '📬', bg: const Color(0xFFF1F5F9));
+        return (
+          icon: HugeIcons.strokeRoundedNotification01,
+          color: const Color(0xFF64748B),
+          bg: const Color(0xFFF1F5F9),
+        );
     }
   }
 

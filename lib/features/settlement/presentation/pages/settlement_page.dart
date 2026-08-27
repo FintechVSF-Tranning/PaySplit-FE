@@ -7,6 +7,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/time_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/widgets/header_wave_painter.dart';
 import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
@@ -267,6 +268,16 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
   }
 
   Future<void> _remindDebt(DebtItemEntity debt) async {
+    final cooldown =
+        ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ?? 0;
+    if (cooldown > 0) {
+      final timeStr = TimeFormatter.formatRemainingCooldown(cooldown);
+      showErrorSnackBar(
+        context,
+        'Khoản nợ này vừa được gửi lời nhắc. Vui lòng đợi thêm $timeStr nữa.',
+      );
+      return;
+    }
     try {
       await ref
           .read(settlementControllerProvider.notifier)
@@ -275,7 +286,12 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
         showSuccessSnackBar(context, 'Đã gửi lời nhắc đến ${debt.debtorName}.');
       }
     } catch (_) {
-      if (mounted) showErrorSnackBar(context, 'Không thể gửi lời nhắc nợ.');
+      if (mounted) {
+        final err =
+            ref.read(settlementControllerProvider).errorMessage ??
+            'Không thể gửi lời nhắc nợ.';
+        showErrorSnackBar(context, err);
+      }
     }
   }
 

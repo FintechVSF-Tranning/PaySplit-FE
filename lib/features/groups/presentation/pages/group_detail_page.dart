@@ -944,7 +944,7 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
 
     try {
       await ref
-          .read(settlementRepositoryProvider)
+          .read(settlementControllerProvider.notifier)
           .remindDebt(groupId: detail.group.id, debtId: debtIds.first);
       if (!mounted) return;
       showSuccessSnackBar(
@@ -956,9 +956,11 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
       );
     } catch (_) {
       if (!mounted) return;
+      final err = ref.read(settlementControllerProvider).errorMessage ??
+          'Không gửi được nhắc nợ tới ${debt.counterpartName}';
       showErrorSnackBar(
         context,
-        'Không gửi được nhắc nợ tới ${debt.counterpartName}',
+        err,
       );
     }
   }
