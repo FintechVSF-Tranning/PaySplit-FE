@@ -337,7 +337,7 @@ class ReceivableProofsTab extends StatelessWidget {
                             HugeIcons.strokeRoundedCheckmarkCircle02,
                             size: 15,
                           ),
-                          label: const Text('Xác nhận đã nhận tiền'),
+                          label: const Text('Xem & xác nhận'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF059669),
                             foregroundColor: Colors.white,

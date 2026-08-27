@@ -26,6 +26,7 @@ import '../../features/settlement/presentation/pages/settlement_page.dart';
 import '../../features/settlement/presentation/providers/settlement_controller.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import 'app_routes.dart';
+import 'group_detail_route_args.dart';
 import 'main_navigation_shell.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
@@ -187,11 +188,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '${AppRoutes.groups}/:groupId',
         builder: (context, state) {
-          if (state.extra is GroupEntity) {
-            return GroupDetailPage(group: state.extra! as GroupEntity);
-          }
+          final extra = state.extra;
           final groupId = state.pathParameters['groupId'] ?? '';
-          final fallbackGroup = GroupEntity(
+
+          GroupEntity fallbackGroup() => GroupEntity(
             id: groupId,
             name: 'Chi tiết nhóm',
             memberCount: 1,
@@ -200,7 +200,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             isCaptain: false,
             lastActivity: 'Đang tải thông tin...',
           );
-          return GroupDetailPage(group: fallbackGroup);
+
+          if (extra is GroupDetailRouteArgs) {
+            return GroupDetailPage(
+              group: extra.group ?? fallbackGroup(),
+              openBatchId: extra.openBatchId,
+              initialTab: extra.initialTab,
+            );
+          }
+          if (extra is GroupEntity) {
+            return GroupDetailPage(group: extra);
+          }
+          return GroupDetailPage(group: fallbackGroup());
         },
         routes: [
           GoRoute(

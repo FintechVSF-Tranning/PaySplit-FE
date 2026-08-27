@@ -4,10 +4,11 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../data/models/activity_mapper.dart';
 import '../../domain/entities/group_entity.dart';
 import 'group_avatar.dart';
 
-/// Thẻ nhóm trong danh sách "Nhóm của tôi": bo góc 18px, viền 1px, bóng mềm.
+/// Thẻ nhóm trong danh sách "Nhóm của tôi": bo góc 18px, viền 1px, bóng mềm, responsive trên mọi kích thước.
 class GroupListCard extends StatelessWidget {
   const GroupListCard({super.key, required this.group, this.onTap});
 
@@ -38,27 +39,23 @@ class GroupListCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          // Nhóm đã khóa hóa đơn hạ tông xuống nền xám và bỏ đổ bóng: vẫn đọc được
-          // nhưng lùi lại phía sau các nhóm đang hoạt động.
-          color: isClosed ? AppColors.surfaceSubtle : AppColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.border),
-          boxShadow: isClosed
-              ? null
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                GroupAvatar(group: group, muted: isClosed),
+                GroupAvatar(group: group),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -67,12 +64,13 @@ class GroupListCard extends StatelessWidget {
                       Row(
                         children: [
                           Flexible(
+                            flex: 3,
                             child: Text(
                               group.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.plusJakartaSans(
-                                fontSize: 15.5,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.textMain,
                                 letterSpacing: -0.2,
@@ -81,88 +79,107 @@ class GroupListCard extends StatelessWidget {
                           ),
                           if (isClosed) ...[
                             const SizedBox(width: 6),
-                            const _ClosedBadge(),
+                            const Flexible(
+                              flex: 2,
+                              child: _LockedBadge(),
+                            ),
                           ] else if (group.isCaptain) ...[
                             const SizedBox(width: 6),
-                            const _CaptainBadge(),
+                            const Flexible(
+                              flex: 2,
+                              child: _CaptainBadge(),
+                            ),
                           ],
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            HugeIcons.strokeRoundedUserGroup,
-                            size: 14,
-                            color: AppColors.textMuted,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${group.memberCount} thành viên',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                          if (group.pendingBillCount > 0) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 3,
-                              height: 3,
-                              decoration: const BoxDecoration(
-                                color: AppColors.textSubtle,
-                                shape: BoxShape.circle,
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            const WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Padding(
+                                padding: EdgeInsets.only(right: 4),
+                                child: Icon(
+                                  HugeIcons.strokeRoundedUserGroup,
+                                  size: 13,
+                                  color: AppColors.textMuted,
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${group.pendingBillCount} hóa đơn đang mở',
+                            TextSpan(
+                              text: '${group.memberCount} thành viên',
                               style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.warningText,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textMuted,
                               ),
                             ),
+                            if (group.pendingBillCount > 0) ...[
+                              TextSpan(
+                                text: '  •  ',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSubtle,
+                                ),
+                              ),
+                              TextSpan(
+                                text: '${group.pendingBillCount} bill mở',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.warningText,
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      group.balanceState == GroupBalanceState.settled
-                          ? CurrencyFormatter.vnd(0)
-                          : CurrencyFormatter.vndSigned(group.myBalance),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        color: balanceFg,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: balanceBg,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        // Nhóm khóa hóa đơn vẫn có thể còn nợ, nên nhãn phải nói rõ
-                        // là số tiền đã được chốt chứ không phải đã trả xong.
-                        isClosed && group.myBalance != 0 ? 'Đã khóa, cần trả' : balanceLabel,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          color: balanceFg,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 120),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          group.balanceState == GroupBalanceState.settled
+                              ? CurrencyFormatter.vnd(0)
+                              : CurrencyFormatter.vndSigned(group.myBalance),
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: balanceFg,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: balanceBg,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          balanceLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: balanceFg,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -173,11 +190,13 @@ class GroupListCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    group.lastActivity ?? 'Chưa có hoạt động nào',
+                    group.lastActivity != null
+                        ? formatActivityTitle(group.lastActivity!)
+                        : 'Chưa có hoạt động nào',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textMuted,
                     ),
@@ -186,7 +205,7 @@ class GroupListCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   isClosed && group.closedAtText != null
-                      ? 'Khóa hóa đơn ${group.closedAtText}'
+                      ? group.closedAtText!
                       : group.lastActivityAt == null
                       ? ''
                       : formatRelativeTime(group.lastActivityAt!),
@@ -211,56 +230,61 @@ class _CaptainBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: AppColors.warningSubtle,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: AppColors.warningBorder),
       ),
-      child: Text(
-        'Trưởng nhóm',
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: AppColors.warningText,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          'Trưởng nhóm',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            color: AppColors.warningText,
+          ),
         ),
       ),
     );
   }
 }
 
-/// Huy hiệu nhóm đã khóa hóa đơn — tông slate trung tính để không tranh màu với
-/// các pill tài chính (xanh/đỏ) nằm cùng thẻ.
-class _ClosedBadge extends StatelessWidget {
-  const _ClosedBadge();
+/// Huy hiệu nhóm tạm khóa nhận bill — gọn gàng, rõ ràng
+class _LockedBadge extends StatelessWidget {
+  const _LockedBadge();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: AppColors.warningSubtle,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.borderStrong),
+        border: Border.all(color: AppColors.warningBorder),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            HugeIcons.strokeRoundedCheckmarkCircle02,
-            size: 11,
-            color: AppColors.textMuted,
-          ),
-          const SizedBox(width: 3),
-          Text(
-            'Đã khóa hóa đơn',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMuted,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              HugeIcons.strokeRoundedLock,
+              size: 11,
+              color: AppColors.warningText,
             ),
-          ),
-        ],
+            const SizedBox(width: 3),
+            Text(
+              'Tạm khóa',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.warningText,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

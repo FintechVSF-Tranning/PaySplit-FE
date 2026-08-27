@@ -29,6 +29,13 @@ class HomeGroupItemEntity extends Equatable {
 
   bool get isCaptain => callerRole == 'captain';
 
+  String get initials {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return 'N';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+  }
+
   factory HomeGroupItemEntity.fromJson(Map<String, dynamic> json) {
     final group = json['group'] as Map<String, dynamic>? ?? json;
     final name = group['name'] as String? ?? 'Nhóm chi tiêu';

@@ -39,8 +39,7 @@ const Map<String, String> _errorMessages = {
   'FORBIDDEN': 'Bạn không có quyền thực hiện thao tác này.',
 
   // --- Nhóm (module group) ---
-  'GROUP_NOT_FOUND':
-      'Không tìm thấy nhóm, hoặc bạn không còn là thành viên.',
+  'GROUP_NOT_FOUND': 'Không tìm thấy nhóm, hoặc bạn không còn là thành viên.',
   'INVITE_NOT_FOUND':
       'Mã mời không tồn tại, đã bị thu hồi hoặc đã hết hạn. Hãy xin mã mới từ trưởng nhóm.',
   'MEMBER_NOT_FOUND': 'Không tìm thấy thành viên này trong nhóm.',
@@ -56,6 +55,14 @@ const Map<String, String> _errorMessages = {
       'Nhóm còn hóa đơn hoặc công nợ chưa xong nên chưa thể giải tán.',
   'BULK_FINALIZE_IN_PROGRESS':
       'Nhóm đang chốt hóa đơn hàng loạt. Vui lòng đợi hoàn tất.',
+  'BILL_SUBMISSION_LOCKED':
+      'Nhóm đã khóa nhận hóa đơn mới. Bạn vẫn có thể sửa các draft đã tạo trước đó.',
+  'BILL_IMMUTABLE': 'Hóa đơn đã chốt hoặc đã hủy nên không thể sửa.',
+  'VERSION_CONFLICT':
+      'Hóa đơn vừa được cập nhật ở thiết bị khác. Vui lòng tải lại trước khi tiếp tục.',
+  'BILL_NOT_READY': 'Hóa đơn chưa đủ dữ liệu để chốt.',
+  'BANK_ACCOUNT_REQUIRED':
+      'Người nhận cần cài tài khoản ngân hàng trước khi chốt hóa đơn.',
   'INVALID_CURSOR': 'Dữ liệu phân trang không hợp lệ. Hãy tải lại danh sách.',
 };
 
@@ -84,8 +91,7 @@ Failure mapDioError(DioException error) {
         fieldDetailMessage = 'Lỗi nhập liệu ($messages)';
       }
 
-      var localizedMessage =
-          (code != null && _errorMessages.containsKey(code))
+      var localizedMessage = (code != null && _errorMessages.containsKey(code))
           ? _errorMessages[code]!
           : (fieldDetailMessage ??
                 rawMessage ??
@@ -110,6 +116,7 @@ Failure mapDioError(DioException error) {
         localizedMessage,
         code: code,
         statusCode: statusCode,
+        details: fields,
       );
     case DioExceptionType.cancel:
       return const UnexpectedFailure('Yêu cầu đã bị hủy', 'REQUEST_CANCELLED');

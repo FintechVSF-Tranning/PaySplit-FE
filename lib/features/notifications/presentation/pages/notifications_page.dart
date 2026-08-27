@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
+import '../../../../app/router/notification_route_resolver.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../providers/notifications_notifier.dart';
@@ -59,7 +60,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
     final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
     const primaryTeal = Color(0xFF0F766E);
 
     // Lọc theo tab
@@ -90,7 +93,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                         shape: BoxShape.circle,
                         color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0),
                         ),
                       ),
                       child: Icon(
@@ -117,7 +122,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                       onTap: () => notifier.markAllAsRead(),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: primaryTeal.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
@@ -172,7 +180,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                               controller: _scrollController,
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                              itemCount: grouped.keys.length + (state.isLoadingMore ? 1 : 1),
+                              itemCount:
+                                  grouped.keys.length +
+                                  (state.isLoadingMore ? 1 : 1),
                               itemBuilder: (context, index) {
                                 final keys = grouped.keys.toList();
 
@@ -180,7 +190,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                 if (index == keys.length) {
                                   if (state.isLoadingMore) {
                                     return const Padding(
-                                      padding: EdgeInsets.symmetric(vertical: 20),
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 20,
+                                      ),
                                       child: Center(
                                         child: SizedBox(
                                           width: 24,
@@ -192,9 +204,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                         ),
                                       ),
                                     );
-                                  } else if (!state.hasMore && displayedItems.length >= 10) {
+                                  } else if (!state.hasMore &&
+                                      displayedItems.length >= 10) {
                                     return Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 24),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 24,
+                                      ),
                                       child: Center(
                                         child: Text(
                                           '— Bạn đã xem hết thông báo —',
@@ -217,7 +232,11 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Padding(
-                                      padding: const EdgeInsets.only(top: 14, bottom: 8, left: 4),
+                                      padding: const EdgeInsets.only(
+                                        top: 14,
+                                        bottom: 8,
+                                        left: 4,
+                                      ),
                                       child: Text(
                                         groupTitle.toUpperCase(),
                                         style: GoogleFonts.plusJakartaSans(
@@ -236,7 +255,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                           if (!notif.isRead) {
                                             notifier.markAsRead(notif.id);
                                           }
-                                          _handleNotificationAction(context, notif);
+                                          _handleNotificationAction(
+                                            context,
+                                            notif,
+                                          );
                                         },
                                       ),
                                       const SizedBox(height: 8),
@@ -253,7 +275,19 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     );
   }
 
-  void _handleNotificationAction(BuildContext context, NotificationEntity notif) {
+  void _handleNotificationAction(
+    BuildContext context,
+    NotificationEntity notif,
+  ) {
+    final resolved = NotificationRouteResolver.resolve(
+      type: notif.type,
+      payload: notif.payload,
+    );
+    if (resolved != null) {
+      context.push(resolved.path, extra: resolved.extra);
+      return;
+    }
+
     final payload = notif.payload;
     final billId = (payload['bill_id'] ?? payload['billId']) as String?;
     final groupId = (payload['group_id'] ?? payload['groupId']) as String?;
@@ -274,7 +308,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     }
   }
 
-  Map<String, List<NotificationEntity>> _groupByDate(List<NotificationEntity> list) {
+  Map<String, List<NotificationEntity>> _groupByDate(
+    List<NotificationEntity> list,
+  ) {
     final Map<String, List<NotificationEntity>> grouped = {};
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -304,7 +340,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,7 +395,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   }
 
   Widget _buildEmptyState(bool isDark, bool isFilteredUnread) {
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
 
     return Center(
       child: SingleChildScrollView(
@@ -383,11 +423,15 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              isFilteredUnread ? 'Không có thông báo chưa đọc' : 'Hộp thư thông báo trống',
+              isFilteredUnread
+                  ? 'Không có thông báo chưa đọc'
+                  : 'Hộp thư thông báo trống',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B),
+                color: isDark
+                    ? const Color(0xFFF1F5F9)
+                    : const Color(0xFF1E293B),
               ),
             ),
             const SizedBox(height: 6),
@@ -453,7 +497,9 @@ class _FilterTabButton extends StatelessWidget {
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 color: isSelected
                     ? Colors.white
-                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    : (isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B)),
               ),
             ),
             if (hasUnreadBadge && !isSelected) ...[
@@ -488,15 +534,23 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardBg = isDark
-        ? (notification.isRead ? const Color(0xFF1E293B) : const Color(0xFF1E293B).withValues(alpha: 0.8))
+        ? (notification.isRead
+              ? const Color(0xFF1E293B)
+              : const Color(0xFF1E293B).withValues(alpha: 0.8))
         : (notification.isRead ? Colors.white : const Color(0xFFF0FDFA));
 
     final border = isDark
-        ? (notification.isRead ? const Color(0xFF334155) : const Color(0xFF0F766E).withValues(alpha: 0.5))
-        : (notification.isRead ? const Color(0xFFE2E8F0) : const Color(0xFF99F6E4));
+        ? (notification.isRead
+              ? const Color(0xFF334155)
+              : const Color(0xFF0F766E).withValues(alpha: 0.5))
+        : (notification.isRead
+              ? const Color(0xFFE2E8F0)
+              : const Color(0xFF99F6E4));
 
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
     const primaryTeal = Color(0xFF0F766E);
 
     final style = _getStyle(notification.type);
@@ -511,7 +565,10 @@ class _NotificationCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: border, width: notification.isRead ? 1 : 1.2),
+          border: Border.all(
+            color: border,
+            width: notification.isRead ? 1 : 1.2,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
@@ -550,7 +607,9 @@ class _NotificationCard extends StatelessWidget {
                           notification.title,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 13.5,
-                            fontWeight: notification.isRead ? FontWeight.w600 : FontWeight.w800,
+                            fontWeight: notification.isRead
+                                ? FontWeight.w600
+                                : FontWeight.w800,
                             color: textMain,
                           ),
                           maxLines: 1,
@@ -575,7 +634,9 @@ class _NotificationCard extends StatelessWidget {
                     notification.body,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12.5,
-                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                      color: isDark
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFF334155),
                       height: 1.35,
                     ),
                   ),

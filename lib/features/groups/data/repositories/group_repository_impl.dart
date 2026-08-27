@@ -48,7 +48,10 @@ class GroupRepositoryImpl implements GroupRepository {
   }
 
   @override
-  Future<Either<Failure, GroupPage<GroupEntity>>> listGroups({int? limit, String? cursor}) {
+  Future<Either<Failure, GroupPage<GroupEntity>>> listGroups({
+    int? limit,
+    String? cursor,
+  }) {
     return _guard(() async {
       final response = await _remote.listGroups(limit: limit, cursor: cursor);
       final data = response.requireData;
@@ -64,7 +67,8 @@ class GroupRepositoryImpl implements GroupRepository {
     return _guard(() async {
       final data = (await _remote.getGroupDetail(groupId)).requireData;
       final balances = <String, int>{
-        for (final b in data.balances) b.memberId: int.tryParse(b.netBalance) ?? 0,
+        for (final b in data.balances)
+          b.memberId: int.tryParse(b.netBalance) ?? 0,
       };
       final isCaptain = data.callerRole == 'captain';
       // Số dư của chính người gọi: tìm membership của caller trong danh sách
@@ -73,19 +77,26 @@ class GroupRepositoryImpl implements GroupRepository {
       // dựng nhóm với sĩ số thật; myBalance do provider điền sau khi biết
       // membership_id của caller.
       return GroupDetailResult(
-        group: data.group.toEntity(memberCount: data.members.length, isCaptain: isCaptain),
+        group: data.group.toEntity(
+          memberCount: data.members.length,
+          isCaptain: isCaptain,
+        ),
         members: data.members.map((m) => m.toEntity()).toList(),
         balances: balances,
         callerRole: data.callerRole,
         callerMembershipId: data.callerMembershipId,
         version: data.version,
         activeBillFinalizeBatchId: data.activeBillFinalizeBatchId,
+        latestBillFinalizeBatchId: data.latestBillFinalizeBatchId,
       );
     });
   }
 
   @override
-  Future<Either<Failure, GroupSyncResult>> syncGroup(String groupId, {required int since}) {
+  Future<Either<Failure, GroupSyncResult>> syncGroup(
+    String groupId, {
+    required int since,
+  }) {
     return _guard(() async {
       final data = (await _remote.syncGroup(groupId, since: since)).requireData;
       return data.toEntity();
@@ -93,7 +104,10 @@ class GroupRepositoryImpl implements GroupRepository {
   }
 
   @override
-  Stream<GroupSyncEvent> streamGroupEvents(String groupId, {required int since}) {
+  Stream<GroupSyncEvent> streamGroupEvents(
+    String groupId, {
+    required int since,
+  }) {
     // Stream cố ý KHÔNG bọc Either: lỗi ở đây là "kết nối đứt", không phải một
     // kết quả nghiệp vụ. Tầng gọi bắt lỗi để quyết định backoff, và dữ liệu
     // đúng vẫn về được qua syncGroup.
@@ -116,9 +130,14 @@ class GroupRepositoryImpl implements GroupRepository {
   }
 
   @override
-  Future<Either<Failure, GroupEntity>> renameGroup(String groupId, String name) {
+  Future<Either<Failure, GroupEntity>> renameGroup(
+    String groupId,
+    String name,
+  ) {
     return _guard(() async {
-      final data = (await _remote.renameGroup(groupId, {'name': name})).requireData;
+      final data = (await _remote.renameGroup(groupId, {
+        'name': name,
+      })).requireData;
       return data.group.toEntity();
     });
   }
@@ -190,7 +209,10 @@ class GroupRepositoryImpl implements GroupRepository {
   }
 
   @override
-  Future<Either<Failure, Unit>> leaveOrRemoveMember(String groupId, String membershipId) {
+  Future<Either<Failure, Unit>> leaveOrRemoveMember(
+    String groupId,
+    String membershipId,
+  ) {
     return _guard(() async {
       await _remote.leaveOrRemoveMember(groupId, membershipId);
       return unit;
@@ -198,7 +220,10 @@ class GroupRepositoryImpl implements GroupRepository {
   }
 
   @override
-  Future<Either<Failure, Unit>> transferCaptain(String groupId, String membershipId) {
+  Future<Either<Failure, Unit>> transferCaptain(
+    String groupId,
+    String membershipId,
+  ) {
     return _guard(() async {
       await _remote.transferRole(groupId, membershipId, {'role': 'captain'});
       return unit;
@@ -229,11 +254,17 @@ class GroupRepositoryImpl implements GroupRepository {
     return _guard(() async {
       final data = (await _remote.lockBillSubmissions(
         groupId,
-        // Khóa là thao tác một chiều: gửi lại vì mạng chập chờn không được
-        // biến thành lỗi, backend replay nguyên kết quả cũ theo khóa này.
         idempotencyKey: const Uuid().v4(),
       )).requireData;
       return data.lockedAt ?? DateTime.now();
+    });
+  }
+
+  @override
+  Future<Either<Failure, Unit>> unlockBillSubmissions(String groupId) {
+    return _guard(() async {
+      await _remote.unlockBillSubmissions(groupId);
+      return unit;
     });
   }
 

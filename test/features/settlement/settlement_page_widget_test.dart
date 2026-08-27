@@ -96,7 +96,7 @@ void main() {
         expect(find.byType(ReceivableProofsTab), findsOneWidget);
         expect(find.text('Trần Lâm'), findsOneWidget);
         expect(find.text('Chờ duyệt'), findsOneWidget);
-        expect(find.text('Xác nhận đã nhận tiền'), findsOneWidget);
+        expect(find.text('Xem & xác nhận'), findsOneWidget);
         expect(find.text('✕ Từ chối'), findsOneWidget);
         expect(find.text('Nhắc nợ'), findsWidgets);
 
@@ -381,6 +381,50 @@ void main() {
         expect(find.text('Nhắc nợ'), findsNothing);
       },
     );
+
+    testWidgets('Search button opens dialog and filters bills tab', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(testApp());
+      await tester.pumpAndSettle();
+
+      // Switch to bills tab
+      await tester.tap(find.text('Hóa đơn (3)'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AllBillsTab), findsOneWidget);
+      expect(find.text('Lẩu gà lá é Tao Ngộ'), findsOneWidget);
+      expect(find.text('Vé xe Limousine Đà Lạt'), findsOneWidget);
+
+      // Open search dialog
+      await tester.tap(find.byTooltip('Tìm kiếm hóa đơn'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tìm kiếm hóa đơn'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Lẩu gà');
+      await tester.tap(find.text('Tìm'));
+      await tester.pumpAndSettle();
+
+      // Only matching bill should remain
+      expect(find.text('Lẩu gà lá é Tao Ngộ'), findsOneWidget);
+      expect(find.text('Vé xe Limousine Đà Lạt'), findsNothing);
+
+      // Search banner should appear with "Xóa lọc"
+      expect(find.text('Xóa lọc'), findsOneWidget);
+
+      // Tap "Xóa lọc" button to clear search filter
+      await tester.tap(find.text('Xóa lọc'));
+      await tester.pumpAndSettle();
+
+      // All bills should be restored
+      expect(find.text('Lẩu gà lá é Tao Ngộ'), findsOneWidget);
+      expect(find.text('Vé xe Limousine Đà Lạt'), findsOneWidget);
+      expect(find.text('Xóa lọc'), findsNothing);
+    });
   });
 }
 

@@ -186,6 +186,9 @@ class SettlementOverviewEntity {
   final int receivableCount;
   final int activeGroupsCount;
   final int pendingProofCount;
+
+  int get netBalance => totalReceivable - totalPayable;
+  bool get isPositive => netBalance >= 0;
 }
 
 class SettledHistoryEntity {

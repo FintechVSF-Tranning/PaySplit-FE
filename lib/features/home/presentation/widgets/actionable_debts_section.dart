@@ -2,8 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+import '../../../../core/utils/currency_formatter.dart';
+import '../../../settlement/domain/entities/settlement_entities.dart';
+
 class ActionableDebtsSection extends StatefulWidget {
   const ActionableDebtsSection({
+    this.payableDebts = const [],
+    this.receivableDebts = const [],
+    this.pendingProofs = const [],
+    this.isLoading = false,
     this.onViewAll,
     this.onPayQr,
     this.onReviewProof,
@@ -11,10 +18,15 @@ class ActionableDebtsSection extends StatefulWidget {
     super.key,
   });
 
+  final List<DebtItemEntity> payableDebts;
+  final List<DebtItemEntity> receivableDebts;
+  final List<ProofDetailEntity> pendingProofs;
+  final bool isLoading;
+
   final void Function(int selectedTab)? onViewAll;
-  final void Function(String name, String amount, String context)? onPayQr;
-  final void Function(String name, String amount)? onReviewProof;
-  final void Function(String name)? onRemind;
+  final void Function(DebtItemEntity debt)? onPayQr;
+  final void Function(ProofDetailEntity proof)? onReviewProof;
+  final void Function(DebtItemEntity debt)? onRemind;
 
   @override
   State<ActionableDebtsSection> createState() => _ActionableDebtsSectionState();
@@ -29,6 +41,8 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
     final primaryTeal = const Color(0xFF0F766E);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
 
+    final totalCount = widget.payableDebts.length + widget.receivableDebts.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -36,19 +50,23 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Khoản nợ cần xử lý',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: textMain,
-                letterSpacing: -0.2,
+            Flexible(
+              child: Text(
+                'Khoản nợ cần xử lý',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: textMain,
+                  letterSpacing: -0.2,
+                ),
               ),
             ),
             InkWell(
               onTap: () => widget.onViewAll?.call(_selectedTab),
               child: Text(
-                'Xem tất cả (5)',
+                'Xem tất cả ($totalCount)',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -70,65 +88,92 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildTabButton(title: 'Cần trả (2)', index: 0, isDark: isDark),
-              _buildTabButton(title: 'Cần thu (3)', index: 1, isDark: isDark),
+              _buildTabButton(
+                title: 'Cần trả (${widget.payableDebts.length})',
+                index: 0,
+                isDark: isDark,
+              ),
+              _buildTabButton(
+                title: 'Cần thu (${widget.receivableDebts.length})',
+                index: 1,
+                isDark: isDark,
+              ),
             ],
           ),
         ),
         const SizedBox(height: 12),
 
         // Debt Items
-        if (_selectedTab == 0) ...[
-          _DebtCardItem(
-            emoji: '🍕',
-            emojiBg: const Color(0xFFFEF3C7),
-            name: 'Minh Trần',
-            contextDesc: 'Cơm trưa phòng Dev • Lẩu gà',
-            amount: '-120.000 đ',
-            isPayable: true,
-            onAction: () => widget.onPayQr?.call('Minh Trần', '120.000 đ', 'Cơm trưa phòng Dev'),
-          ),
+        if (widget.isLoading) ...[
+          _buildSkeletonCard(isDark),
           const SizedBox(height: 8),
-          _DebtCardItem(
-            emoji: '🏖',
-            emojiBg: const Color(0xFFE0E7FF),
-            name: 'Hải Đăng',
-            contextDesc: 'Du lịch Đà Lạt • Xe Limousine',
-            amount: '-280.000 đ',
-            isPayable: true,
-            onAction: () => widget.onPayQr?.call('Hải Đăng', '280.000 đ', 'Du lịch Đà Lạt'),
-          ),
+          _buildSkeletonCard(isDark),
+        ] else if (_selectedTab == 0) ...[
+          if (widget.payableDebts.isEmpty)
+            _buildEmptyState(
+              icon: HugeIcons.strokeRoundedCheckmarkBadge01,
+              title: 'Không có khoản nợ nào cần trả',
+              subtitle: 'Bạn đã hoàn tất tất cả các khoản thanh toán',
+              isDark: isDark,
+            )
+          else ...[
+            for (int i = 0; i < widget.payableDebts.take(3).length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              _DebtCardItem(
+                name: widget.payableDebts[i].creditorName,
+                avatarUrl: widget.payableDebts[i].creditorAvatar,
+                contextDesc: '${widget.payableDebts[i].groupName} • ${widget.payableDebts[i].billTitle}',
+                amount: '-${CurrencyFormatter.formatVND(widget.payableDebts[i].amount)}',
+                isPayable: true,
+                onAction: () => widget.onPayQr?.call(widget.payableDebts[i]),
+              ),
+            ],
+          ],
         ] else ...[
-          _DebtCardItem(
-            emoji: '🍕',
-            emojiBg: const Color(0xFFFEF3C7),
-            name: 'Trần Lâm',
-            contextDesc: 'Cơm trưa phòng Dev • Đã gửi bill',
-            amount: '+120.000 đ',
-            isPayable: false,
-            isReviewProof: true,
-            onAction: () => widget.onReviewProof?.call('Trần Lâm', '120.000 đ'),
-          ),
-          const SizedBox(height: 8),
-          _DebtCardItem(
-            emoji: '🍜',
-            emojiBg: const Color(0xFFDCFCE7),
-            name: 'Nguyễn Khoa',
-            contextDesc: 'Phở sáng Cty • Chờ chuyển',
-            amount: '+80.000 đ',
-            isPayable: false,
-            onAction: () => widget.onRemind?.call('Nguyễn Khoa'),
-          ),
-          const SizedBox(height: 8),
-          _DebtCardItem(
-            emoji: '🏖',
-            emojiBg: const Color(0xFFE0E7FF),
-            name: 'Bảo Hưng',
-            contextDesc: 'Du lịch Đà Lạt • Homestay',
-            amount: '+1.050.000 đ',
-            isPayable: false,
-            onAction: () => widget.onRemind?.call('Bảo Hưng'),
-          ),
+          if (widget.receivableDebts.isEmpty)
+            _buildEmptyState(
+              icon: HugeIcons.strokeRoundedCoins01,
+              title: 'Không có khoản nào cần thu',
+              subtitle: 'Mọi người đã thanh toán đầy đủ cho bạn',
+              isDark: isDark,
+            )
+          else ...[
+            for (int i = 0; i < widget.receivableDebts.take(3).length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              () {
+                final debt = widget.receivableDebts[i];
+                final isPendingProof = debt.status == DebtStatus.pendingConfirmation;
+                ProofDetailEntity? matchedProof;
+                if (isPendingProof) {
+                  matchedProof = widget.pendingProofs
+                      .where(
+                        (p) =>
+                            p.paymentId == debt.paymentId ||
+                            (p.groupId == debt.groupId && p.debtorName == debt.debtorName),
+                      )
+                      .firstOrNull;
+                }
+
+                return _DebtCardItem(
+                  name: debt.debtorName,
+                  avatarUrl: debt.debtorAvatar,
+                  contextDesc: '${debt.groupName} • ${debt.billTitle}',
+                  amount: '+${CurrencyFormatter.formatVND(debt.amount)}',
+                  isPayable: false,
+                  isReviewProof: isPendingProof,
+                  onAction: () {
+                    if (isPendingProof && matchedProof != null) {
+                      widget.onReviewProof?.call(matchedProof);
+                    } else if (isPendingProof && widget.onViewAll != null) {
+                      widget.onViewAll?.call(1);
+                    } else {
+                      widget.onRemind?.call(debt);
+                    }
+                  },
+                );
+              }(),
+            ],
+          ],
         ],
       ],
     );
@@ -175,13 +220,116 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
       ),
     );
   }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isDark,
+  }) {
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: const Color(0xFF0F766E), size: 22),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: textMain,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11.5,
+              color: textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeletonCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  width: 120,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DebtCardItem extends StatelessWidget {
   const _DebtCardItem({
-    required this.emoji,
-    required this.emojiBg,
     required this.name,
+    this.avatarUrl,
     required this.contextDesc,
     required this.amount,
     required this.isPayable,
@@ -189,14 +337,20 @@ class _DebtCardItem extends StatelessWidget {
     this.onAction,
   });
 
-  final String emoji;
-  final Color emojiBg;
   final String name;
+  final String? avatarUrl;
   final String contextDesc;
   final String amount;
   final bool isPayable;
   final bool isReviewProof;
   final VoidCallback? onAction;
+
+  static String _getInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,16 +379,47 @@ class _DebtCardItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Emoji avatar box
+          // Avatar box
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: emojiBg,
+              gradient: LinearGradient(
+                colors: isPayable
+                    ? const [Color(0xFFFEF3C7), Color(0xFFFDE68A)]
+                    : const [Color(0xFFE0E7FF), Color(0xFFC7D2FE)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 18)),
+              child: (avatarUrl != null && avatarUrl!.isNotEmpty)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        avatarUrl!,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Text(
+                          _getInitials(name),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: isPayable ? const Color(0xFFB45309) : const Color(0xFF4338CA),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Text(
+                      _getInitials(name),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isPayable ? const Color(0xFFB45309) : const Color(0xFF4338CA),
+                      ),
+                    ),
             ),
           ),
           const SizedBox(width: 12),
@@ -246,6 +431,8 @@ class _DebtCardItem extends StatelessWidget {
               children: [
                 Text(
                   name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,

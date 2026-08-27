@@ -47,26 +47,28 @@ class ProfilePage extends ConsumerWidget {
         : const Color(0xFF64748B);
     final primaryTeal = const Color(0xFF0F766E);
 
+    final statusBarHeight = MediaQuery.paddingOf(context).top;
+
     return Scaffold(
       backgroundColor: bg,
-      body: Stack(
-        children: [
-          // 1. Organic Curved Top Wave Header Background
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: CustomPaint(
-              size: const Size(double.infinity, 270),
-              painter: _ProfileHeaderWavePainter(isDark: isDark),
+      body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Stack(
+          children: [
+            // 1. Organic Curved Top Wave Header Background (cuộn cùng nội dung)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: CustomPaint(
+                size: Size(double.infinity, 270 + statusBarHeight),
+                painter: _ProfileHeaderWavePainter(isDark: isDark),
+              ),
             ),
-          ),
 
-          // 2. Scrollable Body
-          SafeArea(
-            bottom: false,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+            // 2. Scrollable Body
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, 8 + statusBarHeight, 16, 40),
               child: Column(
                 children: [
                   // Top Nav Bar
@@ -625,8 +627,8 @@ class ProfilePage extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

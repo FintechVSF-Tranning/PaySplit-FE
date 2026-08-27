@@ -26,6 +26,7 @@ class GroupEntity extends Equatable {
     this.lastActivityAt,
     this.pendingBillCount = 0,
     this.status = GroupStatus.active,
+    this.billSubmissionLocked = false,
     this.closedAtText,
     this.createdAt,
   });
@@ -53,15 +54,24 @@ class GroupEntity extends Equatable {
   final int pendingBillCount;
   final GroupStatus status;
 
+  /// Chính sách tiếp nhận hóa đơn của nhóm. Khóa này không làm thay đổi vòng
+  /// đời nhóm và không chặn quản lý thành viên hay thanh toán công nợ.
+  final bool billSubmissionLocked;
+
   /// Ngày khóa hóa đơn hiển thị trên thẻ nhóm, chỉ có khi [isClosed].
   final String? closedAtText;
 
-  bool get isClosed => status == GroupStatus.closed;
+  @Deprecated('Use billSubmissionLocked for bill creation policy')
+  bool get isClosed => billSubmissionLocked;
 
   /// Chữ viết tắt hiển thị trên avatar nhóm: hai chữ cái đầu của hai từ đầu
   /// tiên trong tên. Thay cho icon emoji đã bỏ.
   String get initials {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return 'PS';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
     return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
@@ -75,8 +85,17 @@ class GroupEntity extends Equatable {
 
   /// Link mời chia sẻ được ra ngoài ứng dụng (deep link universal).
   /// `null` khi [inviteCode] chưa được tải.
-  String? get inviteLink => inviteCode == null ? null : 'https://paysplit.app/j/$inviteCode';
+  String? get inviteLink =>
+      inviteCode == null ? null : 'https://paysplit.app/j/$inviteCode';
 
   @override
-  List<Object?> get props => [id, name, memberCount, myBalance, inviteCode, status];
+  List<Object?> get props => [
+    id,
+    name,
+    memberCount,
+    myBalance,
+    inviteCode,
+    status,
+    billSubmissionLocked,
+  ];
 }

@@ -21,6 +21,10 @@ class GroupRosterState {
     this.callerRole = '',
     this.callerMembershipId = '',
     this.groupName,
+    this.billSubmissionLocked = false,
+    this.billSubmissionLockedAtText,
+    this.activeBillFinalizeBatchId,
+    this.latestBillFinalizeBatchId,
     this.isLoading = true,
     this.isLive = false,
     this.failure,
@@ -42,6 +46,10 @@ class GroupRosterState {
   /// membership_id của chính người gọi — dùng để đánh dấu "tôi" trong danh sách.
   final String callerMembershipId;
   final String? groupName;
+  final bool billSubmissionLocked;
+  final String? billSubmissionLockedAtText;
+  final String? activeBillFinalizeBatchId;
+  final String? latestBillFinalizeBatchId;
   final bool isLoading;
 
   /// Đang có kết nối SSE. `false` không có nghĩa là dữ liệu sai — chỉ là độ trễ
@@ -62,6 +70,11 @@ class GroupRosterState {
     String? callerRole,
     String? callerMembershipId,
     String? groupName,
+    bool? billSubmissionLocked,
+    String? billSubmissionLockedAtText,
+    bool clearBillSubmissionLock = false,
+    String? activeBillFinalizeBatchId,
+    String? latestBillFinalizeBatchId,
     bool? isLoading,
     bool? isLive,
     Failure? failure,
@@ -75,6 +88,12 @@ class GroupRosterState {
       callerRole: callerRole ?? this.callerRole,
       callerMembershipId: callerMembershipId ?? this.callerMembershipId,
       groupName: groupName ?? this.groupName,
+      billSubmissionLocked: clearBillSubmissionLock ? false : (billSubmissionLocked ?? this.billSubmissionLocked),
+      billSubmissionLockedAtText: clearBillSubmissionLock ? null : (billSubmissionLockedAtText ?? this.billSubmissionLockedAtText),
+      activeBillFinalizeBatchId:
+          activeBillFinalizeBatchId ?? this.activeBillFinalizeBatchId,
+      latestBillFinalizeBatchId:
+          latestBillFinalizeBatchId ?? this.latestBillFinalizeBatchId,
       isLoading: isLoading ?? this.isLoading,
       isLive: isLive ?? this.isLive,
       failure: clearFailure ? null : (failure ?? this.failure),
@@ -94,7 +113,8 @@ class GroupRosterState {
 ///
 /// Vì lớp 3 luôn có mặt, lớp 2 đứt lúc nào cũng không làm sai dữ liệu — nó chỉ
 /// làm tăng độ trễ.
-class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBindingObserver {
+class GroupRosterNotifier extends StateNotifier<GroupRosterState>
+    with WidgetsBindingObserver {
   GroupRosterNotifier(this.groupId) : super(const GroupRosterState()) {
     WidgetsBinding.instance.addObserver(this);
     _bootstrap();
@@ -125,6 +145,10 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
         callerRole: detail.callerRole,
         callerMembershipId: detail.callerMembershipId,
         groupName: detail.group.name,
+        billSubmissionLocked: detail.group.billSubmissionLocked,
+        billSubmissionLockedAtText: detail.group.closedAtText,
+        activeBillFinalizeBatchId: detail.activeBillFinalizeBatchId,
+        latestBillFinalizeBatchId: detail.latestBillFinalizeBatchId,
         isLoading: false,
         clearFailure: true,
       ),
@@ -160,7 +184,10 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
     _attempt++;
     final jittered = base * (0.7 + _random.nextDouble() * 0.6);
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(Duration(milliseconds: (jittered * 1000).round()), () => _reconnect());
+    _reconnectTimer = Timer(
+      Duration(milliseconds: (jittered * 1000).round()),
+      () => _reconnect(),
+    );
   }
 
   /// Nối lại: catch-up trước rồi mới mở stream, vì những gì xảy ra lúc mất kết
@@ -185,6 +212,22 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
     state = state.copyWith(groupName: trimmed);
   }
 
+  void applyLocalBillLock(String lockedAtText, {String? activeBatchId}) {
+    if (_closed) return;
+    state = state.copyWith(
+      billSubmissionLocked: true,
+      billSubmissionLockedAtText: lockedAtText,
+      activeBillFinalizeBatchId: activeBatchId,
+    );
+  }
+
+  void applyLocalBillUnlock() {
+    if (_closed) return;
+    state = state.copyWith(
+      clearBillSubmissionLock: true,
+    );
+  }
+
   Future<void> resync() async {
     if (_closed) return;
     final result = await getIt<SyncGroupUseCase>().call(
@@ -207,7 +250,10 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
       for (final event in sync.events) {
         _apply(event, fromCatchUp: true);
       }
-      state = state.copyWith(version: max(state.version, sync.version), clearFailure: true);
+      state = state.copyWith(
+        version: max(state.version, sync.version),
+        clearFailure: true,
+      );
     });
   }
 
@@ -241,13 +287,18 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
         final member = event.member!;
         // Chèn idempotent: một thành viên tái kích hoạt có thể đã nằm sẵn
         // trong danh sách của snapshot vừa nhận.
-        final members = [...state.members.where((m) => m.id != member.id), member];
+        final members = [
+          ...state.members.where((m) => m.id != member.id),
+          member,
+        ];
         state = state.copyWith(members: members, version: event.version);
 
       case GroupSyncEventType.memberLeft:
       case GroupSyncEventType.memberRemoved:
         state = state.copyWith(
-          members: state.members.where((m) => m.id != event.membershipId).toList(),
+          members: state.members
+              .where((m) => m.id != event.membershipId)
+              .toList(),
           version: event.version,
         );
 
@@ -269,10 +320,16 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
         );
 
       case GroupSyncEventType.groupRenamed:
-        state = state.copyWith(groupName: event.groupName, version: event.version);
+        state = state.copyWith(
+          groupName: event.groupName,
+          version: event.version,
+        );
 
       case GroupSyncEventType.groupArchived:
-        state = state.copyWith(version: event.version, endedReason: 'group_archived');
+        state = state.copyWith(
+          version: event.version,
+          endedReason: 'group_archived',
+        );
         _teardown();
 
       case GroupSyncEventType.unknown:
@@ -284,7 +341,9 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
     // Biết membership của chính mình nên vai trò mới suy được trực tiếp, không
     // phải đoán từ vai trò cũ.
     if (state.callerMembershipId.isEmpty) return state.callerRole;
-    return event.currentCaptainMembershipId == state.callerMembershipId ? 'captain' : 'member';
+    return event.currentCaptainMembershipId == state.callerMembershipId
+        ? 'captain'
+        : 'member';
   }
 
   GroupMemberEntity _withRole(GroupMemberEntity member, GroupMemberRole role) {
@@ -342,9 +401,8 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState> with WidgetsBi
 /// chuyện dựng lại kết nối khi chuyển tab; chỉ khi rời hẳn màn hình mới đóng.
 /// Không có `autoDispose` thì mỗi nhóm từng mở giữ một stream sống tới lúc
 /// thoát app.
-final groupRosterProvider =
-    StateNotifierProvider.autoDispose
-        .family<GroupRosterNotifier, GroupRosterState, String>((ref, groupId) {
-          ref.watch(sessionRevisionProvider);
-          return GroupRosterNotifier(groupId);
-        });
+final groupRosterProvider = StateNotifierProvider.autoDispose
+    .family<GroupRosterNotifier, GroupRosterState, String>((ref, groupId) {
+      ref.watch(sessionRevisionProvider);
+      return GroupRosterNotifier(groupId);
+    });

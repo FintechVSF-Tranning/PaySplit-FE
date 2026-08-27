@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/full_screen_image_viewer.dart';
 import '../../domain/entities/settlement_entities.dart';
 
 class ProofReviewSheet extends StatefulWidget {
@@ -143,42 +144,99 @@ class _ProofReviewSheetState extends State<ProofReviewSheet> {
               ),
             ),
             const SizedBox(height: 14),
-            AspectRatio(
-              aspectRatio: 4 / 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? AppColors.darkSurfaceSubtle
-                      : AppColors.surfaceSubtle,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: border),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: proofUrl == null
-                    ? _proofError('Biên lai không có ảnh để kiểm tra')
-                    : Image.network(
-                        proofUrl,
-                        key: const Key('proof-image'),
-                        fit: BoxFit.contain,
-                        semanticLabel: 'Ảnh biên lai chuyển tiền',
-                        frameBuilder: (context, child, frame, syncLoaded) {
-                          if (syncLoaded || frame != null) _markImageLoaded();
-                          return child;
-                        },
-                        loadingBuilder: (context, child, progress) {
-                          if (progress == null) return child;
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          _markImageFailed();
-                          return _proofError(
-                            'Không tải được ảnh biên lai. Hãy thử mở lại để lấy liên kết mới.',
-                          );
-                        },
+            InkWell(
+              onTap: proofUrl != null
+                  ? () {
+                      FullScreenImageViewer.show(
+                        context,
+                        imageUrl: proofUrl,
+                        title: 'Bằng chứng chuyển tiền',
+                        subtitle:
+                            '${proof.debtorName} • ${CurrencyFormatter.vnd(proof.amount)}',
+                      );
+                    }
+                  : null,
+              borderRadius: BorderRadius.circular(14),
+              child: AspectRatio(
+                aspectRatio: 4 / 3,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.darkSurfaceSubtle
+                        : AppColors.surfaceSubtle,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: border),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: proofUrl == null
+                            ? _proofError('Biên lai không có ảnh để kiểm tra')
+                            : Image.network(
+                                proofUrl,
+                                key: const Key('proof-image'),
+                                fit: BoxFit.contain,
+                                semanticLabel: 'Ảnh biên lai chuyển tiền',
+                                frameBuilder:
+                                    (context, child, frame, syncLoaded) {
+                                  if (syncLoaded || frame != null) {
+                                    _markImageLoaded();
+                                  }
+                                  return child;
+                                },
+                                loadingBuilder: (context, child, progress) {
+                                  if (progress == null) return child;
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  _markImageFailed();
+                                  return _proofError(
+                                    'Không tải được ảnh biên lai. Hãy thử mở lại để lấy liên kết mới.',
+                                  );
+                                },
+                              ),
                       ),
+                      if (proofUrl != null)
+                        Positioned(
+                          right: 8,
+                          bottom: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  HugeIcons.strokeRoundedMaximize02,
+                                  size: 12,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Chạm để phóng to',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 14),

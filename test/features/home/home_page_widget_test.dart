@@ -59,8 +59,8 @@ void main() {
       // 3. Actionable Debts Section
       expect(find.byType(ActionableDebtsSection), findsOneWidget);
       expect(find.text('Khoản nợ cần xử lý'), findsOneWidget);
-      expect(find.text('Cần trả (2)'), findsOneWidget);
-      expect(find.text('Cần thu (3)'), findsOneWidget);
+      expect(find.text('Cần trả (3)'), findsOneWidget);
+      expect(find.text('Cần thu (2)'), findsOneWidget);
 
       // 4. Groups Carousel
       expect(find.byType(MyGroupsCarousel), findsOneWidget);
@@ -100,14 +100,87 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Minh Trần'), findsOneWidget);
+      expect(find.text('Minh Tran'), findsWidgets);
 
-      // Tap on "Cần thu (3)" tab
-      await tester.tap(find.text('Cần thu (3)'));
+      // Tap on "Cần thu (2)" tab
+      await tester.tap(find.text('Cần thu (2)'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Trần Lâm'), findsOneWidget);
-      expect(find.text('Duyệt proof'), findsOneWidget);
+      expect(find.text('Nguyễn Khoa'), findsOneWidget);
+    });
+
+    testWidgets('Tapping Trả VietQR on HomePage opens SelectDebtBatchSheet modal', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settlementRepositoryProvider.overrideWithValue(
+              MockSettlementRepository(),
+            ),
+            homeGroupsProvider.overrideWith(
+              (ref) => Future.value([
+                const HomeGroupItemEntity(
+                  id: '1',
+                  name: 'Phòng Dev Cty',
+                  currency: 'VND',
+                  callerRole: 'captain',
+                  activeMemberCount: 5,
+                ),
+              ]),
+            ),
+          ],
+          child: const MaterialApp(home: HomePage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap on Trả VietQR button
+      await tester.tap(find.text('Trả VietQR'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Chọn khoản nợ & Trả gộp'), findsOneWidget);
+    });
+
+    testWidgets('Tapping Trả QR on debt card opens DynamicVietQrSheet modal', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settlementRepositoryProvider.overrideWithValue(
+              MockSettlementRepository(),
+            ),
+            homeGroupsProvider.overrideWith(
+              (ref) => Future.value([
+                const HomeGroupItemEntity(
+                  id: '1',
+                  name: 'Phòng Dev Cty',
+                  currency: 'VND',
+                  callerRole: 'captain',
+                  activeMemberCount: 5,
+                ),
+              ]),
+            ),
+          ],
+          child: const MaterialApp(home: HomePage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap on the first Trả QR button in the payable debts list
+      await tester.tap(find.text('Trả QR').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Thanh toán qua VietQR'), findsOneWidget);
     });
   });
 }

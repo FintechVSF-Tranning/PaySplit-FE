@@ -82,7 +82,9 @@ class SettlementState {
 }
 
 final settlementRemoteDataSourceProvider = Provider<SettlementRemoteDataSource>(
-  (ref) => SettlementRemoteDataSourceImpl(getIt<Dio>()),
+  (ref) => SettlementRemoteDataSourceImpl(
+    getIt.isRegistered<Dio>() ? getIt<Dio>() : Dio(),
+  ),
 );
 
 final settlementRepositoryProvider = Provider<SettlementRepository>((ref) {

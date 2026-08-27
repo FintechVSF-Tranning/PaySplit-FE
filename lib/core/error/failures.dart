@@ -12,12 +12,22 @@ abstract class Failure extends Equatable {
 }
 
 class ServerFailure extends Failure {
-  const ServerFailure(super.message, {super.code, this.statusCode});
+  const ServerFailure(
+    super.message, {
+    super.code,
+    this.statusCode,
+    this.details,
+  });
 
   final int? statusCode;
 
+  /// Structured error details from the API `error.details` object.
+  /// Used to carry contextual data (e.g. `active_batch_id` for
+  /// `BULK_FINALIZE_IN_PROGRESS`) without exposing raw JSON.
+  final Map<String, String>? details;
+
   @override
-  List<Object?> get props => [message, code, statusCode];
+  List<Object?> get props => [message, code, statusCode, details];
 }
 
 class NetworkFailure extends Failure {
@@ -31,8 +41,10 @@ class CacheFailure extends Failure {
 }
 
 class UnauthorizedFailure extends Failure {
-  const UnauthorizedFailure([super.message = 'Phiên đăng nhập hết hạn', String? code])
-    : super(code: code ?? 'UNAUTHORIZED');
+  const UnauthorizedFailure([
+    super.message = 'Phiên đăng nhập hết hạn',
+    String? code,
+  ]) : super(code: code ?? 'UNAUTHORIZED');
 }
 
 class ValidationFailure extends Failure {
@@ -45,8 +57,10 @@ class ValidationFailure extends Failure {
 }
 
 class UnexpectedFailure extends Failure {
-  const UnexpectedFailure([super.message = 'Đã có lỗi xảy ra, vui lòng thử lại', String? code])
-    : super(code: code ?? 'UNEXPECTED_ERROR');
+  const UnexpectedFailure([
+    super.message = 'Đã có lỗi xảy ra, vui lòng thử lại',
+    String? code,
+  ]) : super(code: code ?? 'UNEXPECTED_ERROR');
 }
 
 /// Body 2xx nhưng sai shape so với hợp đồng API: `ApiResponse.requireData` ném

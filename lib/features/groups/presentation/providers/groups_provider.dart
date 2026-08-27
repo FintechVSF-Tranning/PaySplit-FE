@@ -62,7 +62,9 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
 
   Future<void> refresh() async {
     state = state.copyWith(isLoading: true, clearFailure: true);
-    final result = await getIt<ListGroupsUseCase>().call(const ListGroupsParams(limit: _pageSize));
+    final result = await getIt<ListGroupsUseCase>().call(
+      const ListGroupsParams(limit: _pageSize),
+    );
     state = result.fold(
       (failure) => state.copyWith(isLoading: false, failure: failure),
       (page) => GroupsState(groups: page.items, nextCursor: page.nextCursor),
@@ -78,20 +80,28 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
     );
     state = result.fold(
       (failure) => state.copyWith(isLoadingMore: false, failure: failure),
-      (page) => GroupsState(groups: [...state.groups, ...page.items], nextCursor: page.nextCursor),
+      (page) => GroupsState(
+        groups: [...state.groups, ...page.items],
+        nextCursor: page.nextCursor,
+      ),
     );
   }
 
   /// Tạo nhóm và đưa lên đầu danh sách. Trả về nhóm vừa tạo, hoặc `null` khi lỗi.
   Future<GroupEntity?> createGroup({required String name}) async {
-    final result = await getIt<CreateGroupUseCase>().call(CreateGroupParams(name: name.trim()));
+    final result = await getIt<CreateGroupUseCase>().call(
+      CreateGroupParams(name: name.trim()),
+    );
     return result.fold(
       (failure) {
         state = state.copyWith(failure: failure);
         return null;
       },
       (group) {
-        state = state.copyWith(groups: [group, ...state.groups], clearFailure: true);
+        state = state.copyWith(
+          groups: [group, ...state.groups],
+          clearFailure: true,
+        );
         return group;
       },
     );
@@ -120,7 +130,9 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
   Future<Failure?> disbandGroup(String groupId) async {
     final result = await getIt<DisbandGroupUseCase>().call(groupId);
     return result.fold((failure) => failure, (_) {
-      state = state.copyWith(groups: state.groups.where((g) => g.id != groupId).toList());
+      state = state.copyWith(
+        groups: state.groups.where((g) => g.id != groupId).toList(),
+      );
       return null;
     });
   }
@@ -131,7 +143,9 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
       MemberParams(groupId: groupId, membershipId: myMembershipId),
     );
     return result.fold((failure) => failure, (_) {
-      state = state.copyWith(groups: state.groups.where((g) => g.id != groupId).toList());
+      state = state.copyWith(
+        groups: state.groups.where((g) => g.id != groupId).toList(),
+      );
       return null;
     });
   }
@@ -162,8 +176,29 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
         lastActivity: g.lastActivity,
         lastActivityAt: g.lastActivityAt,
         pendingBillCount: g.pendingBillCount,
-        status: GroupStatus.closed,
+        status: g.status,
+        billSubmissionLocked: true,
         closedAtText: closedAtText,
+        createdAt: g.createdAt,
+      ),
+    );
+  }
+
+  /// Áp trạng thái mở khóa nhận hóa đơn vào danh sách sau khi mở khóa thành công.
+  void markGroupUnlockedLocally(String groupId) {
+    _replace(
+      groupId,
+      (g) => GroupEntity(
+        id: g.id,
+        name: g.name,
+        memberCount: g.memberCount,
+        myBalance: g.myBalance,
+        inviteCode: g.inviteCode,
+        isCaptain: g.isCaptain,
+        lastActivity: g.lastActivity,
+        lastActivityAt: g.lastActivityAt,
+        pendingBillCount: g.pendingBillCount,
+        status: g.status,
         createdAt: g.createdAt,
       ),
     );
@@ -241,12 +276,15 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
     lastActivityAt: current.lastActivityAt,
     pendingBillCount: current.pendingBillCount,
     status: updated.status,
+    billSubmissionLocked: updated.billSubmissionLocked,
     closedAtText: updated.closedAtText,
     createdAt: current.createdAt ?? updated.createdAt,
   );
 }
 
-final groupsProvider = StateNotifierProvider<GroupsNotifier, GroupsState>((ref) {
+final groupsProvider = StateNotifierProvider<GroupsNotifier, GroupsState>((
+  ref,
+) {
   ref.watch(sessionRevisionProvider);
   return GroupsNotifier();
 });
@@ -255,14 +293,15 @@ final groupsProvider = StateNotifierProvider<GroupsNotifier, GroupsState>((ref) 
 /// có API "ghé thăm gần đây" riêng), xếp theo hoạt động mới nhất và bỏ nhóm đã
 /// khóa; tối đa 3 nhóm.
 final recentGroupsProvider = Provider<List<GroupEntity>>((ref) {
-  final groups = ref.watch(groupsProvider).groups.where((g) => !g.isClosed).toList()
-    ..sort((a, b) {
-      final aAt = a.lastActivityAt;
-      final bAt = b.lastActivityAt;
-      if (aAt == null && bAt == null) return 0;
-      if (aAt == null) return 1;
-      if (bAt == null) return -1;
-      return bAt.compareTo(aAt);
-    });
+  final groups =
+      ref.watch(groupsProvider).groups.where((g) => !g.isClosed).toList()
+        ..sort((a, b) {
+          final aAt = a.lastActivityAt;
+          final bAt = b.lastActivityAt;
+          if (aAt == null && bAt == null) return 0;
+          if (aAt == null) return 1;
+          if (bAt == null) return -1;
+          return bAt.compareTo(aAt);
+        });
   return groups.take(3).toList();
 });
