@@ -954,7 +954,8 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
 
   /// Thẻ trạng thái bill. Đang mở → mô tả + nút Khóa hóa đơn (chỉ Trưởng nhóm,
   /// chỉ bật khi không còn hóa đơn chia dở). Đã khóa → thẻ tổng kết tĩnh, nói
-  /// rõ vì sao phần còn lại của sheet bị mờ và mở khóa ở đâu.
+  /// rõ vì sao phần còn lại của sheet bị mờ; khóa là một chiều nên không có
+  /// lối mở lại.
   Widget _buildBillStatusCard() {
     if (_isClosed) {
       return Container(
@@ -987,8 +988,8 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                   const SizedBox(height: 2),
                   const Text(
                     'Bảng chia tiền đã chốt nên các thao tác quản trị bên trên tạm khóa. '
-                    'Công nợ vẫn thanh toán bình thường. Trưởng nhóm có thể mở khóa ở dải '
-                    'thông báo đầu màn Chi tiết nhóm.',
+                    'Công nợ vẫn thanh toán bình thường. Khóa hóa đơn là một chiều, '
+                    'không mở lại được.',
                     style: TextStyle(
                       fontFamily: 'Roboto Slab',
                       fontSize: 11,

@@ -5,6 +5,7 @@ import '../../../../di/injection.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
 import '../../domain/repositories/bill_repository.dart';
+import '../../../../app/session/session_scope.dart';
 
 class BillDetailState {
   final BillDetailEntity bill;
@@ -23,6 +24,7 @@ class BillDetailState {
   final Set<String>? evenSplitMemberIds;
   final bool isDirty;
   final bool isVoiding;
+  final bool isDeleting;
 
   const BillDetailState({
     required this.bill,
@@ -41,6 +43,7 @@ class BillDetailState {
     this.evenSplitMemberIds,
     this.isDirty = false,
     this.isVoiding = false,
+    this.isDeleting = false,
   });
 
   BillDetailState copyWith({
@@ -62,6 +65,7 @@ class BillDetailState {
     Set<String>? evenSplitMemberIds,
     bool? isDirty,
     bool? isVoiding,
+    bool? isDeleting,
   }) {
     return BillDetailState(
       bill: bill ?? this.bill,
@@ -83,6 +87,7 @@ class BillDetailState {
       evenSplitMemberIds: evenSplitMemberIds ?? this.evenSplitMemberIds,
       isDirty: isDirty ?? this.isDirty,
       isVoiding: isVoiding ?? this.isVoiding,
+      isDeleting: isDeleting ?? this.isDeleting,
     );
   }
 
@@ -856,6 +861,16 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         merchantName: state.bill.merchantName ?? 'Hoá đơn chi tiêu',
         total: state.bill.total,
         items: state.bill.items,
+        // Gửi đủ như khi lưu nháp: thiếu thuế phí và split_method thì bản ghi
+        // đầu tiên trên server đã sai ngay từ lúc tạo.
+        subtotal: state.computedGrossSubtotal,
+        serviceCharge: state.bill.serviceCharge,
+        vat: state.bill.vat,
+        discount: state.computedTotalItemDiscount + state.bill.generalDiscount,
+        splitMethod: state.bill.splitMethod.isEmpty
+            ? 'item_ratio'
+            : state.bill.splitMethod,
+        billDate: state.bill.billDate,
       );
 
       return result.match(
@@ -892,6 +907,10 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     final payload = {
       'merchant_name': state.bill.merchantName,
+      // Không gửi bill_date thì backend ghi NULL mỗi lần lưu, ngày trên hóa đơn
+      // bị thay bằng "hôm nay" ở lần mở lại.
+      if (state.bill.billDate != null)
+        'bill_date': state.bill.billDate!.toUtc().toIso8601String(),
       'subtotal': state.computedGrossSubtotal,
       'service_charge': state.bill.serviceCharge,
       'vat': state.bill.vat,
@@ -1021,6 +1040,12 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         return 'Không thể huỷ vì đã có thành viên bắt đầu thanh toán cho hoá đơn này.';
       case 'CAPTAIN_REQUIRED':
         return 'Chỉ Trưởng nhóm mới có quyền huỷ hoá đơn đã chốt.';
+      case 'BILL_IMMUTABLE':
+        return 'Hoá đơn đã rời trạng thái nháp nên không xóa được nữa. Dùng "Huỷ hoá đơn" nếu cần gỡ bỏ.';
+      case 'FORBIDDEN':
+        return 'Chỉ Trưởng nhóm hoặc người tạo hoá đơn mới được thao tác này.';
+      case 'BILL_NOT_FOUND':
+        return 'Hoá đơn không còn tồn tại, có thể đã bị xóa trước đó.';
       case 'VERSION_CONFLICT':
         return 'Dữ liệu hoá đơn đã bị thay đổi, vui lòng tải lại trang.';
       case 'GROUP_ARCHIVED':
@@ -1167,6 +1192,39 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     );
   }
 
+  /// Xóa hẳn một hoá đơn còn nháp (kèm ảnh đã tải lên).
+  ///
+  /// Khác [voidBill]: huỷ chỉ dùng cho hoá đơn đã chốt và giữ lại bản ghi cùng
+  /// lý do; xóa nháp là gỡ bỏ hẳn một hoá đơn chưa từng sinh công nợ.
+  Future<bool> deleteDraftBill() async {
+    // Hoá đơn chưa từng lưu lên server thì không có gì để xóa: rời màn hình là
+    // xong, gọi API chỉ tổ nhận 404.
+    if (state.bill.id.isEmpty || state.bill.id.startsWith('draft-')) {
+      return true;
+    }
+
+    state = state.copyWith(isDeleting: true);
+
+    final result = await _repository.deleteDraftBill(
+      billId: state.bill.id,
+      groupId: state.bill.groupId,
+    );
+
+    return result.match(
+      (failure) {
+        state = state.copyWith(
+          isDeleting: false,
+          errorMessage: 'Xóa hoá đơn thất bại: ${_friendlyBillError(failure)}',
+        );
+        return false;
+      },
+      (_) {
+        state = state.copyWith(isDeleting: false);
+        return true;
+      },
+    );
+  }
+
   /// Huỷ hoá đơn đã chốt (Chỉ Trưởng nhóm có quyền)
   Future<bool> voidBill({required String reason}) async {
     if (reason.trim().isEmpty) {
@@ -1230,6 +1288,7 @@ final billDetailNotifierProvider =
       BillDetailState,
       BillDetailEntity
     >((ref, initialBill) {
+      ref.watch(sessionRevisionProvider);
       final repository = getIt<BillRepository>();
       return BillDetailNotifier(repository, initialBill);
     });

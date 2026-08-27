@@ -266,6 +266,35 @@ class _EditItemDialogState extends State<EditItemDialog> {
         ),
         const SizedBox(height: 16),
 
+        // Nói thẳng vì sao không sửa được, thay vì để người dùng đoán tại sao
+        // các ô nhập biến mất.
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: border),
+          ),
+          child: Row(
+            children: [
+              Icon(HugeIcons.strokeRoundedInformationCircle, size: 15, color: textMuted),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Chỉ trưởng nhóm mới sửa được giá và nội dung món.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: textMuted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
         // Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -37,7 +37,9 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 
     final activeGroups = groups.where((g) => !g.isClosed).toList();
     final closedGroups = groups.where((g) => g.isClosed).toList();
-    final visibleGroups = _lifecycle == GroupStatus.active ? activeGroups : closedGroups;
+    final visibleGroups = _lifecycle == GroupStatus.active
+        ? activeGroups
+        : closedGroups;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF9),
@@ -56,122 +58,181 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 
           SafeArea(
             bottom: false,
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Header(groupCount: groups.length),
-                        const SizedBox(height: 18),
+            // Danh sách chỉ tự tải một lần mỗi phiên, mà tên nhóm / sĩ số thì
+            // người khác đổi lúc nào không biết — cho người dùng một cách chủ
+            // động lấy dữ liệu mới mà không phải khởi động lại app.
+            child: RefreshIndicator(
+              onRefresh: () => ref.read(groupsProvider.notifier).refresh(),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _Header(groupCount: groups.length),
+                          const SizedBox(height: 18),
 
-                        // Hàng ngang 2 nút tham gia nhóm
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _JoinActionTile(
-                                icon: HugeIcons.strokeRoundedLink01,
-                                label: 'Nhập link vào nhóm',
-                                onTap: () => _joinByLink(context, ref),
+                          // Hàng ngang 2 nút tham gia nhóm
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _JoinActionTile(
+                                  icon: HugeIcons.strokeRoundedLink01,
+                                  label: 'Nhập link vào nhóm',
+                                  onTap: () => _joinByLink(context, ref),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _JoinActionTile(
-                                icon: HugeIcons.strokeRoundedQrCode,
-                                label: 'Quét QR vào nhóm',
-                                onTap: () => _joinByQr(context, ref),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _JoinActionTile(
+                                  icon: HugeIcons.strokeRoundedQrCode,
+                                  label: 'Quét QR vào nhóm',
+                                  onTap: () => _joinByQr(context, ref),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-
-                        AppButton(
-                          label: 'Tạo nhóm chi tiêu mới',
-                          variant: AppButtonVariant.gradient,
-                          icon: const Icon(
-                            HugeIcons.strokeRoundedAdd01,
-                            size: 18,
-                            color: Colors.white,
+                            ],
                           ),
-                          onPressed: () => _createGroup(context, ref),
-                        ),
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 14),
 
-                        if (recentGroups.isNotEmpty) ...[
-                          _SectionTitle(title: 'Nhóm gần đây', trailing: 'Lịch sử truy cập'),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            height: 44,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: recentGroups.length,
-                              separatorBuilder: (_, _) => const SizedBox(width: 10),
-                              itemBuilder: (context, index) => _RecentGroupChip(
-                                group: recentGroups[index],
-                                onTap: () => _openDetail(context, recentGroups[index]),
-                              ),
+                          AppButton(
+                            label: 'Tạo nhóm chi tiêu mới',
+                            variant: AppButtonVariant.gradient,
+                            icon: const Icon(
+                              HugeIcons.strokeRoundedAdd01,
+                              size: 18,
+                              color: Colors.white,
                             ),
+                            onPressed: () => _createGroup(context, ref),
                           ),
                           const SizedBox(height: 24),
+
+                          if (recentGroups.isNotEmpty) ...[
+                            _SectionTitle(
+                              title: 'Nhóm gần đây',
+                              trailing: 'Lịch sử truy cập',
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              height: 44,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: recentGroups.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 10),
+                                itemBuilder: (context, index) =>
+                                    _RecentGroupChip(
+                                      group: recentGroups[index],
+                                      onTap: () => _openDetail(
+                                        context,
+                                        recentGroups[index],
+                                      ),
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          _SectionTitle(
+                            title: 'Nhóm của tôi',
+                            trailing: '${visibleGroups.length} nhóm',
+                          ),
+                          const SizedBox(height: 10),
+                          _LifecycleTabs(
+                            current: _lifecycle,
+                            activeCount: activeGroups.length,
+                            closedCount: closedGroups.length,
+                            onChanged: (value) {
+                              HapticFeedback.selectionClick();
+                              setState(() => _lifecycle = value);
+                            },
+                          ),
+                          const SizedBox(height: 12),
                         ],
-
-                        _SectionTitle(
-                          title: 'Nhóm của tôi',
-                          trailing: '${visibleGroups.length} nhóm',
-                        ),
-                        const SizedBox(height: 10),
-                        _LifecycleTabs(
-                          current: _lifecycle,
-                          activeCount: activeGroups.length,
-                          closedCount: closedGroups.length,
-                          onChanged: (value) {
-                            HapticFeedback.selectionClick();
-                            setState(() => _lifecycle = value);
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                    ),
-                  ),
-                ),
-
-                if (groupsState.isLoading && groups.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 48),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  )
-                else if (groupsState.failure != null && groups.isEmpty)
-                  SliverToBoxAdapter(
-                    child: _GroupsErrorState(
-                      message: groupsState.failure!.message,
-                      onRetry: () => ref.read(groupsProvider.notifier).refresh(),
-                    ),
-                  )
-                else if (groups.isEmpty)
-                  SliverToBoxAdapter(
-                    child: _EmptyGroupsState(onCreate: () => _createGroup(context, ref)),
-                  )
-                else if (visibleGroups.isEmpty)
-                  const SliverToBoxAdapter(child: _EmptyClosedState())
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                    sliver: SliverList.separated(
-                      itemCount: visibleGroups.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) => GroupListCard(
-                        group: visibleGroups[index],
-                        onTap: () => _openDetail(context, visibleGroups[index]),
                       ),
                     ),
                   ),
-              ],
+
+                  if (groupsState.isLoading && groups.isEmpty)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 48),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    )
+                  else if (groupsState.failure != null && groups.isEmpty)
+                    SliverToBoxAdapter(
+                      child: _GroupsErrorState(
+                        message: groupsState.failure!.message,
+                        onRetry: () =>
+                            ref.read(groupsProvider.notifier).refresh(),
+                      ),
+                    )
+                  else if (groups.isEmpty)
+                    SliverToBoxAdapter(
+                      child: _EmptyGroupsState(
+                        onCreate: () => _createGroup(context, ref),
+                      ),
+                    )
+                  else if (visibleGroups.isEmpty)
+                    const SliverToBoxAdapter(child: _EmptyClosedState())
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      sliver: SliverList.separated(
+                        itemCount: visibleGroups.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) => GroupListCard(
+                          group: visibleGroups[index],
+                          onTap: () =>
+                              _openDetail(context, visibleGroups[index]),
+                        ),
+                      ),
+                    ),
+
+                  // Backend phân trang 20 nhóm mỗi lần; thiếu chỗ này thì người
+                  // có nhiều nhóm không bao giờ thấy nhóm thứ 21.
+                  if (groupsState.nextCursor != null && groups.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                        child: OutlinedButton(
+                          onPressed: groupsState.isLoadingMore
+                              ? null
+                              : () =>
+                                    ref.read(groupsProvider.notifier).loadMore(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            side: const BorderSide(color: AppColors.border),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: groupsState.isLoadingMore
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'Tải thêm nhóm',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                ],
+              ),
             ),
           ),
         ],
@@ -198,19 +259,25 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
   }
 
   Future<void> _joinByQr(BuildContext context, WidgetRef ref) async {
-    final group = await Navigator.of(
-      context,
-    ).push<GroupEntity>(MaterialPageRoute(builder: (_) => const ScanQrJoinPage()));
+    final group = await Navigator.of(context).push<GroupEntity>(
+      MaterialPageRoute(builder: (_) => const ScanQrJoinPage()),
+    );
     if (group == null || !context.mounted) return;
     await _join(context, ref, group);
   }
 
   /// Sheet xem trước chỉ trả về thông tin hiển thị kèm mã mời; việc tham gia
   /// thật sự do `POST /groups/join` thực hiện, sau đó danh sách được tải lại.
-  Future<void> _join(BuildContext context, WidgetRef ref, GroupEntity group) async {
+  Future<void> _join(
+    BuildContext context,
+    WidgetRef ref,
+    GroupEntity group,
+  ) async {
     final code = group.inviteCode;
     if (code == null) return;
-    final failure = await ref.read(groupsProvider.notifier).joinGroupByCode(code);
+    final failure = await ref
+        .read(groupsProvider.notifier)
+        .joinGroupByCode(code);
     if (!context.mounted) return;
     if (failure != null) {
       showErrorSnackBar(context, failure.message);
@@ -291,7 +358,11 @@ class _Header extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
               border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
-            child: const Icon(HugeIcons.strokeRoundedSearch01, size: 20, color: Colors.white),
+            child: const Icon(
+              HugeIcons.strokeRoundedSearch01,
+              size: 20,
+              color: Colors.white,
+            ),
           ),
         ),
       ],
@@ -301,7 +372,11 @@ class _Header extends StatelessWidget {
 
 /// Ô hành động tham gia nhóm — nền trắng nổi trên dải sóng Teal.
 class _JoinActionTile extends StatelessWidget {
-  const _JoinActionTile({required this.icon, required this.label, required this.onTap});
+  const _JoinActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -425,7 +500,9 @@ class _RecentGroupChip extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  group.lastActivityAt == null ? '' : formatRelativeTime(group.lastActivityAt!),
+                  group.lastActivityAt == null
+                      ? ''
+                      : formatRelativeTime(group.lastActivityAt!),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w500,
@@ -552,7 +629,12 @@ class _GroupsHeaderWavePainter extends CustomPainter {
 
     final path = Path()
       ..lineTo(0, size.height - 35)
-      ..quadraticBezierTo(size.width * 0.5, size.height + 15, size.width, size.height - 35)
+      ..quadraticBezierTo(
+        size.width * 0.5,
+        size.height + 15,
+        size.width,
+        size.height - 35,
+      )
       ..lineTo(size.width, 0)
       ..close();
 

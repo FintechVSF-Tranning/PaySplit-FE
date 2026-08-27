@@ -13,6 +13,8 @@ import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
 import '../../../groups/presentation/widgets/create_group_bottom_sheet.dart';
 import '../../../notifications/presentation/providers/notifications_notifier.dart';
 import '../../../settlement/presentation/providers/settlement_controller.dart';
+import '../../../groups/presentation/providers/groups_provider.dart';
+import '../providers/home_activities_provider.dart';
 import '../providers/home_groups_provider.dart';
 import '../widgets/actionable_debts_section.dart';
 import '../widgets/my_groups_carousel.dart';
@@ -34,7 +36,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final displayName = (user?.name != null && user!.name.isNotEmpty)
         ? user.name
-        : (user?.email != null && user!.email.isNotEmpty ? user.email.split('@').first : 'Bạn');
+        : (user?.email != null && user!.email.isNotEmpty
+              ? user.email.split('@').first
+              : 'Bạn');
 
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
     final statusBarHeight = MediaQuery.paddingOf(context).top;
@@ -43,69 +47,94 @@ class _HomePageState extends ConsumerState<HomePage> {
       backgroundColor: bg,
       // Background sóng Teal KHÔNG còn cố định: nó nằm bên trong nội dung
       // cuộn và di chuyển theo cùng nội dung khi người dùng scroll.
-      body: SingleChildScrollView(
-        child: Stack(
-          children: [
-            // 1. Organic Curved Top Wave Header Background (cuộn cùng nội dung)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: CustomPaint(
-                size: Size(double.infinity, 210 + statusBarHeight),
-                painter: HeaderWavePainter(isDark: isDark),
+      // Tổng quan cũng đọc từ cache của phiên: nhóm được đổi tên hay công nợ
+      // vừa thay đổi ở máy khác chỉ về khi có người kéo làm mới.
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(homeGroupsProvider);
+          ref.invalidate(homeActivitiesProvider);
+          await ref.read(groupsProvider.notifier).refresh();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Stack(
+            children: [
+              // 1. Organic Curved Top Wave Header Background (cuộn cùng nội dung)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: CustomPaint(
+                  size: Size(double.infinity, 210 + statusBarHeight),
+                  painter: HeaderWavePainter(isDark: isDark),
+                ),
               ),
-            ),
 
-            // 2. Scrollable Body
-            Padding(
-              padding: EdgeInsets.fromLTRB(16, 12 + statusBarHeight, 16, 96),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top Header Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // User Avatar & Greeting
-                      Row(
-                        children: [
-                          InkWell(
-                            onTap: () => context.go(AppRoutes.profile),
-                            borderRadius: BorderRadius.circular(50),
-                            child: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF14B8A6),
-                                    Color(0xFF0D9488),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.15),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+              // 2. Scrollable Body
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, 12 + statusBarHeight, 16, 96),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Header Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // User Avatar & Greeting
+                        Row(
+                          children: [
+                            InkWell(
+                              onTap: () => context.go(AppRoutes.profile),
+                              borderRadius: BorderRadius.circular(50),
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF14B8A6),
+                                      Color(0xFF0D9488),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   ),
-                                ],
-                              ),
-                              child: ClipOval(
-                                child: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
-                                    ? Image.network(
-                                        user.avatarUrl!,
-                                        width: 44,
-                                        height: 44,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (ctx, _, _) => Center(
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child:
+                                      (user?.avatarUrl != null &&
+                                          user!.avatarUrl!.isNotEmpty)
+                                      ? Image.network(
+                                          user.avatarUrl!,
+                                          width: 44,
+                                          height: 44,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (ctx, _, _) => Center(
+                                            child: Text(
+                                              _getInitials(displayName),
+                                              style:
+                                                  GoogleFonts.plusJakartaSans(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.white,
+                                                  ),
+                                            ),
+                                          ),
+                                        )
+                                      : Center(
                                           child: Text(
                                             _getInitials(displayName),
                                             style: GoogleFonts.plusJakartaSans(
@@ -115,164 +144,152 @@ class _HomePageState extends ConsumerState<HomePage> {
                                             ),
                                           ),
                                         ),
-                                      )
-                                    : Center(
-                                        child: Text(
-                                          _getInitials(displayName),
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Xin chào,',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white.withValues(alpha: 0.8),
                                 ),
                               ),
-                              Text(
-                                displayName,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      // Notification Bell Button
-                      InkWell(
-                        onTap: () => context.push(AppRoutes.notifications),
-                        borderRadius: BorderRadius.circular(50),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.15),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.2),
                             ),
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              const Icon(
-                                HugeIcons.strokeRoundedNotification01,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              if (unreadNotifs > 0) ...[
-                                Positioned(
-                                  top: 9,
-                                  right: 9,
-                                  child: Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEF4444),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: const Color(0xFF0F766E),
-                                        width: 1.5,
-                                      ),
-                                    ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Xin chào,',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                  ),
+                                ),
+                                Text(
+                                  displayName,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: -0.2,
                                   ),
                                 ),
                               ],
-                            ],
+                            ),
+                          ],
+                        ),
+
+                        // Notification Bell Button
+                        InkWell(
+                          onTap: () => context.push(AppRoutes.notifications),
+                          borderRadius: BorderRadius.circular(50),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.15),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                const Icon(
+                                  HugeIcons.strokeRoundedNotification01,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                if (unreadNotifs > 0) ...[
+                                  Positioned(
+                                    top: 9,
+                                    right: 9,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEF4444),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: const Color(0xFF0F766E),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 1. Hero Net Balance Card
+                    NetBalanceHeroCard(
+                      onPayVietQr: () => context.go(
+                        AppRoutes.settlement,
+                        extra: SettlementTab.payable,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 1. Hero Net Balance Card
-                  NetBalanceHeroCard(
-                    onPayVietQr: () => context.go(
-                      AppRoutes.settlement,
-                      extra: SettlementTab.payable,
+                      onScanBill: () async {
+                        final selected = await GroupPickerBottomSheet.show(
+                          context,
+                          currentGroupId: 'g-1',
+                        );
+                        if (selected != null && context.mounted) {
+                          await context.push(
+                            AppRoutes.scanBill,
+                            extra: {
+                              'groupId': selected.id,
+                              'groupName': selected.name,
+                            },
+                          );
+                        }
+                      },
+                      onCreateGroup: _createGroup,
                     ),
-                    onScanBill: () async {
-                      final selected = await GroupPickerBottomSheet.show(
+                    const SizedBox(height: 22),
+
+                    // 2. Actionable Debts Section
+                    ActionableDebtsSection(
+                      onViewAll: (tab) => context.go(
+                        AppRoutes.settlement,
+                        extra: tab == 0
+                            ? SettlementTab.payable
+                            : SettlementTab.receivable,
+                      ),
+                      onPayQr: (name, amount, ctx) => context.go(
+                        AppRoutes.settlement,
+                        extra: SettlementTab.payable,
+                      ),
+                      onReviewProof: (name, amount) => context.go(
+                        AppRoutes.settlement,
+                        extra: SettlementTab.receivable,
+                      ),
+                      onRemind: (name) => showComingSoonSnackBar(
                         context,
-                        currentGroupId: 'g-1',
-                      );
-                      if (selected != null && context.mounted) {
-                        await context.push(
-                          AppRoutes.scanBill,
-                          extra: {
-                            'groupId': selected.id,
-                            'groupName': selected.name,
-                          },
-                        );
-                      }
-                    },
-                    onCreateGroup: _createGroup,
-                  ),
-                  const SizedBox(height: 22),
+                        'Đã gửi nhắc nợ tới $name',
+                      ),
+                    ),
+                    const SizedBox(height: 22),
 
-                  // 2. Actionable Debts Section
-                  ActionableDebtsSection(
-                    onViewAll: (tab) => context.go(
-                      AppRoutes.settlement,
-                      extra: tab == 0
-                          ? SettlementTab.payable
-                          : SettlementTab.receivable,
+                    // 3. My Groups Carousel
+                    MyGroupsCarousel(
+                      onViewAll: () => context.go(AppRoutes.groups),
+                      onTapGroupItem: (group) {
+                        if (group.id.isNotEmpty) {
+                          context.push('${AppRoutes.groups}/${group.id}');
+                        } else {
+                          context.go(AppRoutes.groups);
+                        }
+                      },
+                      onCreateGroup: _createGroup,
                     ),
-                    onPayQr: (name, amount, ctx) => context.go(
-                      AppRoutes.settlement,
-                      extra: SettlementTab.payable,
-                    ),
-                    onReviewProof: (name, amount) => context.go(
-                      AppRoutes.settlement,
-                      extra: SettlementTab.receivable,
-                    ),
-                    onRemind: (name) => showComingSoonSnackBar(
-                      context,
-                      'Đã gửi nhắc nợ tới $name',
-                    ),
-                  ),
-                  const SizedBox(height: 22),
+                    const SizedBox(height: 22),
 
-                  // 3. My Groups Carousel
-                  MyGroupsCarousel(
-                    onViewAll: () => context.go(AppRoutes.groups),
-                    onTapGroupItem: (group) {
-                      if (group.id.isNotEmpty) {
-                        context.push(
-                          '${AppRoutes.groups}/${group.id}',
-                        );
-                      } else {
-                        context.go(AppRoutes.groups);
-                      }
-                    },
-                    onCreateGroup: _createGroup,
-                  ),
-                  const SizedBox(height: 22),
-
-                  // 4. Recent Activity Timeline
-                  const RecentActivityTimeline(),
-                ],
+                    // 4. Recent Activity Timeline
+                    const RecentActivityTimeline(),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

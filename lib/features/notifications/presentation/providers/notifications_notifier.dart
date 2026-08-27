@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/notification_entity.dart';
+import '../../../../app/session/session_scope.dart';
 
 class NotificationsState extends Equatable {
   const NotificationsState({
@@ -267,6 +268,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 
 final notificationsProvider =
     StateNotifierProvider<NotificationsNotifier, NotificationsState>((ref) {
+  ref.watch(sessionRevisionProvider);
   return NotificationsNotifier();
 });
 

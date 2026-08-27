@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:paysplit/app/router/main_navigation_shell.dart';
@@ -11,7 +12,10 @@ void main() {
       final router = _buildRouter();
       addTearDown(router.dispose);
 
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      // Shell đọc provider để làm mới dữ liệu của tab khi người dùng bấm tab.
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp.router(routerConfig: router)),
+      );
       await tester.pumpAndSettle();
 
       final navElement = tester.element(find.byType(AppBottomNavBar));

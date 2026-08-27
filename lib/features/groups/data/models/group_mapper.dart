@@ -18,6 +18,7 @@ extension GroupModelMapper on GroupModel {
     return GroupEntity(
       id: id,
       name: name,
+      createdAt: createdAt,
       memberCount: memberCount,
       myBalance: myBalance,
       inviteCode: inviteCode,

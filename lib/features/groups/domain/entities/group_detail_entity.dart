@@ -43,8 +43,6 @@ class GroupDetailEntity extends Equatable {
   /// Tổng số tiền còn phải luân chuyển để nhóm sạch nợ.
   int get outstandingTotal => debtMatrix.fold(0, (sum, row) => sum + row.amount);
 
-  int countBills(GroupBillFilter filter) => bills.where((b) => filter.matches(b.status)).length;
-
   @override
   List<Object?> get props => [group, bills, debts, members, activities];
 }

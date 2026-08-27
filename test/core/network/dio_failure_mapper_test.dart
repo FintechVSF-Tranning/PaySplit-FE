@@ -115,6 +115,41 @@ void main() {
     },
   );
 
+  test('429 nói rõ thời gian chờ lấy từ header Retry-After', () {
+    final requestOptions = RequestOptions(path: '/bills');
+    final failure = mapDioError(
+      DioException(
+        requestOptions: requestOptions,
+        type: DioExceptionType.badResponse,
+        response: Response<dynamic>(
+          requestOptions: requestOptions,
+          statusCode: 429,
+          headers: Headers.fromMap({
+            'retry-after': ['42'],
+          }),
+          data: {
+            'success': false,
+            'error': {'code': 'RATE_LIMITED', 'message': 'rate limit exceeded'},
+          },
+        ),
+      ),
+    );
+
+    expect(failure.message, contains('42 giây'));
+    expect(failure.message, isNot(contains('thao tác sai')));
+  });
+
+  test('429 không có Retry-After vẫn có thông báo dễ hiểu', () {
+    final failure = mapDioError(
+      _badResponse(429, {
+        'success': false,
+        'error': {'code': 'RATE_LIMITED', 'message': 'rate limit exceeded'},
+      }),
+    );
+
+    expect(failure.message, contains('quá nhiều yêu cầu'));
+  });
+
   test('maps a connection timeout to NetworkFailure', () {
     final requestOptions = RequestOptions(path: '/test');
     final exception = DioException(

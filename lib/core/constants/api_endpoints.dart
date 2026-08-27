@@ -40,6 +40,11 @@ abstract class ApiEndpoints {
       '/groups/$id/members/$memberId/role';
   static String groupActivities(String id) => '/groups/$id/activities';
 
+  /// Khóa gửi hóa đơn của nhóm (module `bill`, mount trên `/groups`). Một
+  /// chiều: backend không có endpoint mở lại.
+  static String groupLockBillSubmissions(String id) =>
+      '/groups/$id/bills/lock-submissions';
+
   /// Catch-up nguội: trả delta hoặc snapshot tùy khoảng cách giữa `since` và
   /// version hiện tại của nhóm.
   static String groupSync(String id) => '/groups/$id/sync';

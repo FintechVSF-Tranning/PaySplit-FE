@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../../app/session/session_scope.dart';
+import '../../../../core/network/session_events.dart';
 import '../../../../core/usecase/usecase.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/user_entity.dart';
@@ -26,6 +28,14 @@ part 'auth_controller.g.dart';
 class AuthController extends _$AuthController {
   @override
   FutureOr<UserEntity?> build() async {
+    // Phiên bị thu hồi / refresh token hỏng: đưa app về trạng thái chưa đăng
+    // nhập để router tự chuyển ra màn chào, thay vì để người dùng kẹt lại trong
+    // màn hình cũ với mọi API trả 401.
+    final subscription = getIt<SessionEvents>().onExpired.listen((_) {
+      state = const AsyncData(null);
+    });
+    ref.onDispose(subscription.cancel);
+
     final results = await Future.wait([
       getIt<GetCurrentUserUseCase>().call(const NoParams()),
       Future.delayed(const Duration(milliseconds: 2500)),
@@ -38,7 +48,11 @@ class AuthController extends _$AuthController {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final result = await getIt<LoginUseCase>().call(LoginParams(email: email, password: password));
-      return result.match((failure) => throw failure, (user) => user);
+      final user = result.match((failure) => throw failure, (user) => user);
+      // Bắt đầu phiên mới ngay khi đăng nhập thành công, nếu không màn hình
+      // đầu tiên sau đăng nhập sẽ hiện lại dữ liệu của tài khoản trước.
+      beginNewSession(ref);
+      return user;
     });
   }
 

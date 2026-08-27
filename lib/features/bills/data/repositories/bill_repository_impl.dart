@@ -5,7 +5,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/network/dio_failure_mapper.dart';
 import '../../domain/entities/bill_detail_entity.dart';
-import '../../domain/entities/bill_entity.dart';
+import '../../domain/entities/bill_list_page.dart';
 import '../../domain/entities/captured_bill_photo.dart';
 import '../../domain/repositories/bill_repository.dart';
 import '../datasources/bill_remote_datasource.dart';
@@ -17,18 +17,20 @@ class BillRepositoryImpl implements BillRepository {
   final BillRemoteDataSource _remoteDataSource;
 
   @override
-  Future<Either<Failure, List<BillEntity>>> getBills({
+  Future<Either<Failure, BillListPage>> getBills({
     String groupId = '',
     int limit = 20,
     String? cursor,
+    List<String> statuses = const [],
   }) async {
     try {
-      final models = await _remoteDataSource.getBills(
+      final page = await _remoteDataSource.getBills(
         groupId: groupId,
         limit: limit,
         cursor: cursor,
+        statuses: statuses,
       );
-      return Right(models.map((m) => m.toEntity()).toList());
+      return Right(page.toEntity());
     } on DioException catch (e) {
       return Left(mapDioError(e));
     } catch (e) {
@@ -62,6 +64,12 @@ class BillRepositoryImpl implements BillRepository {
     required String merchantName,
     required int total,
     required List<BillItemEntity> items,
+    int subtotal = 0,
+    int serviceCharge = 0,
+    int vat = 0,
+    int discount = 0,
+    String splitMethod = 'item_ratio',
+    DateTime? billDate,
   }) async {
     try {
       final bill = await _remoteDataSource.createManualBill(
@@ -69,6 +77,12 @@ class BillRepositoryImpl implements BillRepository {
         merchantName: merchantName,
         total: total,
         items: items,
+        subtotal: subtotal,
+        serviceCharge: serviceCharge,
+        vat: vat,
+        discount: discount,
+        splitMethod: splitMethod,
+        billDate: billDate,
       );
       return Right(bill);
     } on DioException catch (e) {
@@ -205,6 +219,21 @@ class BillRepositoryImpl implements BillRepository {
     try {
       final members = await _remoteDataSource.getGroupMembers(groupId: groupId);
       return Right(members);
+    } on DioException catch (e) {
+      return Left(mapDioError(e));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteDraftBill({
+    required String billId,
+    required String groupId,
+  }) async {
+    try {
+      await _remoteDataSource.deleteDraftBill(billId: billId, groupId: groupId);
+      return const Right(null);
     } on DioException catch (e) {
       return Left(mapDioError(e));
     } catch (e) {
