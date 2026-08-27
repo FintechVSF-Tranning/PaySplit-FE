@@ -283,7 +283,7 @@ class _EditItemDialogState extends State<EditItemDialog> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Chỉ trưởng nhóm mới sửa được giá và nội dung món.',
+                  'Chỉ trưởng nhóm hoặc người tạo hoá đơn mới sửa được giá và nội dung món.',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,

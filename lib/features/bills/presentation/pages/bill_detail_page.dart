@@ -552,17 +552,9 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
 
     final isReadOnlyStatus = bill.status == 'finalized' || bill.status == 'voided';
 
-    /// Gán người ăn, đổi cách chia và gửi đối soát / chốt sổ: backend cho phép
-    /// Trưởng nhóm hoặc Chủ chi, nên client mở đúng chừng đó.
-    final isEditable = !isReadOnlyStatus && (isCaptain || isCreditor || bill.members.isEmpty);
-
-    /// Sửa **nội dung tiền**: giá món, số lượng, thêm/xóa món, thuế phí, giảm
-    /// giá, tên quán. Chỉ Trưởng nhóm — con số trên hóa đơn là thứ cả nhóm
-    /// phải tin, không để mỗi người tự sửa. Hóa đơn vừa quét/nhập tay chưa lưu
-    /// lên server thì người tạo vẫn phải nhập được, nếu không thành viên
-    /// thường sẽ không tạo nổi hóa đơn nào.
-    final canEditContent =
-        !isReadOnlyStatus && (isCaptain || isNewUnsavedBill || bill.members.isEmpty);
+    /// Quyền chỉnh sửa toàn bộ hoá đơn (sửa món, đổi giá, gán người, đổi cách chia):
+    /// Cho phép Trưởng nhóm và Người tạo bill khi hóa đơn chưa chốt/hủy.
+    final canEdit = !isReadOnlyStatus && (isCaptain || isCreditor || isNewUnsavedBill || bill.members.isEmpty);
 
     final formattedDate = bill.billDate != null
         ? DateFormat('dd/MM/yyyy HH:mm').format(bill.billDate!)
@@ -605,7 +597,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (canEditContent) ...[
+              if (canEdit) ...[
                 const SizedBox(width: 4),
                 InkWell(
                   onTap: () => _showEditMerchantDialog(context, bill.merchantName ?? ''),
@@ -626,7 +618,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
             // Xóa nháp chỉ dành cho hoá đơn đã lưu mà còn ở trạng thái draft:
             // đã chốt thì phải dùng "Huỷ hoá đơn" để giữ lại lịch sử, còn hoá
             // đơn chưa lưu thì thoát ra là xong.
-            if (bill.status == 'draft' && !isNewUnsavedBill && (isCaptain || isCreditor))
+            if (bill.status == 'draft' && !isNewUnsavedBill && canEdit)
               IconButton(
                 onPressed: state.isDeleting
                     ? null
@@ -789,7 +781,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                             ),
                           ],
                         ),
-                        if (canEditContent)
+                        if (canEdit)
                           TextButton.icon(
                             onPressed: () {
                               EditItemDialog.show(
@@ -816,7 +808,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                     ),
 
                     // 2. Concise Even Split Sub-Row with Link to select participants (Only show when user has edit permission)
-                    if (isEditable) ...[
+                    if (canEdit) ...[
                       Row(
                         children: [
                           Transform.scale(
@@ -825,7 +817,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                             child: Switch.adaptive(
                               value: isEvenSplit,
                               activeTrackColor: AppColors.primary,
-                              onChanged: isEditable
+                              onChanged: canEdit
                                   ? (val) {
                                       notifier.setSplitMode(val ? 'even' : 'item_ratio');
                                     }
@@ -862,7 +854,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                                       ),
                                       const SizedBox(width: 4),
                                       InkWell(
-                                        onTap: isEditable
+                                        onTap: canEdit
                                             ? () {
                                                 SelectEvenSplitMembersModal.show(
                                                   context,
@@ -945,7 +937,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                                 color: textMuted,
                               ),
                             ),
-                            if (canEditContent) ...[
+                            if (canEdit) ...[
                               const SizedBox(height: 12),
                               ElevatedButton.icon(
                                 onPressed: () {
@@ -977,19 +969,19 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                           members: bill.members,
                           itemIndex: i,
                           isEvenSplit: isEvenSplit,
-                          isEditable: canEditContent,
-                          canAssign: isEditable,
+                          isEditable: canEdit,
+                          canAssign: canEdit,
                           onTap: () {
                             EditItemDialog.show(
                               context,
                               item: bill.items[i],
                               members: bill.members,
                               isEvenSplit: isEvenSplit,
-                              isEditable: canEditContent,
-                              onSave: canEditContent
+                              isEditable: canEdit,
+                              onSave: canEdit
                                   ? (updated) => notifier.updateItem(updated)
                                   : null,
-                              onDelete: canEditContent
+                              onDelete: canEdit
                                   ? () => notifier.deleteItem(bill.items[i].id)
                                   : null,
                             );
@@ -1008,7 +1000,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                       computedTotalItemDiscount: state.computedTotalItemDiscount,
                       computedNetItemsTotal: state.computedNetItemsTotal,
                       computedTotal: state.computedTotal,
-                      isEditable: canEditContent,
+                      isEditable: canEdit,
                       onUpdateAdjustments: ({serviceCharge, vat, generalDiscount, total}) {
                         notifier.setAdjustments(
                           serviceCharge: serviceCharge,
@@ -1037,7 +1029,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                 isTotalMismatch: isTotalMismatch,
                 isCaptain: isCaptain,
                 isCreditor: isCreditor,
-                isEditable: isEditable,
+                isEditable: canEdit,
                 isDirty: state.isDirty,
                 onUpdateBankAccount: () => _showBankUpdateConfirmDialog(context, notifier),
                 onOpenUnassignedDetail: () {

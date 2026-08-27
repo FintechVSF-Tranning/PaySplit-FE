@@ -369,178 +369,164 @@ class BillStickyBottomBar extends StatelessWidget {
     required bool hasWarnings,
     required Color textMuted,
   }) {
-    // 1. Hoá đơn đã chốt sổ (Finalized)
-    if (bill.status == 'finalized') {
-      if (isCaptain) {
-        return Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: AppButton(
-                label: 'Huỷ hoá đơn',
-                variant: AppButtonVariant.outline,
-                isLoading: isVoiding,
-                onPressed: isVoiding ? null : onVoid,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 3,
-              child: AppButton(
-                label: 'Xem phân bổ',
-                variant: AppButtonVariant.gradient,
-                onPressed:
-                    onOpenBreakdown ??
-                    () => BillBreakdownBottomSheet.show(
-                      context,
-                      breakdown: breakdown,
-                      totalAmount: bill.total,
-                    ),
-              ),
-            ),
-          ],
+    switch (bill.status) {
+      case 'finalized':
+        return _buildFinalizedActions(context);
+      case 'voided':
+        return _buildVoidedActions(context);
+      case 'reviewed':
+        return _buildReviewedActions(
+          context,
+          hasWarnings: hasWarnings,
+          textMuted: textMuted,
         );
-      }
-
-      return Row(
-        children: [
-          Expanded(
-            child: AppButton(
-              label: 'Xem phân bổ',
-              variant: AppButtonVariant.gradient,
-              onPressed:
-                  onOpenBreakdown ??
-                  () => BillBreakdownBottomSheet.show(
-                    context,
-                    breakdown: breakdown,
-                    totalAmount: bill.total,
-                  ),
-            ),
-          ),
-        ],
-      );
+      case 'draft':
+      default:
+        return _buildDraftActions(context, hasWarnings: hasWarnings);
     }
+  }
 
-    // 2. Hoá đơn đã huỷ (Voided)
-    if (bill.status == 'voided') {
+  /// 1. Hoá đơn đã chốt sổ (Finalized): Trưởng nhóm có nút Huỷ + Xem phân bổ, người khác chỉ Xem phân bổ
+  Widget _buildFinalizedActions(BuildContext context) {
+    if (isCaptain) {
       return Row(
         children: [
           Expanded(
+            flex: 2,
             child: AppButton(
-              label: 'Xem phân bổ',
+              label: 'Huỷ hoá đơn',
               variant: AppButtonVariant.outline,
-              onPressed:
-                  onOpenBreakdown ??
-                  () => BillBreakdownBottomSheet.show(
-                    context,
-                    breakdown: breakdown,
-                    totalAmount: bill.total,
-                  ),
+              isLoading: isVoiding,
+              onPressed: isVoiding ? null : onVoid,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: _buildViewBreakdownButton(context, variant: AppButtonVariant.gradient),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildViewBreakdownButton(context, variant: AppButtonVariant.gradient),
+        ),
+      ],
+    );
+  }
+
+  /// 2. Hoá đơn đã huỷ (Voided): Giao diện chỉ xem cho tất cả mọi người
+  Widget _buildVoidedActions(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildViewBreakdownButton(context, variant: AppButtonVariant.outline),
+        ),
+      ],
+    );
+  }
+
+  /// 3. Hoá đơn đã đối soát (Reviewed): Trưởng nhóm có nút Sửa/Chốt, Người tạo bill gửi lại đối soát khi sửa, Member chỉ xem
+  Widget _buildReviewedActions(
+    BuildContext context, {
+    required bool hasWarnings,
+    required Color textMuted,
+  }) {
+    if (isCaptain) {
+      return Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: AppButton(
+              label: 'Sửa lại',
+              variant: AppButtonVariant.outline,
+              isLoading: isSaving,
+              icon: const Icon(HugeIcons.strokeRoundedEdit02, size: 18),
+              onPressed: isSaving ? null : onSaveDraft,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 3,
+            child: AppButton(
+              label: 'Chốt chia tiền',
+              variant: hasWarnings ? AppButtonVariant.outline : AppButtonVariant.gradient,
+              isLoading: isFinalizing,
+              onPressed: (isFinalizing || hasWarnings) ? null : onFinalize,
             ),
           ),
         ],
       );
     }
 
-    // 3. Hoá đơn đã đối soát (Reviewed)
-    if (bill.status == 'reviewed') {
-      if (isCaptain) {
-        return Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: AppButton(
-                label: 'Sửa lại',
-                variant: AppButtonVariant.outline,
-                isLoading: isSaving,
-                icon: const Icon(HugeIcons.strokeRoundedEdit02, size: 18),
-                onPressed: isSaving ? null : onSaveDraft,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 3,
-              child: AppButton(
-                label: 'Chốt chia tiền',
-                variant: hasWarnings
-                    ? AppButtonVariant.outline
-                    : AppButtonVariant.gradient,
-                isLoading: isFinalizing,
-                onPressed: (isFinalizing || hasWarnings) ? null : onFinalize,
-              ),
-            ),
-          ],
-        );
-      } else if (isCreditor) {
-        return Column(
-          children: [
-            if (!isDirty && !hasWarnings) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Icon(
-                      HugeIcons.strokeRoundedInformationCircle,
-                      size: 13,
-                      color: textMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      'Chưa có thay đổi mới. Hãy chỉnh sửa nội dung hoá đơn trước khi gửi lại đối soát.',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11.5,
-                        color: textMuted,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-            ],
+    if (isCreditor) {
+      return Column(
+        children: [
+          if (!isDirty && !hasWarnings) ...[
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    HugeIcons.strokeRoundedInformationCircle,
+                    size: 13,
+                    color: textMuted,
+                  ),
+                ),
+                const SizedBox(width: 5),
                 Expanded(
-                  child: AppButton(
-                    label: 'Gửi đối soát',
-                    variant: (hasWarnings || !isDirty)
-                        ? AppButtonVariant.outline
-                        : AppButtonVariant.primary,
-                    isLoading: isSaving,
-                    onPressed: (isSaving || hasWarnings || !isDirty)
-                        ? null
-                        : (onReview ?? onFinalize),
+                  child: Text(
+                    'Chưa có thay đổi mới. Hãy chỉnh sửa nội dung hoá đơn trước khi gửi lại đối soát.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      color: textMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 8),
           ],
-        );
-      } else {
-        return Row(
-          children: [
-            Expanded(
-              child: AppButton(
-                label: 'Xem phân bổ',
-                variant: AppButtonVariant.outline,
-                onPressed:
-                    onOpenBreakdown ??
-                    () => BillBreakdownBottomSheet.show(
-                      context,
-                      breakdown: breakdown,
-                      totalAmount: bill.total,
-                    ),
+          Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  label: 'Gửi đối soát',
+                  variant: (hasWarnings || !isDirty)
+                      ? AppButtonVariant.outline
+                      : AppButtonVariant.primary,
+                  isLoading: isSaving,
+                  onPressed: (isSaving || hasWarnings || !isDirty)
+                      ? null
+                      : (onReview ?? onFinalize),
+                ),
               ),
-            ),
-          ],
-        );
-      }
+            ],
+          ),
+        ],
+      );
     }
 
-    // 4. Hoá đơn nháp (Draft) hoặc Khởi tạo (Initial)
+    // Member khác (ReadOnly)
+    return Row(
+      children: [
+        Expanded(
+          child: _buildViewBreakdownButton(context, variant: AppButtonVariant.outline),
+        ),
+      ],
+    );
+  }
+
+  /// 4. Hoá đơn nháp (Draft): Trưởng nhóm có Lưu nháp / Chốt ngay; Người tạo có Lưu nháp / Gửi đối soát; Member chỉ xem
+  Widget _buildDraftActions(
+    BuildContext context, {
+    required bool hasWarnings,
+  }) {
     if (isCaptain) {
       return Row(
         children: [
@@ -558,9 +544,7 @@ class BillStickyBottomBar extends StatelessWidget {
             flex: 3,
             child: AppButton(
               label: 'Chốt hoá đơn',
-              variant: hasWarnings
-                  ? AppButtonVariant.outline
-                  : AppButtonVariant.gradient,
+              variant: hasWarnings ? AppButtonVariant.outline : AppButtonVariant.gradient,
               isLoading: isFinalizing,
               onPressed: (isFinalizing || hasWarnings) ? null : onFinalize,
             ),
@@ -586,13 +570,9 @@ class BillStickyBottomBar extends StatelessWidget {
             flex: 3,
             child: AppButton(
               label: 'Gửi đối soát',
-              variant: hasWarnings
-                  ? AppButtonVariant.outline
-                  : AppButtonVariant.primary,
+              variant: hasWarnings ? AppButtonVariant.outline : AppButtonVariant.primary,
               isLoading: isSaving,
-              onPressed: (isSaving || hasWarnings)
-                  ? null
-                  : (onReview ?? onFinalize),
+              onPressed: (isSaving || hasWarnings) ? null : (onReview ?? onFinalize),
             ),
           ),
         ],
@@ -603,19 +583,26 @@ class BillStickyBottomBar extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: AppButton(
-            label: 'Xem phân bổ',
-            variant: AppButtonVariant.outline,
-            onPressed:
-                onOpenBreakdown ??
-                () => BillBreakdownBottomSheet.show(
-                  context,
-                  breakdown: breakdown,
-                  totalAmount: bill.total,
-                ),
-          ),
+          child: _buildViewBreakdownButton(context, variant: AppButtonVariant.outline),
         ),
       ],
+    );
+  }
+
+  /// Nút tiện ích "Xem phân bổ" dùng chung
+  Widget _buildViewBreakdownButton(
+    BuildContext context, {
+    required AppButtonVariant variant,
+  }) {
+    return AppButton(
+      label: 'Xem phân bổ',
+      variant: variant,
+      onPressed: onOpenBreakdown ??
+          () => BillBreakdownBottomSheet.show(
+                context,
+                breakdown: breakdown,
+                totalAmount: bill.total,
+              ),
     );
   }
 }
