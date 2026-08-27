@@ -332,6 +332,12 @@ void main() {
             photos: any(named: 'photos'),
           )).thenAnswer((_) async => Right(candidateBill));
 
+      when(() => mockRepository.updateDraftBill(
+            billId: any(named: 'billId'),
+            groupId: any(named: 'groupId'),
+            payload: any(named: 'payload'),
+          )).thenAnswer((_) async => Right(candidateBill));
+
       final emptyBill = BillDetailEntity(
         id: 'draft-empty',
         groupId: 'group-1',
@@ -374,7 +380,7 @@ void main() {
       expect(notifier.state.ocrCandidate!.items.length, 2);
 
       // Apply Candidate
-      notifier.applyOcrCandidate();
+      await notifier.applyOcrCandidate();
       expect(notifier.state.bill.merchantName, 'Pizza 4P');
       expect(notifier.state.bill.items.length, 2);
       expect(notifier.state.ocrCandidate, isNull);

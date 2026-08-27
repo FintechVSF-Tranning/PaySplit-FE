@@ -91,6 +91,17 @@ class BillDetailState {
     );
   }
 
+  /// Kiểm tra xem có bất kỳ tiến trình xử lý API/tác vụ nào đang chạy hay không
+  /// (Chống double-tap hoặc race condition giữa các thao tác chéo nhau)
+  bool get isProcessing =>
+      isLoading ||
+      isSaving ||
+      isFinalizing ||
+      isVoiding ||
+      isDeleting ||
+      isCalculatingBreakdown ||
+      isOcrScanning;
+
   /// Danh sách ID thành viên đang tham gia chia đều (mặc định là tất cả thành viên)
   Set<String> get activeEvenSplitMemberIds {
     if (evenSplitMemberIds != null && evenSplitMemberIds!.isNotEmpty) {
@@ -511,11 +522,11 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     required List<CapturedBillPhoto> photos,
     String? merchantName,
   }) async {
-    if (photos.isEmpty) return;
+    if (state.isProcessing || photos.isEmpty) return;
 
     state = state.copyWith(
       isOcrScanning: true,
-      ocrScanStep: 'Đang tải ảnh biên lai lên máy chủ...',
+      ocrScanStep: 'Đang tải ảnh lên...',
       clearOcrCandidate: true,
     );
 
@@ -563,8 +574,8 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     );
   }
 
-  /// Áp dụng kết quả OCR vào hoá đơn chính (mặc định các món chưa gán để người dùng tự chọn)
-  void applyOcrCandidate() {
+  /// Áp dụng kết quả OCR vào hoá đơn chính và tự động lưu bản nháp xuống DB
+  Future<void> applyOcrCandidate() async {
     if (state.ocrCandidate == null) return;
     final candidate = state.ocrCandidate!;
     final effectiveMembers = candidate.members.isNotEmpty
@@ -580,14 +591,10 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       return it.copyWith(
         id: effectiveId,
         position: idx,
-        assignments: const [], // Mặc định bỏ chọn tất cả mọi người
       );
     }).toList();
 
-    final isEven = state.bill.splitMethod == 'even';
-    final activeItems = isEven
-        ? _buildEvenItems(candidateItems, effectiveMembers)
-        : candidateItems;
+    final evenItems = _buildEvenItems(candidateItems, effectiveMembers);
 
     String creditorId = candidate.creditorMemberId.isNotEmpty
         ? candidate.creditorMemberId
@@ -623,22 +630,25 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
             ? candidate.merchantName
             : state.bill.merchantName,
         billDate: candidate.billDate ?? state.bill.billDate,
+        createdAt: candidate.createdAt ?? state.bill.createdAt,
         serviceCharge: candidate.serviceCharge,
         vat: candidate.vat,
         generalDiscount: candidate.generalDiscount,
         members: effectiveMembers,
+        splitMethod: 'even',
         version: candidate.version,
       ),
-      activeItems,
+      evenItems,
       total: candidate.total,
     );
 
     state = state.copyWith(
       bill: updatedBill,
       clearOcrCandidate: true,
-      successMessage:
-          'Đã áp dụng ${candidateItems.length} món từ kết quả OCR vào hoá đơn!',
+      isSaving: true,
     );
+
+    await _executeSaveDraft(silent: true);
   }
 
   /// Bỏ qua / Huỷ OCR candidate (người dùng chọn tự nhập tay)
@@ -848,10 +858,11 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     addItem(newItem);
   }
 
-  /// Lưu bản nháp lên server và nhận kết quả phân bổ chính thức từ Backend
-  Future<bool> saveDraft() async {
-    state = state.copyWith(isSaving: true);
-
+  /// Thực thi lưu bản nháp lên server (hàm nội bộ dùng chung)
+  Future<bool> _executeSaveDraft({
+    bool isParentFinalizing = false,
+    bool silent = false,
+  }) async {
     final isNewBill =
         state.bill.id.isEmpty || state.bill.id.startsWith('draft-');
 
@@ -877,6 +888,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         (failure) {
           state = state.copyWith(
             isSaving: false,
+            isFinalizing: isParentFinalizing ? false : null,
             errorMessage: 'Tạo hoá đơn thất bại: ${failure.message}',
           );
           return false;
@@ -898,7 +910,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
             ),
             isSaving: false,
             isDirty: false,
-            successMessage: 'Đã tạo hoá đơn nháp thành công!',
+            successMessage: (isParentFinalizing || silent)
+                ? null
+                : 'Đã lưu bản nháp',
           );
           return true;
         },
@@ -931,6 +945,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       (failure) {
         state = state.copyWith(
           isSaving: false,
+          isFinalizing: isParentFinalizing ? false : null,
           errorMessage: 'Lưu nháp thất bại: ${failure.message}',
         );
         return false;
@@ -959,15 +974,25 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
           ),
           isSaving: false,
           isDirty: false,
-          successMessage: 'Đã lưu bản nháp và cập nhật phân bổ từ máy chủ!',
+          successMessage: (isParentFinalizing || silent)
+              ? null
+              : 'Đã lưu bản nháp',
         );
         return true;
       },
     );
   }
 
+  /// Lưu bản nháp lên server và nhận kết quả phân bổ chính thức từ Backend
+  Future<bool> saveDraft() async {
+    if (state.isProcessing) return false;
+    state = state.copyWith(isSaving: true);
+    return _executeSaveDraft();
+  }
+
   /// Gọi API Backend (POST /bills/calculate hoặc POST /bills/{id}/calculate) để BE tính và trả về kết quả phân bổ
   Future<List<BillShareBreakdownEntity>?> calculateBreakdown() async {
+    if (state.isProcessing) return null;
     state = state.copyWith(isCalculatingBreakdown: true);
 
     final payload = {
@@ -1012,8 +1037,13 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     );
   }
 
-  /// Tải bảng phân bổ chính thức từ Backend khi người dùng bấm nút Phân bổ
+  /// Tải bảng phân bổ chính thức từ Backend khi người dùng bấm nút Phân bổ.
+  /// Đối với hoá đơn đã chốt (finalized/voided), dữ liệu snapshot phân bổ đã có sẵn từ DB nên trả về ngay lập tức.
   Future<List<BillShareBreakdownEntity>> fetchOfficialBreakdown() async {
+    final isReadOnly = state.bill.status == 'finalized' || state.bill.status == 'voided';
+    if (isReadOnly && (state.breakdown.isNotEmpty || state.bill.breakdown.isNotEmpty)) {
+      return state.breakdown.isNotEmpty ? state.breakdown : state.bill.breakdown;
+    }
     final breakdown = await calculateBreakdown();
     return breakdown ?? state.breakdown;
   }
@@ -1057,13 +1087,18 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
   /// Thực hiện riêng bước Đối soát (Review Bill) chuyển status từ draft -> reviewed
   Future<bool> reviewBillOnly() async {
+    if (state.isProcessing) return false;
     state = state.copyWith(isSaving: true);
 
-    // 1. Luôn lưu nháp dữ liệu mới nhất trước khi đối soát
-    final saved = await saveDraft();
-    if (!saved) {
-      state = state.copyWith(isSaving: false);
-      return false;
+    // 1. Chỉ lưu nháp nếu có thay đổi hoặc là hoá đơn mới tạo
+    final isNewBill =
+        state.bill.id.isEmpty || state.bill.id.startsWith('draft-');
+    if (state.isDirty || isNewBill) {
+      final saved = await _executeSaveDraft();
+      if (!saved) {
+        state = state.copyWith(isSaving: false);
+        return false;
+      }
     }
 
     // 2. Bước Đối soát (Review Bill)
@@ -1103,74 +1138,84 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
             state.bill.creditorMemberId,
           ),
           isDirty: false,
-          successMessage:
-              'Hoá đơn đã được đối soát hợp lệ! Sẵn sàng để Trưởng nhóm chốt sổ.',
+          successMessage: 'Đã gửi đối soát',
         );
         return true;
       },
     );
   }
 
-  /// Chốt sổ hoá đơn (Tự động lưu nháp -> Đối soát Review -> Chốt sổ Finalize)
+  /// Chốt sổ hoá đơn (Tự động lưu nháp nếu sửa -> Đối soát nếu chưa -> Chốt sổ Finalize)
   Future<bool> finalizeBill() async {
+    if (state.isProcessing) return false;
     state = state.copyWith(isFinalizing: true);
 
-    // 1. Luôn lưu nháp dữ liệu mới nhất trước khi đối soát
-    final saved = await saveDraft();
-    if (!saved) {
-      state = state.copyWith(isFinalizing: false);
-      return false;
+    // 1. Chỉ lưu nháp nếu có thay đổi hoặc là hoá đơn mới tạo
+    final isNewBill =
+        state.bill.id.isEmpty || state.bill.id.startsWith('draft-');
+    if (state.isDirty || isNewBill) {
+      final saved = await _executeSaveDraft(isParentFinalizing: true);
+      if (!saved) {
+        state = state.copyWith(isFinalizing: false);
+        return false;
+      }
     }
 
-    // 2. Bước Đối soát (Review Bill) để chuyển status từ draft -> reviewed
-    final reviewResult = await _repository.reviewBill(
-      billId: state.bill.id,
-      groupId: state.bill.groupId,
-      version: state.bill.version,
-    );
+    int currentVersion = state.bill.version;
 
-    final reviewedBill = reviewResult.match(
-      (failure) {
-        state = state.copyWith(
-          isFinalizing: false,
-          errorMessage:
-              'Đối soát hoá đơn không đạt: ${_friendlyBillError(failure)}',
-        );
-        return null;
-      },
-      (bill) {
-        final existingItems = state.bill.items;
-        final resolvedItems = bill.items.isNotEmpty
-            ? bill.items
-            : existingItems;
-        state = state.copyWith(
-          bill: _syncBillWithItems(
-            bill.copyWith(
-              items: resolvedItems,
-              members: state.bill.members,
-              photos: state.bill.photos,
+    // 2. Bước Đối soát (Review Bill): Chỉ gọi nếu hoá đơn chưa ở trạng thái reviewed
+    if (state.bill.status != 'reviewed') {
+      final reviewResult = await _repository.reviewBill(
+        billId: state.bill.id,
+        groupId: state.bill.groupId,
+        version: state.bill.version,
+      );
+
+      final reviewedBill = reviewResult.match(
+        (failure) {
+          state = state.copyWith(
+            isFinalizing: false,
+            errorMessage:
+                'Đối soát hoá đơn không đạt: ${_friendlyBillError(failure)}',
+          );
+          return null;
+        },
+        (bill) {
+          final existingItems = state.bill.items;
+          final resolvedItems = bill.items.isNotEmpty
+              ? bill.items
+              : existingItems;
+          state = state.copyWith(
+            bill: _syncBillWithItems(
+              bill.copyWith(
+                items: resolvedItems,
+                members: state.bill.members,
+                photos: state.bill.photos,
+              ),
+              resolvedItems,
             ),
-            resolvedItems,
-          ),
-          breakdown: _enrichBreakdown(
-            bill.breakdown.isNotEmpty ? bill.breakdown : state.breakdown,
-            state.bill.members,
-            state.bill.creditorMemberId,
-          ),
-        );
-        return bill;
-      },
-    );
+            breakdown: _enrichBreakdown(
+              bill.breakdown.isNotEmpty ? bill.breakdown : state.breakdown,
+              state.bill.members,
+              state.bill.creditorMemberId,
+            ),
+            isDirty: false,
+          );
+          return bill;
+        },
+      );
 
-    if (reviewedBill == null) {
-      return false;
+      if (reviewedBill == null) {
+        return false;
+      }
+      currentVersion = reviewedBill.version;
     }
 
     // 3. Bước Chốt sổ (Finalize Bill) chính thức ghi nợ cho nhóm
     final finalizeResult = await _repository.finalizeBill(
       billId: state.bill.id,
       groupId: state.bill.groupId,
-      version: reviewedBill.version,
+      version: currentVersion,
     );
 
     return finalizeResult.match(
@@ -1185,7 +1230,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         state = state.copyWith(
           isFinalizing: false,
           bill: state.bill.copyWith(status: 'finalized'),
-          successMessage: 'Hoá đơn đã được chốt sổ thành công!',
+          successMessage: 'Chốt hoá đơn thành công',
         );
         return true;
       },
@@ -1197,6 +1242,8 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   /// Khác [voidBill]: huỷ chỉ dùng cho hoá đơn đã chốt và giữ lại bản ghi cùng
   /// lý do; xóa nháp là gỡ bỏ hẳn một hoá đơn chưa từng sinh công nợ.
   Future<bool> deleteDraftBill() async {
+    if (state.isProcessing) return false;
+
     // Hoá đơn chưa từng lưu lên server thì không có gì để xóa: rời màn hình là
     // xong, gọi API chỉ tổ nhận 404.
     if (state.bill.id.isEmpty || state.bill.id.startsWith('draft-')) {
@@ -1227,6 +1274,8 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
   /// Huỷ hoá đơn đã chốt (Chỉ Trưởng nhóm có quyền)
   Future<bool> voidBill({required String reason}) async {
+    if (state.isProcessing) return false;
+
     if (reason.trim().isEmpty) {
       state = state.copyWith(errorMessage: 'Vui lòng nhập lý do huỷ hoá đơn.');
       return false;
@@ -1274,7 +1323,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
             state.bill.members,
             syncedBill.creditorMemberId,
           ),
-          successMessage: 'Đã huỷ hoá đơn thành công!',
+          successMessage: 'Đã huỷ hoá đơn',
         );
         return true;
       },

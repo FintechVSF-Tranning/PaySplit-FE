@@ -139,21 +139,24 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
   }) async {
     final formData = FormData();
     formData.fields.add(MapEntry('group_id', groupId));
+    formData.fields.add(const MapEntry('split_method', 'even'));
     if (merchantName != null && merchantName.isNotEmpty) {
       formData.fields.add(MapEntry('merchant_name', merchantName));
     }
 
     for (int i = 0; i < photos.length; i++) {
       final p = photos[i];
-      formData.files.add(
-        MapEntry(
-          'images',
-          MultipartFile.fromBytes(
-            p.bytes,
-            filename: 'receipt_$i.jpg',
+      if (p.hasBytes) {
+        formData.files.add(
+          MapEntry(
+            'images',
+            MultipartFile.fromBytes(
+              p.bytes!,
+              filename: 'receipt_$i.jpg',
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     final response = await _dio.post(

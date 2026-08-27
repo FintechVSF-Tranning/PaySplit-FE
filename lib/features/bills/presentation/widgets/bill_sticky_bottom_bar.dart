@@ -58,6 +58,9 @@ class BillStickyBottomBar extends StatelessWidget {
     this.onOpenMismatchDetail,
   });
 
+  bool get isProcessing =>
+      isSaving || isFinalizing || isVoiding || isCalculatingBreakdown;
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -397,7 +400,7 @@ class BillStickyBottomBar extends StatelessWidget {
               label: 'Huỷ hoá đơn',
               variant: AppButtonVariant.outline,
               isLoading: isVoiding,
-              onPressed: isVoiding ? null : onVoid,
+              onPressed: isProcessing ? null : onVoid,
             ),
           ),
           const SizedBox(width: 8),
@@ -445,7 +448,7 @@ class BillStickyBottomBar extends StatelessWidget {
               variant: AppButtonVariant.outline,
               isLoading: isSaving,
               icon: const Icon(HugeIcons.strokeRoundedEdit02, size: 18),
-              onPressed: isSaving ? null : onSaveDraft,
+              onPressed: isProcessing ? null : onSaveDraft,
             ),
           ),
           const SizedBox(width: 10),
@@ -455,7 +458,7 @@ class BillStickyBottomBar extends StatelessWidget {
               label: 'Chốt chia tiền',
               variant: hasWarnings ? AppButtonVariant.outline : AppButtonVariant.gradient,
               isLoading: isFinalizing,
-              onPressed: (isFinalizing || hasWarnings) ? null : onFinalize,
+              onPressed: (isProcessing || hasWarnings) ? null : onFinalize,
             ),
           ),
         ],
@@ -501,7 +504,7 @@ class BillStickyBottomBar extends StatelessWidget {
                       ? AppButtonVariant.outline
                       : AppButtonVariant.primary,
                   isLoading: isSaving,
-                  onPressed: (isSaving || hasWarnings || !isDirty)
+                  onPressed: (isProcessing || hasWarnings || !isDirty)
                       ? null
                       : (onReview ?? onFinalize),
                 ),
@@ -536,7 +539,7 @@ class BillStickyBottomBar extends StatelessWidget {
               label: 'Lưu nháp',
               variant: AppButtonVariant.outline,
               isLoading: isSaving,
-              onPressed: (isSaving || !isDirty) ? null : onSaveDraft,
+              onPressed: (isProcessing || !isDirty) ? null : onSaveDraft,
             ),
           ),
           const SizedBox(width: 10),
@@ -546,7 +549,7 @@ class BillStickyBottomBar extends StatelessWidget {
               label: 'Chốt hoá đơn',
               variant: hasWarnings ? AppButtonVariant.outline : AppButtonVariant.gradient,
               isLoading: isFinalizing,
-              onPressed: (isFinalizing || hasWarnings) ? null : onFinalize,
+              onPressed: (isProcessing || hasWarnings) ? null : onFinalize,
             ),
           ),
         ],
@@ -562,7 +565,7 @@ class BillStickyBottomBar extends StatelessWidget {
               label: 'Lưu nháp',
               variant: AppButtonVariant.outline,
               isLoading: isSaving,
-              onPressed: (isSaving || !isDirty) ? null : onSaveDraft,
+              onPressed: (isProcessing || !isDirty) ? null : onSaveDraft,
             ),
           ),
           const SizedBox(width: 10),
@@ -572,7 +575,7 @@ class BillStickyBottomBar extends StatelessWidget {
               label: 'Gửi đối soát',
               variant: hasWarnings ? AppButtonVariant.outline : AppButtonVariant.primary,
               isLoading: isSaving,
-              onPressed: (isSaving || hasWarnings) ? null : (onReview ?? onFinalize),
+              onPressed: (isProcessing || hasWarnings) ? null : (onReview ?? onFinalize),
             ),
           ),
         ],
@@ -597,12 +600,14 @@ class BillStickyBottomBar extends StatelessWidget {
     return AppButton(
       label: 'Xem phân bổ',
       variant: variant,
-      onPressed: onOpenBreakdown ??
-          () => BillBreakdownBottomSheet.show(
-                context,
-                breakdown: breakdown,
-                totalAmount: bill.total,
-              ),
+      onPressed: isProcessing
+          ? null
+          : (onOpenBreakdown ??
+              () => BillBreakdownBottomSheet.show(
+                    context,
+                    breakdown: breakdown,
+                    totalAmount: bill.total,
+                  )),
     );
   }
 }

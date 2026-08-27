@@ -62,6 +62,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   void _submit() {
+    if (ref.read(authControllerProvider).isLoading || _rateLimitSeconds > 0) {
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _isUnverified = false;
@@ -343,7 +346,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       height: 54,
                       trailingIcon: const Icon(HugeIcons.strokeRoundedArrowRight01, color: Colors.white, size: 18),
                       isLoading: isLoading,
-                      onPressed: _rateLimitSeconds > 0 ? null : _submit,
+                      onPressed: (_rateLimitSeconds > 0 || isLoading) ? null : _submit,
                     ).animate().fadeIn(delay: 400.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
 
                     const SizedBox(height: 40),

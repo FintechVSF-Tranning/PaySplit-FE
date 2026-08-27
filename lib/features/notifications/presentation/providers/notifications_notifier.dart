@@ -184,7 +184,9 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
         unreadCount: unreadCount,
       );
     } catch (_) {
-      // Giữ nguyên trạng thái cũ nếu mạng chập chờn khi kéo refresh
+      state = state.copyWith(
+        error: 'Không thể làm mới thông báo. Vui lòng kiểm tra kết nối mạng.',
+      );
     }
   }
 
@@ -236,6 +238,9 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     // Optimistic Update
     final index = state.items.indexWhere((n) => n.id == id);
     if (index != -1 && !state.items[index].isRead) {
+      final previousItems = state.items;
+      final previousUnread = state.unreadCount;
+
       final updatedList = List<NotificationEntity>.from(state.items);
       updatedList[index] = updatedList[index].copyWith(readAt: DateTime.now());
       final newUnread = state.unreadCount > 0 ? state.unreadCount - 1 : 0;
@@ -245,7 +250,11 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
         final dio = getIt<Dio>();
         await dio.patch(ApiEndpoints.notificationRead(id));
       } catch (_) {
-        // Rollback nếu cần
+        // Rollback lại dữ liệu cũ khi API thất bại
+        state = state.copyWith(
+          items: previousItems,
+          unreadCount: previousUnread,
+        );
       }
     }
   }
@@ -255,6 +264,9 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       return;
     }
 
+    final previousItems = state.items;
+    final previousUnread = state.unreadCount;
+
     final now = DateTime.now();
     final updatedList = state.items.map((n) => n.isRead ? n : n.copyWith(readAt: now)).toList();
     state = state.copyWith(items: updatedList, unreadCount: 0);
@@ -262,7 +274,13 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     try {
       final dio = getIt<Dio>();
       await dio.post(ApiEndpoints.notificationsReadAll);
-    } catch (_) {}
+    } catch (_) {
+      // Rollback lại dữ liệu cũ khi API thất bại
+      state = state.copyWith(
+        items: previousItems,
+        unreadCount: previousUnread,
+      );
+    }
   }
 }
 

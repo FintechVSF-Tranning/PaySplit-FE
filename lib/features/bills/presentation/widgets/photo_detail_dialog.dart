@@ -169,7 +169,7 @@ class _PhotoDetailDialogState extends State<PhotoDetailDialog> {
                       child: RotatedBox(
                         quarterTurns: _quarterTurns,
                         child: Image.memory(
-                          widget.photo.bytes,
+                          widget.photo.bytes!,
                           fit: BoxFit.contain,
                         ),
                       ),

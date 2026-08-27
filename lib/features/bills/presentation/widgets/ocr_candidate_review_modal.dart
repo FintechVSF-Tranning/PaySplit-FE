@@ -674,7 +674,7 @@ class _OcrCandidateReviewModalState extends State<OcrCandidateReviewModal>
 
         Text(
           widget.errorMessage ??
-              'Ảnh chụp biên lai có thể bị mờ, lóa hoặc mất kết nối với máy chủ AI OCR.',
+              'Ảnh chụp hoá đơn có thể bị mờ, lóa hoặc kết nối mạng không ổn định.',
           textAlign: TextAlign.center,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,

@@ -8,6 +8,7 @@ class NetBalanceHeroCard extends StatelessWidget {
     this.receivableAmount = '+1.250.000 đ',
     this.payableAmount = '-400.000 đ',
     this.isPositive = true,
+    this.isBalanced = false,
     this.onPayVietQr,
     this.onScanBill,
     this.onCreateGroup,
@@ -18,6 +19,7 @@ class NetBalanceHeroCard extends StatelessWidget {
   final String receivableAmount;
   final String payableAmount;
   final bool isPositive;
+  final bool isBalanced;
   final VoidCallback? onPayVietQr;
   final VoidCallback? onScanBill;
   final VoidCallback? onCreateGroup;
@@ -32,6 +34,32 @@ class NetBalanceHeroCard extends StatelessWidget {
     final primaryTeal = const Color(0xFF0F766E);
     final emeraldGreen = const Color(0xFF10B981);
     final dangerRed = const Color(0xFFEF4444);
+
+    final String badgeText;
+    final Color badgeBg;
+    final Color badgeBorder;
+    final Color badgeTextColor;
+    final IconData badgeIcon;
+
+    if (isBalanced) {
+      badgeText = 'Đã cân bằng';
+      badgeBg = isDark ? const Color(0xFF132E27) : const Color(0xFFECFDF5);
+      badgeBorder = const Color(0xFFA7F3D0);
+      badgeTextColor = const Color(0xFF059669);
+      badgeIcon = HugeIcons.strokeRoundedCheckmarkCircle02;
+    } else if (isPositive) {
+      badgeText = 'Bạn được nhận lại';
+      badgeBg = const Color(0xFFECFDF5);
+      badgeBorder = const Color(0xFFA7F3D0);
+      badgeTextColor = const Color(0xFF059669);
+      badgeIcon = HugeIcons.strokeRoundedCheckmarkCircle02;
+    } else {
+      badgeText = 'Bạn cần trả';
+      badgeBg = const Color(0xFFFEF2F2);
+      badgeBorder = const Color(0xFFFECACA);
+      badgeTextColor = dangerRed;
+      badgeIcon = HugeIcons.strokeRoundedAlertCircle;
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -74,27 +102,25 @@ class NetBalanceHeroCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isPositive ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                  color: badgeBg,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isPositive ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA),
-                  ),
+                  border: Border.all(color: badgeBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      isPositive ? HugeIcons.strokeRoundedCheckmarkCircle02 : HugeIcons.strokeRoundedAlertCircle,
+                      badgeIcon,
                       size: 13,
-                      color: isPositive ? const Color(0xFF059669) : dangerRed,
+                      color: badgeTextColor,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      isPositive ? 'Bạn được nhận lại' : 'Bạn cần trả',
+                      badgeText,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: isPositive ? const Color(0xFF059669) : dangerRed,
+                        color: badgeTextColor,
                       ),
                     ),
                   ],
@@ -110,7 +136,9 @@ class NetBalanceHeroCard extends StatelessWidget {
             style: GoogleFonts.jetBrainsMono(
               fontSize: 32,
               fontWeight: FontWeight.w700,
-              color: isPositive ? primaryTeal : dangerRed,
+              color: isBalanced
+                  ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569))
+                  : (isPositive ? primaryTeal : dangerRed),
               letterSpacing: -0.5,
             ),
           ),

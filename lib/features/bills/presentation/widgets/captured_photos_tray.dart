@@ -157,7 +157,7 @@ class CapturedPhotosTray extends StatelessWidget {
                                       child: RotatedBox(
                                         quarterTurns: photo.rotationQuarterTurns,
                                         child: Image.memory(
-                                          photo.bytes,
+                                          photo.bytes!,
                                           fit: BoxFit.cover,
                                         ),
                                       ),

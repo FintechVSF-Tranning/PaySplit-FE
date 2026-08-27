@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/currency_formatter.dart';
+
 class HomeGroupItemEntity extends Equatable {
   const HomeGroupItemEntity({
     required this.id,
@@ -32,6 +34,34 @@ class HomeGroupItemEntity extends Equatable {
     final name = group['name'] as String? ?? 'Nhóm chi tiêu';
     final role = json['caller_role'] as String? ?? 'member';
 
+    final rawBalance = json['caller_net_balance'];
+    final int netBalance;
+    if (rawBalance is num) {
+      netBalance = rawBalance.toInt();
+    } else if (rawBalance != null) {
+      netBalance = int.tryParse(rawBalance.toString()) ?? 0;
+    } else {
+      netBalance = 0;
+    }
+
+    final String balanceText;
+    final bool isPositive;
+    final bool isNeutral;
+
+    if (netBalance > 0) {
+      balanceText = '+${CurrencyFormatter.vnd(netBalance)}';
+      isPositive = true;
+      isNeutral = false;
+    } else if (netBalance < 0) {
+      balanceText = '-${CurrencyFormatter.vnd(netBalance.abs())}';
+      isPositive = false;
+      isNeutral = false;
+    } else {
+      balanceText = '0 đ';
+      isPositive = false;
+      isNeutral = true;
+    }
+
     return HomeGroupItemEntity(
       id: group['id'] as String? ?? '',
       name: name,
@@ -40,6 +70,9 @@ class HomeGroupItemEntity extends Equatable {
       activeMemberCount: json['active_member_count'] as int? ?? 1,
       billSubmissionLocked: group['bill_submission_locked'] as bool? ?? false,
       emoji: _pickEmojiForGroupName(name),
+      balanceText: balanceText,
+      isPositive: isPositive,
+      isNeutral: isNeutral,
     );
   }
 

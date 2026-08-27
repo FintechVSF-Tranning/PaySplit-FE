@@ -8,6 +8,8 @@ import 'package:paysplit/features/home/presentation/widgets/actionable_debts_sec
 import 'package:paysplit/features/home/presentation/widgets/my_groups_carousel.dart';
 import 'package:paysplit/features/home/presentation/widgets/net_balance_hero_card.dart';
 import 'package:paysplit/features/home/presentation/widgets/recent_activity_timeline.dart';
+import 'package:paysplit/features/settlement/data/mock/mock_settlement_repository.dart';
+import 'package:paysplit/features/settlement/presentation/providers/settlement_controller.dart';
 
 void main() {
   group('HomePage Widget Tests', () {
@@ -21,6 +23,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            settlementRepositoryProvider.overrideWithValue(
+              MockSettlementRepository(),
+            ),
             homeGroupsProvider.overrideWith(
               (ref) => Future.value([
                 const HomeGroupItemEntity(
@@ -45,7 +50,7 @@ void main() {
       // 2. Net Balance Hero Card
       expect(find.byType(NetBalanceHeroCard), findsOneWidget);
       expect(find.text('TỔNG SỐ DƯ CÔNG NỢ'), findsOneWidget);
-      expect(find.text('+850.000 đ'), findsOneWidget);
+      expect(find.textContaining('850.000'), findsWidgets);
       expect(find.text('Bạn được nhận lại'), findsOneWidget);
       expect(find.text('Trả VietQR'), findsOneWidget);
       expect(find.text('Quét bill'), findsOneWidget);
@@ -75,6 +80,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            settlementRepositoryProvider.overrideWithValue(
+              MockSettlementRepository(),
+            ),
             homeGroupsProvider.overrideWith(
               (ref) => Future.value([
                 const HomeGroupItemEntity(

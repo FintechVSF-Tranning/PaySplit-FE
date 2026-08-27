@@ -80,15 +80,40 @@ class _ImageViewerDialogState extends State<ImageViewerDialog> {
               final photo = widget.photos[index];
               final rotation = _rotations[index] ?? 0;
 
+              Widget imageWidget;
+              if (photo.hasBytes) {
+                imageWidget = Image.memory(
+                  photo.bytes!,
+                  fit: BoxFit.contain,
+                );
+              } else if (photo.hasUrl) {
+                imageWidget = Image.network(
+                  photo.url!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Text(
+                      'Không thể tải ảnh biên lai',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+                  loadingBuilder: (_, child, progress) => progress == null
+                      ? child
+                      : const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                );
+              } else {
+                imageWidget = const Center(
+                  child: Icon(HugeIcons.strokeRoundedImage01, color: Colors.white, size: 48),
+                );
+              }
+
               return InteractiveViewer(
                 maxScale: 4.0,
                 child: Center(
                   child: Transform.rotate(
                     angle: rotation * (math.pi / 180),
-                    child: Image.memory(
-                      photo.bytes,
-                      fit: BoxFit.contain,
-                    ),
+                    child: imageWidget,
                   ),
                 ),
               );

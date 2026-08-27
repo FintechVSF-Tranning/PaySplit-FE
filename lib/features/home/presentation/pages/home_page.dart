@@ -6,6 +6,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/widgets/header_wave_painter.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
@@ -40,20 +41,44 @@ class _HomePageState extends ConsumerState<HomePage> {
               ? user.email.split('@').first
               : 'Bạn');
 
+    final settlementState = ref.watch(settlementControllerProvider);
+    final overview = settlementState.overview;
+
+    final totalPayable = overview?.totalPayable ?? 0;
+    final totalReceivable = overview?.totalReceivable ?? 0;
+    final netAmount = totalReceivable - totalPayable;
+    final isBalanced = totalPayable == 0 && totalReceivable == 0;
+    final isPositive = netAmount >= 0;
+
+    final String netAmountFormatted;
+    if (isBalanced) {
+      netAmountFormatted = '0 đ';
+    } else if (netAmount > 0) {
+      netAmountFormatted = '+${CurrencyFormatter.vnd(netAmount)}';
+    } else {
+      netAmountFormatted = '-${CurrencyFormatter.vnd(netAmount.abs())}';
+    }
+
+    final String receivableFormatted = totalReceivable > 0
+        ? '+${CurrencyFormatter.vnd(totalReceivable)}'
+        : '0 đ';
+    final String payableFormatted = totalPayable > 0
+        ? '-${CurrencyFormatter.vnd(totalPayable)}'
+        : '0 đ';
+
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
     final statusBarHeight = MediaQuery.paddingOf(context).top;
 
     return Scaffold(
       backgroundColor: bg,
-      // Background sóng Teal KHÔNG còn cố định: nó nằm bên trong nội dung
-      // cuộn và di chuyển theo cùng nội dung khi người dùng scroll.
-      // Tổng quan cũng đọc từ cache của phiên: nhóm được đổi tên hay công nợ
-      // vừa thay đổi ở máy khác chỉ về khi có người kéo làm mới.
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(homeGroupsProvider);
-          ref.invalidate(homeActivitiesProvider);
-          await ref.read(groupsProvider.notifier).refresh();
+          await Future.wait([
+            ref.refresh(homeGroupsProvider.future),
+            ref.refresh(homeActivitiesProvider.future),
+            ref.read(groupsProvider.notifier).refresh(),
+            ref.read(settlementControllerProvider.notifier).loadData(),
+          ]);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -223,6 +248,11 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                     // 1. Hero Net Balance Card
                     NetBalanceHeroCard(
+                      netAmount: netAmountFormatted,
+                      receivableAmount: receivableFormatted,
+                      payableAmount: payableFormatted,
+                      isPositive: isPositive,
+                      isBalanced: isBalanced,
                       onPayVietQr: () => context.go(
                         AppRoutes.settlement,
                         extra: SettlementTab.payable,

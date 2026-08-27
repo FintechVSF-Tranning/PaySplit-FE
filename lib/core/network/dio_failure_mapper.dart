@@ -66,7 +66,7 @@ Failure mapDioError(DioException error) {
     case DioExceptionType.receiveTimeout:
     case DioExceptionType.connectionError:
       return const NetworkFailure(
-        'Không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối mạng.',
+        'Không thể kết nối. Vui lòng kiểm tra lại mạng.',
       );
     case DioExceptionType.badResponse:
       final statusCode = error.response?.statusCode;
@@ -89,13 +89,13 @@ Failure mapDioError(DioException error) {
           ? _errorMessages[code]!
           : (fieldDetailMessage ??
                 rawMessage ??
-                'Lỗi từ máy chủ ($statusCode)');
+                'Đã có lỗi xảy ra ($statusCode)');
 
       if (statusCode == 429) {
         final retryAfter = _retryAfterSeconds(error.response);
         if (retryAfter != null) {
           localizedMessage =
-              'Máy chủ đang nhận quá nhiều yêu cầu từ kết nối của bạn. '
+              'Hệ thống đang quá tải. '
               'Vui lòng thử lại sau $retryAfter giây.';
         }
       }

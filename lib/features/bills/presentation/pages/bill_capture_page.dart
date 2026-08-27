@@ -251,13 +251,11 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
       total: 0,
     );
 
-    unawaited(
-      context.push(
-        AppRoutes.billDetail,
-        extra: {
-          'bill': fallbackBill,
-        },
-      ),
+    context.pushReplacement(
+      AppRoutes.billDetail,
+      extra: {
+        'bill': fallbackBill,
+      },
     );
   }
 
@@ -281,14 +279,12 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
       photos: List.from(_photos),
     );
 
-    unawaited(
-      context.push(
-        AppRoutes.billDetail,
-        extra: {
-          'bill': initialBill,
-          'autoStartOcr': true,
-        },
-      ),
+    context.pushReplacement(
+      AppRoutes.billDetail,
+      extra: {
+        'bill': initialBill,
+        'autoStartOcr': true,
+      },
     );
   }
 

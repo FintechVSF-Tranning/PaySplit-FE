@@ -301,6 +301,7 @@ class BillDetailEntity {
   final String status; // 'draft' | 'reviewed' | 'finalized' | 'voided'
   final String? merchantName;
   final DateTime? billDate;
+  final DateTime? createdAt;
   final int subtotal;
   final int serviceCharge;
   final int vat;
@@ -324,6 +325,7 @@ class BillDetailEntity {
     required this.status,
     this.merchantName,
     this.billDate,
+    this.createdAt,
     required this.subtotal,
     required this.serviceCharge,
     required this.vat,
@@ -348,6 +350,7 @@ class BillDetailEntity {
     String? status,
     String? merchantName,
     DateTime? billDate,
+    DateTime? createdAt,
     int? subtotal,
     int? serviceCharge,
     int? vat,
@@ -371,6 +374,7 @@ class BillDetailEntity {
       status: status ?? this.status,
       merchantName: merchantName ?? this.merchantName,
       billDate: billDate ?? this.billDate,
+      createdAt: createdAt ?? this.createdAt,
       subtotal: subtotal ?? this.subtotal,
       serviceCharge: serviceCharge ?? this.serviceCharge,
       vat: vat ?? this.vat,
@@ -464,6 +468,48 @@ class BillDetailEntity {
       }
     }
 
+    var photosList = <CapturedBillPhoto>[];
+    final signedUrls = json['signed_urls'] as Map<String, dynamic>?;
+    final rawImages = (json['images'] as List?) ?? [];
+
+    if (signedUrls != null && signedUrls.isNotEmpty) {
+      if (rawImages.isNotEmpty) {
+        final sortedImages = List<Map<String, dynamic>>.from(
+          rawImages.whereType<Map<String, dynamic>>(),
+        )..sort((a, b) => ((a['position'] as num?) ?? 0).compareTo((b['position'] as num?) ?? 0));
+
+        for (final img in sortedImages) {
+          final key = img['image_key'] as String?;
+          if (key != null && signedUrls.containsKey(key)) {
+            final url = signedUrls[key].toString();
+            photosList.add(
+              CapturedBillPhoto(
+                id: img['id']?.toString() ?? key,
+                url: url,
+                name: 'bill_receipt_${photosList.length + 1}.jpg',
+                capturedAt: img['created_at'] != null
+                    ? DateTime.tryParse(img['created_at'].toString()) ?? DateTime.now()
+                    : DateTime.now(),
+              ),
+            );
+          }
+        }
+      } else {
+        int idx = 1;
+        signedUrls.forEach((key, val) {
+          photosList.add(
+            CapturedBillPhoto(
+              id: key,
+              url: val.toString(),
+              name: 'bill_receipt_$idx.jpg',
+              capturedAt: DateTime.now(),
+            ),
+          );
+          idx++;
+        });
+      }
+    }
+
     final effectiveGroupName = groupName ?? json['group_name'] as String? ?? 'Nhóm chi tiêu';
     final fallbackMerchantName = 'Hoá đơn $effectiveGroupName';
 
@@ -475,7 +521,10 @@ class BillDetailEntity {
       creditorName: json['creditor_name'] as String? ?? 'Chủ hoá đơn',
       status: json['status'] as String? ?? 'draft',
       merchantName: (merchantName != null && merchantName.isNotEmpty) ? merchantName : fallbackMerchantName,
-      billDate: json['bill_date'] != null ? DateTime.tryParse(json['bill_date'].toString()) : DateTime.now(),
+      billDate: json['bill_date'] != null ? DateTime.tryParse(json['bill_date'].toString()) : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString())?.toLocal()
+          : (json['bill_date'] != null ? DateTime.tryParse(json['bill_date'].toString())?.toLocal() : null) ?? DateTime.now(),
       subtotal: subtotal,
       serviceCharge: serviceCharge,
       vat: vat,
@@ -485,9 +534,12 @@ class BillDetailEntity {
       splitMethod: json['split_method'] as String? ?? 'item_ratio',
       version: (json['version'] as num?)?.toInt() ?? 1,
       items: itemsList,
+      photos: photosList,
       members: members ?? const [],
       mismatchCodes: (json['mismatch_codes'] as List?)?.map((c) => c.toString()).toList() ?? const [],
-      breakdown: (json['breakdown'] as List?)
+      breakdown: ((json['breakdown'] as List?) ??
+                  (json['shares'] as List?) ??
+                  (json['bill'] is Map ? (json['bill']['shares'] as List?) : null))
               ?.map((b) => BillShareBreakdownEntity.fromJson(b as Map<String, dynamic>))
               .toList() ??
           const [],

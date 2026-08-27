@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
+import '../../../../app/theme/app_colors.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../providers/notifications_notifier.dart';
 
@@ -41,6 +42,17 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<NotificationsState>(notificationsProvider, (previous, next) {
+      if (next.error != null && next.error != previous?.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    });
+
     final state = ref.watch(notificationsProvider);
     final notifier = ref.read(notificationsProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -243,11 +255,20 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   void _handleNotificationAction(BuildContext context, NotificationEntity notif) {
     final payload = notif.payload;
-    final billId = payload['bill_id'] as String?;
-    final groupId = payload['group_id'] as String?;
+    final billId = (payload['bill_id'] ?? payload['billId']) as String?;
+    final groupId = (payload['group_id'] ?? payload['groupId']) as String?;
+    final paymentId = (payload['payment_id'] ?? payload['paymentId']) as String?;
 
     if (billId != null && billId.isNotEmpty) {
-      context.push(AppRoutes.billDetail, extra: {'billId': billId});
+      context.push(
+        AppRoutes.billDetail,
+        extra: {
+          'billId': billId,
+          if (groupId != null && groupId.isNotEmpty) 'groupId': groupId,
+        },
+      );
+    } else if (paymentId != null && paymentId.isNotEmpty) {
+      context.push(AppRoutes.settlement);
     } else if (groupId != null && groupId.isNotEmpty) {
       context.push(AppRoutes.groupDetail(groupId));
     }

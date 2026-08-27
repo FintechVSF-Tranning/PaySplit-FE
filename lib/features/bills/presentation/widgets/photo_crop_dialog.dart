@@ -48,7 +48,7 @@ class _PhotoCropDialogState extends State<PhotoCropDialog> {
 
   Future<void> _loadImage() async {
     try {
-      final codec = await ui.instantiateImageCodec(widget.photo.bytes);
+      final codec = await ui.instantiateImageCodec(widget.photo.bytes!);
       final frame = await codec.getNextFrame();
       if (mounted) {
         setState(() {

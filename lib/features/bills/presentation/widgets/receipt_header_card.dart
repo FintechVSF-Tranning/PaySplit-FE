@@ -28,9 +28,8 @@ class ReceiptHeaderCard extends StatelessWidget {
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
     final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
-    final formattedDate = bill.billDate != null
-        ? DateFormat('dd/MM/yyyy HH:mm').format(bill.billDate!)
-        : DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+    final displayDate = (bill.createdAt ?? bill.billDate ?? DateTime.now()).toLocal();
+    final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(displayDate);
 
     return Container(
       decoration: BoxDecoration(
@@ -206,14 +205,46 @@ class ReceiptHeaderCard extends StatelessWidget {
                         itemCount: bill.photos.length,
                         separatorBuilder: (_, _) => const SizedBox(width: 6),
                         itemBuilder: (context, idx) {
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Image.memory(
-                              bill.photos[idx].bytes,
+                          final photo = bill.photos[idx];
+                          Widget imgWidget;
+                          if (photo.hasBytes) {
+                            imgWidget = Image.memory(
+                              photo.bytes!,
                               width: 36,
                               height: 36,
                               fit: BoxFit.cover,
-                            ),
+                            );
+                          } else if (photo.hasUrl) {
+                            imgWidget = Image.network(
+                              photo.url!,
+                              width: 36,
+                              height: 36,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => const Center(
+                                child: Icon(HugeIcons.strokeRoundedImage01, size: 16, color: Color(0xFF0F766E)),
+                              ),
+                              loadingBuilder: (_, child, progress) => progress == null
+                                  ? child
+                                  : const Center(
+                                      child: SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Color(0xFF0F766E),
+                                        ),
+                                      ),
+                                    ),
+                            );
+                          } else {
+                            imgWidget = const Center(
+                              child: Icon(HugeIcons.strokeRoundedImage01, size: 16, color: Color(0xFF0F766E)),
+                            );
+                          }
+
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: imgWidget,
                           );
                         },
                       ),

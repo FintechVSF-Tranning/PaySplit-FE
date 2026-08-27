@@ -556,9 +556,8 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
     /// Cho phép Trưởng nhóm và Người tạo bill khi hóa đơn chưa chốt/hủy.
     final canEdit = !isReadOnlyStatus && (isCaptain || isCreditor || isNewUnsavedBill || bill.members.isEmpty);
 
-    final formattedDate = bill.billDate != null
-        ? DateFormat('dd/MM/yyyy HH:mm').format(bill.billDate!)
-        : DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+    final displayDate = (bill.createdAt ?? bill.billDate ?? DateTime.now()).toLocal();
+    final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(displayDate);
 
     final isEvenSplit = bill.splitMethod == 'even';
     final totalGroupMemberCount = bill.members.length;
@@ -715,11 +714,55 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.memory(
-                                bill.photos.first.bytes,
-                                width: 44,
-                                height: 44,
-                                fit: BoxFit.cover,
+                              child: Builder(
+                                builder: (_) {
+                                  final firstPhoto = bill.photos.first;
+                                  if (firstPhoto.hasBytes) {
+                                    return Image.memory(
+                                      firstPhoto.bytes!,
+                                      width: 44,
+                                      height: 44,
+                                      fit: BoxFit.cover,
+                                    );
+                                  } else if (firstPhoto.hasUrl) {
+                                    return Image.network(
+                                      firstPhoto.url!,
+                                      width: 44,
+                                      height: 44,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => const SizedBox(
+                                        width: 44,
+                                        height: 44,
+                                        child: Center(
+                                          child: Icon(HugeIcons.strokeRoundedImage01, size: 20, color: AppColors.primary),
+                                        ),
+                                      ),
+                                      loadingBuilder: (_, child, progress) => progress == null
+                                          ? child
+                                          : const SizedBox(
+                                              width: 44,
+                                              height: 44,
+                                              child: Center(
+                                                child: SizedBox(
+                                                  width: 16,
+                                                  height: 16,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                    );
+                                  }
+                                  return const SizedBox(
+                                    width: 44,
+                                    height: 44,
+                                    child: Center(
+                                      child: Icon(HugeIcons.strokeRoundedImage01, size: 20, color: AppColors.primary),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                             if (bill.photos.length > 1)
@@ -806,6 +849,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                           ),
                       ],
                     ),
+                    const SizedBox(height: 12),
 
                     // 2. Concise Even Split Sub-Row with Link to select participants (Only show when user has edit permission)
                     if (canEdit) ...[
@@ -991,7 +1035,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                           onAssignAll: () => notifier.assignAllMembersToItem(bill.items[i].id),
                         ),
                       ],
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
                     // 4. Taxes, Surcharges & Discounts Section
                     BillAdjustmentsSection(
