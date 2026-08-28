@@ -27,6 +27,13 @@ class GroupMembersPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+    final dangerColor = isDark ? const Color(0xFFF87171) : AppColors.danger;
+    final dangerBorderColor = isDark ? const Color(0xFFEF4444).withValues(alpha: 0.4) : AppColors.dangerBorder;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -41,14 +48,14 @@ class GroupMembersPanel extends StatelessWidget {
 
         Container(
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: border),
           ),
           child: Column(
             children: [
               for (var i = 0; i < detail.members.length; i++) ...[
-                if (i > 0) const Divider(height: 1, color: AppColors.borderSubtle),
+                if (i > 0) Divider(height: 1, color: dividerColor),
                 _MemberTile(item: detail.members[i]),
               ],
             ],
@@ -59,8 +66,8 @@ class GroupMembersPanel extends StatelessWidget {
         OutlinedButton(
           onPressed: onLeaveGroup,
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.danger,
-            side: const BorderSide(color: AppColors.dangerBorder),
+            foregroundColor: dangerColor,
+            side: BorderSide(color: dangerBorderColor),
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
           ),
@@ -81,12 +88,18 @@ class _MemberTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isCaptain = item.member.role == GroupMemberRole.captain;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final initialsBg = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+    final initialsBorder = isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0);
+
     final balanceColor = item.balance > 0
-        ? AppColors.balancePositive
+        ? (isDark ? const Color(0xFF34D399) : AppColors.balancePositive)
         : item.balance < 0
-        ? AppColors.balanceNegative
-        : AppColors.textMuted;
+        ? (isDark ? const Color(0xFFF87171) : AppColors.balanceNegative)
+        : textMuted;
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -104,8 +117,8 @@ class _MemberTile extends StatelessWidget {
                       end: Alignment.bottomRight,
                     )
                   : null,
-              color: isCaptain ? null : AppColors.surfaceMuted,
-              border: isCaptain ? null : Border.all(color: AppColors.border),
+              color: isCaptain ? null : initialsBg,
+              border: isCaptain ? null : Border.all(color: initialsBorder),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -113,7 +126,7 @@ class _MemberTile extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isCaptain ? Colors.white : AppColors.textMuted,
+                color: isCaptain ? Colors.white : textMuted,
               ),
             ),
           ),
@@ -132,7 +145,7 @@ class _MemberTile extends StatelessWidget {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textMain,
+                          color: textMain,
                         ),
                       ),
                     ),
@@ -141,17 +154,17 @@ class _MemberTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.warningSubtle,
+                          color: isDark ? const Color(0xFF78350F).withValues(alpha: 0.35) : AppColors.warningSubtle,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.warningBorder),
+                          border: Border.all(color: isDark ? const Color(0xFFD97706).withValues(alpha: 0.4) : AppColors.warningBorder),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               HugeIcons.strokeRoundedCrown,
                               size: 10,
-                              color: AppColors.warningText,
+                              color: isDark ? const Color(0xFFFBBF24) : AppColors.warningText,
                             ),
                             const SizedBox(width: 3),
                             Text(
@@ -159,7 +172,7 @@ class _MemberTile extends StatelessWidget {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 9.5,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.warningText,
+                                color: isDark ? const Color(0xFFFBBF24) : AppColors.warningText,
                               ),
                             ),
                           ],
@@ -174,7 +187,7 @@ class _MemberTile extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                    color: textMuted,
                   ),
                 ),
               ],
@@ -206,22 +219,27 @@ class _OutlineChipButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: surface,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: border),
         ),
         child: Text(
           label,
           style: GoogleFonts.plusJakartaSans(
             fontSize: 11.5,
             fontWeight: FontWeight.w700,
-            color: AppColors.primary,
+            color: primaryColor,
           ),
         ),
       ),

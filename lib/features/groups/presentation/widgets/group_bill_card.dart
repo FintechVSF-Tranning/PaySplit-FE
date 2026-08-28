@@ -19,7 +19,17 @@ class GroupBillCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isVoided = bill.status == GroupBillStatus.voided;
+
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final initialsBg = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+    final initialsBorder = isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0);
+    final initialsColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textSubtle = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
 
     return InkWell(
       onTap: onTap,
@@ -29,12 +39,12 @@ class GroupBillCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -50,9 +60,9 @@ class GroupBillCard extends StatelessWidget {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceMuted,
+                      color: initialsBg,
                       borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: initialsBorder),
                     ),
                     alignment: Alignment.center,
                     child: Text(
@@ -60,7 +70,7 @@ class GroupBillCard extends StatelessWidget {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted,
+                        color: initialsColor,
                       ),
                     ),
                   ),
@@ -76,7 +86,7 @@ class GroupBillCard extends StatelessWidget {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textMain,
+                            color: textMain,
                             letterSpacing: -0.2,
                           ),
                         ),
@@ -86,7 +96,7 @@ class GroupBillCard extends StatelessWidget {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textMuted,
+                            color: textMuted,
                           ),
                         ),
                       ],
@@ -143,13 +153,12 @@ class GroupBillCard extends StatelessWidget {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.warningText,
+                        color: isDark ? const Color(0xFFFBBF24) : AppColors.warningText,
                       ),
                     ),
                   ],
                 )
-              // Tiến độ thanh toán chỉ tồn tại sau khi chốt sổ — backend trả
-              // member_count = 0 cho bill chưa chốt nên không vẽ thanh rỗng.
+              // Tiến độ thanh toán chỉ tồn tại sau khi chốt sổ
               else if (bill.status == GroupBillStatus.finalized && bill.memberCount > 0) ...[
                 _PaidProgressBar(ratio: bill.paidRatio),
                 const SizedBox(height: 8),
@@ -158,7 +167,7 @@ class GroupBillCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSubtle,
+                    color: textSubtle,
                   ),
                 ),
               ] else
@@ -172,7 +181,7 @@ class GroupBillCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSubtle,
+                    color: textSubtle,
                   ),
                 ),
             ],
@@ -192,6 +201,10 @@ class _AmountBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Column(
       crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
@@ -200,7 +213,7 @@ class _AmountBlock extends StatelessWidget {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 11.5,
             fontWeight: FontWeight.w500,
-            color: AppColors.textMuted,
+            color: textMuted,
           ),
         ),
         const SizedBox(height: 3),
@@ -209,7 +222,7 @@ class _AmountBlock extends StatelessWidget {
           style: GoogleFonts.jetBrainsMono(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: AppColors.textMain,
+            color: textMain,
           ),
         ),
       ],
@@ -224,20 +237,22 @@ class _PaidProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(999),
       child: LinearProgressIndicator(
         value: ratio,
         minHeight: 3,
-        backgroundColor: AppColors.surfaceMuted,
-        valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+        backgroundColor: bg,
+        valueColor: AlwaysStoppedAnimation(primaryColor),
       ),
     );
   }
 }
 
-/// Dòng trạng thái OCR có chấm nhấp nháy màu hổ phách.
-/// Cột phải của thẻ: phần tiền của người đang xem, hoặc lý do chưa có.
 class _MyShareBlock extends StatelessWidget {
   const _MyShareBlock({required this.bill});
 
@@ -245,8 +260,15 @@ class _MyShareBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     if (bill.myShare != null && bill.myShareStatus != GroupBillShareStatus.creditor) {
       final isSettled = bill.myShareStatus == GroupBillShareStatus.settled;
+      final statusColor = isSettled
+          ? (isDark ? const Color(0xFF34D399) : AppColors.balancePositive)
+          : (isDark ? const Color(0xFFFBBF24) : AppColors.warningText);
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -261,7 +283,7 @@ class _MyShareBlock extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: isSettled ? AppColors.balancePositive : AppColors.warningText,
+              color: statusColor,
             ),
           ),
         ],
@@ -285,7 +307,7 @@ class _MyShareBlock extends StatelessWidget {
         style: GoogleFonts.plusJakartaSans(
           fontSize: 12.5,
           fontWeight: FontWeight.w500,
-          color: AppColors.textMuted,
+          color: textMuted,
         ),
       ),
     );
@@ -299,23 +321,29 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final (bg, fg, border) = switch (status) {
       GroupBillStatus.finalized => (
-        AppColors.successSubtle,
-        AppColors.balancePositive,
-        AppColors.successBorder,
+        isDark ? const Color(0xFF064E3B).withValues(alpha: 0.35) : AppColors.successSubtle,
+        isDark ? const Color(0xFF34D399) : AppColors.balancePositive,
+        isDark ? const Color(0xFF059669).withValues(alpha: 0.4) : AppColors.successBorder,
       ),
       GroupBillStatus.draft => (
-        AppColors.warningSubtle,
-        AppColors.warningText,
-        AppColors.warningBorder,
+        isDark ? const Color(0xFF78350F).withValues(alpha: 0.35) : AppColors.warningSubtle,
+        isDark ? const Color(0xFFFBBF24) : AppColors.warningText,
+        isDark ? const Color(0xFFD97706).withValues(alpha: 0.4) : AppColors.warningBorder,
       ),
       GroupBillStatus.reviewed => (
-        AppColors.infoSubtle,
-        AppColors.infoText,
-        AppColors.infoBorder,
+        isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.35) : AppColors.infoSubtle,
+        isDark ? const Color(0xFF60A5FA) : AppColors.infoText,
+        isDark ? const Color(0xFF2563EB).withValues(alpha: 0.4) : AppColors.infoBorder,
       ),
-      GroupBillStatus.voided => (AppColors.surfaceMuted, AppColors.textMuted, AppColors.border),
+      GroupBillStatus.voided => (
+        isDark ? const Color(0xFF334155).withValues(alpha: 0.4) : AppColors.surfaceMuted,
+        isDark ? const Color(0xFF94A3B8) : AppColors.textMuted,
+        isDark ? const Color(0xFF475569) : AppColors.border,
+      ),
     };
 
     return Container(

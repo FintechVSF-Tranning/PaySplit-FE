@@ -369,7 +369,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// Ô hành động tham gia nhóm — nền trắng nổi trên dải sóng Teal.
+/// Ô hành động tham gia nhóm — nền trắng/slate nổi trên dải sóng Teal.
 class _JoinActionTile extends StatelessWidget {
   const _JoinActionTile({
     required this.icon,
@@ -383,18 +383,24 @@ class _JoinActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final iconBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
               blurRadius: 12,
               offset: const Offset(0, 5),
             ),
@@ -406,10 +412,10 @@ class _JoinActionTile extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                color: AppColors.primarySubtle,
+                color: iconBg,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 18, color: AppColors.primary),
+              child: Icon(icon, size: 18, color: isDark ? const Color(0xFF14B8A6) : AppColors.primary),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -418,7 +424,7 @@ class _JoinActionTile extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textMain,
+                  color: textMain,
                   height: 1.25,
                 ),
               ),
@@ -438,6 +444,10 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -446,7 +456,7 @@ class _SectionTitle extends StatelessWidget {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 17,
             fontWeight: FontWeight.w800,
-            color: AppColors.textMain,
+            color: textMain,
             letterSpacing: -0.2,
           ),
         ),
@@ -455,7 +465,7 @@ class _SectionTitle extends StatelessWidget {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
-            color: AppColors.textMuted,
+            color: textMuted,
           ),
         ),
       ],
@@ -471,15 +481,21 @@ class _RecentGroupChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textSubtle = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: surface,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -495,7 +511,7 @@ class _RecentGroupChip extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textMain,
+                    color: textMain,
                   ),
                 ),
                 Text(
@@ -505,7 +521,7 @@ class _RecentGroupChip extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSubtle,
+                    color: textSubtle,
                   ),
                 ),
               ],
@@ -524,6 +540,11 @@ class _EmptyGroupsState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final iconBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       child: DottedBorderBox(
@@ -533,13 +554,13 @@ class _EmptyGroupsState extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: AppColors.primarySubtle,
+                color: iconBg,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(
+              child: Icon(
                 HugeIcons.strokeRoundedUserGroup,
                 size: 28,
-                color: AppColors.primary,
+                color: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
               ),
             ),
             const SizedBox(height: 14),
@@ -548,7 +569,7 @@ class _EmptyGroupsState extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: AppColors.textMain,
+                color: textMain,
               ),
             ),
             const SizedBox(height: 6),
@@ -558,7 +579,7 @@ class _EmptyGroupsState extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textMuted,
+                color: textMuted,
                 height: 1.5,
               ),
             ),
@@ -579,18 +600,24 @@ class DottedBorderBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+
     return CustomPaint(
-      painter: _DashedBorderPainter(),
+      painter: _DashedBorderPainter(color: borderColor),
       child: Padding(padding: const EdgeInsets.all(24), child: child),
     );
   }
 }
 
 class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  _DashedBorderPainter({required this.color});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.borderStrong
+      ..color = color
       ..strokeWidth = 1.2
       ..style = PaintingStyle.stroke;
 
@@ -615,7 +642,6 @@ class _DashedBorderPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-
 /// Segmented pill lọc nhóm theo vòng đời: đang hoạt động vs đã khóa hóa đơn.
 class _LifecycleTabs extends StatelessWidget {
   const _LifecycleTabs({
@@ -632,12 +658,16 @@ class _LifecycleTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: border),
       ),
       child: Row(
         children: [
@@ -678,18 +708,24 @@ class _LifecycleTabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeBg = isDark ? const Color(0xFF334155) : Colors.white;
+    final activeText = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final inactiveText = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.surface : Colors.transparent,
+          color: isActive ? activeBg : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -707,7 +743,7 @@ class _LifecycleTabItem extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: isActive ? AppColors.textMain : AppColors.textMuted,
+                  color: isActive ? activeText : inactiveText,
                 ),
               ),
             ),
@@ -717,7 +753,7 @@ class _LifecycleTabItem extends StatelessWidget {
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
-                color: isActive ? AppColors.primary : AppColors.textSubtle,
+                color: isActive ? primaryColor : inactiveText,
               ),
             ),
           ],

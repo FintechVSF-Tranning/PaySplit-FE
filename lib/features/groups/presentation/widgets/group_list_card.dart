@@ -17,20 +17,32 @@ class GroupListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isClosed = group.isClosed;
+
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textSubtle = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
 
     final (balanceBg, balanceFg, balanceLabel) = switch (group.balanceState) {
       GroupBalanceState.positive => (
-        AppColors.balancePositiveBg,
-        AppColors.balancePositive,
+        isDark ? const Color(0xFF064E3B).withValues(alpha: 0.4) : AppColors.balancePositiveBg,
+        isDark ? const Color(0xFF34D399) : AppColors.balancePositive,
         'Bạn được nhận',
       ),
       GroupBalanceState.negative => (
-        AppColors.balanceNegativeBg,
-        AppColors.balanceNegative,
+        isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.4) : AppColors.balanceNegativeBg,
+        isDark ? const Color(0xFFF87171) : AppColors.balanceNegative,
         'Bạn cần trả',
       ),
-      GroupBalanceState.settled => (AppColors.surfaceMuted, AppColors.textMuted, 'Đã cân bằng'),
+      GroupBalanceState.settled => (
+        isDark ? const Color(0xFF334155).withValues(alpha: 0.4) : const Color(0xFFF1F5F9),
+        isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+        'Đã cân bằng',
+      ),
     };
 
     return InkWell(
@@ -39,12 +51,12 @@ class GroupListCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -72,7 +84,7 @@ class GroupListCard extends StatelessWidget {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textMain,
+                                color: textMain,
                                 letterSpacing: -0.2,
                               ),
                             ),
@@ -96,14 +108,14 @@ class GroupListCard extends StatelessWidget {
                       Text.rich(
                         TextSpan(
                           children: [
-                            const WidgetSpan(
+                            WidgetSpan(
                               alignment: PlaceholderAlignment.middle,
                               child: Padding(
-                                padding: EdgeInsets.only(right: 4),
+                                padding: const EdgeInsets.only(right: 4),
                                 child: Icon(
                                   HugeIcons.strokeRoundedUserGroup,
                                   size: 13,
-                                  color: AppColors.textMuted,
+                                  color: textMuted,
                                 ),
                               ),
                             ),
@@ -112,7 +124,7 @@ class GroupListCard extends StatelessWidget {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
-                                color: AppColors.textMuted,
+                                color: textMuted,
                               ),
                             ),
                             if (group.pendingBillCount > 0) ...[
@@ -121,7 +133,7 @@ class GroupListCard extends StatelessWidget {
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.textSubtle,
+                                  color: textSubtle,
                                 ),
                               ),
                               TextSpan(
@@ -129,7 +141,7 @@ class GroupListCard extends StatelessWidget {
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.warningText,
+                                  color: isDark ? const Color(0xFFFBBF24) : AppColors.warningText,
                                 ),
                               ),
                             ],
@@ -184,7 +196,7 @@ class GroupListCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            const Divider(height: 1, color: AppColors.borderSubtle),
+            Divider(height: 1, color: dividerColor),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -198,7 +210,7 @@ class GroupListCard extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textMuted,
+                      color: textMuted,
                     ),
                   ),
                 ),
@@ -212,7 +224,7 @@ class GroupListCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textSubtle,
+                    color: textSubtle,
                   ),
                 ),
               ],
@@ -229,12 +241,17 @@ class _CaptainBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF78350F).withValues(alpha: 0.35) : AppColors.warningSubtle;
+    final border = isDark ? const Color(0xFFD97706).withValues(alpha: 0.4) : AppColors.warningBorder;
+    final fg = isDark ? const Color(0xFFFBBF24) : AppColors.warningText;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.warningSubtle,
+        color: bg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.warningBorder),
+        border: Border.all(color: border),
       ),
       child: FittedBox(
         fit: BoxFit.scaleDown,
@@ -243,7 +260,7 @@ class _CaptainBadge extends StatelessWidget {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 9.5,
             fontWeight: FontWeight.w700,
-            color: AppColors.warningText,
+            color: fg,
           ),
         ),
       ),
@@ -257,22 +274,27 @@ class _LockedBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF334155).withValues(alpha: 0.4) : AppColors.surfaceMuted;
+    final border = isDark ? const Color(0xFF475569) : AppColors.border;
+    final fg = isDark ? const Color(0xFFFBBF24) : AppColors.warningText;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.warningSubtle,
+        color: bg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.warningBorder),
+        border: Border.all(color: border),
       ),
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               HugeIcons.strokeRoundedLock,
               size: 11,
-              color: AppColors.warningText,
+              color: fg,
             ),
             const SizedBox(width: 3),
             Text(
@@ -280,7 +302,7 @@ class _LockedBadge extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
-                color: AppColors.warningText,
+                color: fg,
               ),
             ),
           ],

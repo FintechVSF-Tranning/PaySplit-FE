@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// DTO biểu diễn thông tin một mã mời hiển thị trong Bottom Sheet
 class InviteCodeItem {
@@ -32,11 +33,10 @@ class InviteCodeItem {
 
 /// Modal Bottom Sheet quản lý mã mời (Invite Code Bottom Sheet)
 ///
-/// Tuân thủ Design System PaySplit (Tally x Hallmark):
+/// Tuân thủ Design System PaySplit (Slate & Deep Teal):
 /// - Header: Tiêu đề "Quản lý mã mời" căn giữa, nút icon 'X' góc phải để đóng
 /// - Danh sách mã mời: Highlight mã mời Mono, phụ đề trạng thái, nút Sao chép & Thu hồi
 /// - Nút tạo mới: Nút full-width 100% "Tạo mã mời mới" ở đáy sheet
-/// - Hỗ trợ `isScrollControlled: true` và `StatefulBuilder` để cập nhật UI mượt mà.
 class InviteCodeBottomSheet extends StatefulWidget {
   final List<InviteCodeItem> initialInvites;
   final Future<InviteCodeItem?> Function()? onCreateInvite;
@@ -149,14 +149,21 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // Giới hạn chiều cao tối đa 85% màn hình khi scroll
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final maxHeight = MediaQuery.of(context).size.height * 0.85;
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: isDark
+            ? const Border(
+                top: BorderSide(color: Color(0xFF334155)),
+                left: BorderSide(color: Color(0xFF334155)),
+                right: BorderSide(color: Color(0xFF334155)),
+              )
+            : null,
       ),
       padding: EdgeInsets.only(
         left: 20,
@@ -173,7 +180,7 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFBFC6AF),
+                color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -184,23 +191,26 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
           Stack(
             alignment: Alignment.center,
             children: [
-              const SizedBox(
+              SizedBox(
                 width: double.infinity,
                 child: Text(
                   'Quản lý mã mời',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Newsreader',
-                    fontSize: 19,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C2118),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
                   ),
                 ),
               ),
               Positioned(
                 right: 0,
                 child: IconButton(
-                  icon: const Icon(Icons.close, size: 20, color: Color(0xFF676E5F)),
+                  icon: Icon(
+                    Icons.close,
+                    size: 20,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   splashRadius: 20,
@@ -213,13 +223,13 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
           const SizedBox(height: 4),
 
           // 3. Phụ đề hướng dẫn
-          const Text(
+          Text(
             'Chia sẻ mã mời hoặc link để thêm bạn bè vào nhóm.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Roboto Slab',
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
-              color: Color(0xFF676E5F),
+              fontWeight: FontWeight.w500,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),
           ),
           const SizedBox(height: 16),
@@ -227,15 +237,15 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
           // 4. Danh sách mã đang hoạt động
           Flexible(
             child: _invites.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Text(
                       'Chưa có mã mời nào còn hiệu lực.\nHãy tạo mã mới để mời bạn bè.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Roboto Slab',
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
-                        color: Color(0xFF676E5F),
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                       ),
                     ),
                   )
@@ -262,7 +272,7 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               icon: _isCreating
@@ -277,10 +287,9 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
                   : const Icon(Icons.add, size: 18),
               label: Text(
                 _isCreating ? 'Đang tạo...' : 'Tạo mã mời mới',
-                style: const TextStyle(
-                  fontFamily: 'Roboto Slab',
+                style: GoogleFonts.plusJakartaSans(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -291,14 +300,17 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
   }
 
   Widget _buildInviteCard(InviteCodeItem item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isRevoking = _revokingId == item.id;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFDBE0CE), width: 1.5),
-        borderRadius: BorderRadius.circular(10),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
@@ -310,17 +322,22 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDFA), // Teal subtle
-                    border: Border.all(color: const Color(0xFFCCFBF1)),
+                    color: isDark
+                        ? const Color(0xFF0F766E).withValues(alpha: 0.25)
+                        : const Color(0xFFF0FDFA),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF14B8A6).withValues(alpha: 0.4)
+                          : const Color(0xFFCCFBF1),
+                    ),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     item.code,
-                    style: const TextStyle(
-                      fontFamily: 'JetBrains Mono',
-                      fontSize: 15,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 14.5,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F766E),
+                      color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E),
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -328,10 +345,10 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
                 const SizedBox(height: 4),
                 Text(
                   item.statusText,
-                  style: const TextStyle(
-                    fontFamily: 'Roboto Slab',
-                    fontSize: 11,
-                    color: Color(0xFF676E5F),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -346,8 +363,10 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
               OutlinedButton.icon(
                 onPressed: () => _handleCopy(item),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF1C2118),
-                  side: const BorderSide(color: Color(0xFFDBE0CE)),
+                  foregroundColor: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
+                  side: BorderSide(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -356,10 +375,9 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
                   ),
                 ),
                 icon: const Icon(Icons.copy_rounded, size: 14),
-                label: const Text(
+                label: Text(
                   'Sao chép',
-                  style: TextStyle(
-                    fontFamily: 'Roboto Slab',
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -371,9 +389,17 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
               OutlinedButton.icon(
                 onPressed: isRevoking ? null : () => _handleRevoke(item),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFDC2626), // Danger red
-                  side: const BorderSide(color: Color(0xFFFECACA)),
-                  backgroundColor: isRevoking ? const Color(0xFFFEF2F2) : null,
+                  foregroundColor: isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
+                  side: BorderSide(
+                    color: isDark
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.4)
+                        : const Color(0xFFFECACA),
+                  ),
+                  backgroundColor: isRevoking
+                      ? (isDark
+                          ? const Color(0xFF7F1D1D).withValues(alpha: 0.35)
+                          : const Color(0xFFFEF2F2))
+                      : null,
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -382,19 +408,18 @@ class _InviteCodeBottomSheetState extends State<InviteCodeBottomSheet> {
                   ),
                 ),
                 icon: isRevoking
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 14,
                         height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 1.5,
-                          color: Color(0xFFDC2626),
+                          color: isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
                         ),
                       )
                     : const Icon(Icons.delete_outline_rounded, size: 14),
-                label: const Text(
+                label: Text(
                   'Thu hồi',
-                  style: TextStyle(
-                    fontFamily: 'Roboto Slab',
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),

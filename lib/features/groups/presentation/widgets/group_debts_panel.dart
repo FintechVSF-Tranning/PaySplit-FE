@@ -70,8 +70,19 @@ class _DebtCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final avatarBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+    final avatarBorder = isDark ? const Color(0xFF14B8A6).withValues(alpha: 0.4) : AppColors.primaryBorder;
+
     final iOwe = debt.direction == DebtDirection.iOwe;
-    final amountColor = iOwe ? AppColors.balanceNegative : AppColors.balancePositive;
+    final amountColor = iOwe
+        ? (isDark ? const Color(0xFFF87171) : AppColors.balanceNegative)
+        : (isDark ? const Color(0xFF34D399) : AppColors.balancePositive);
 
     // Chủ nợ duyệt proof khi có minh chứng, ngược lại chỉ nhắc nợ được.
     final (actionLabel, action) = iOwe
@@ -83,9 +94,9 @@ class _DebtCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: border),
       ),
       child: Row(
         children: [
@@ -94,8 +105,8 @@ class _DebtCard extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.primarySubtle,
-              border: Border.all(color: AppColors.primaryBorder),
+              color: avatarBg,
+              border: Border.all(color: avatarBorder),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -103,7 +114,7 @@ class _DebtCard extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+                color: primaryColor,
               ),
             ),
           ),
@@ -117,7 +128,7 @@ class _DebtCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textMain,
+                    color: textMain,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -128,7 +139,7 @@ class _DebtCard extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                    color: textMuted,
                   ),
                 ),
               ],
@@ -153,7 +164,7 @@ class _DebtCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    color: primaryColor,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
@@ -182,12 +193,19 @@ class _DebtMatrixCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textSubtle = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSubtle,
+        color: surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,7 +215,7 @@ class _DebtMatrixCard extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14.5,
               fontWeight: FontWeight.w800,
-              color: AppColors.textMain,
+              color: textMain,
             ),
           ),
           const SizedBox(height: 12),
@@ -211,18 +229,18 @@ class _DebtMatrixCard extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textMain,
+                      color: textMain,
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward, size: 14, color: AppColors.textSubtle),
+                  Icon(Icons.arrow_forward, size: 14, color: textSubtle),
                   const SizedBox(width: 8),
                   Text(
                     row.to,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textMain,
+                      color: textMain,
                     ),
                   ),
                   const Spacer(),
@@ -231,19 +249,19 @@ class _DebtMatrixCard extends StatelessWidget {
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textMain,
+                      color: textMain,
                     ),
                   ),
                 ],
               ),
             ),
-          const Divider(height: 18, color: AppColors.border),
+          Divider(height: 18, color: border),
           Text.rich(
             TextSpan(
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textMuted,
+                color: textMuted,
               ),
               children: [
                 const TextSpan(text: 'Cần thêm '),
@@ -252,7 +270,7 @@ class _DebtMatrixCard extends StatelessWidget {
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textMain,
+                    color: textMain,
                   ),
                 ),
                 const TextSpan(text: ' để nhóm sạch nợ'),
@@ -270,12 +288,18 @@ class _AllSettledCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF064E3B).withValues(alpha: 0.35) : AppColors.successSubtle;
+    final border = isDark ? const Color(0xFF059669).withValues(alpha: 0.4) : AppColors.successBorder;
+    final textSuccess = isDark ? const Color(0xFF34D399) : AppColors.successText;
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.successSubtle,
+        color: bg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.successBorder),
+        border: Border.all(color: border),
       ),
       child: Column(
         children: [
@@ -284,7 +308,7 @@ class _AllSettledCard extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 15,
               fontWeight: FontWeight.w800,
-              color: AppColors.successText,
+              color: textSuccess,
             ),
           ),
           const SizedBox(height: 4),
@@ -293,7 +317,7 @@ class _AllSettledCard extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
-              color: AppColors.textMuted,
+              color: textMuted,
             ),
           ),
         ],
@@ -323,6 +347,10 @@ class GroupPanelHead extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -335,7 +363,7 @@ class GroupPanelHead extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.textMain,
+                  color: textMain,
                   letterSpacing: -0.2,
                 ),
               ),
@@ -345,7 +373,7 @@ class GroupPanelHead extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textMuted,
+                  color: textMuted,
                 ),
               ),
             ],

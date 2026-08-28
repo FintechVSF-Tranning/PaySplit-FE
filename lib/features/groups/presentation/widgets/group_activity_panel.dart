@@ -21,6 +21,11 @@ class GroupActivityPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -37,8 +42,9 @@ class GroupActivityPanel extends StatelessWidget {
         OutlinedButton(
           onPressed: hasMore ? onLoadMore : null,
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.border),
+            foregroundColor: primaryColor,
+            disabledForegroundColor: textMuted,
+            side: BorderSide(color: borderColor),
             padding: const EdgeInsets.symmetric(vertical: 13),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
           ),
@@ -60,11 +66,18 @@ class _ActivityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textSubtle = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+    final surface = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final dividerColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     final markerColor = switch (activity.kind) {
-      GroupActivityKind.payment => AppColors.success,
-      GroupActivityKind.bill => AppColors.warning,
-      GroupActivityKind.member => AppColors.info,
-      GroupActivityKind.system => AppColors.textSubtle,
+      GroupActivityKind.payment => isDark ? const Color(0xFF34D399) : AppColors.success,
+      GroupActivityKind.bill => isDark ? const Color(0xFFFBBF24) : AppColors.warning,
+      GroupActivityKind.member => isDark ? const Color(0xFF60A5FA) : AppColors.info,
+      GroupActivityKind.system => isDark ? const Color(0xFF94A3B8) : AppColors.textSubtle,
     };
 
     return IntrinsicHeight(
@@ -81,13 +94,13 @@ class _ActivityRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: markerColor,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.surface, width: 2),
+                  border: Border.all(color: surface, width: 2),
                   boxShadow: [BoxShadow(color: markerColor.withValues(alpha: 0.25), blurRadius: 6)],
                 ),
               ),
               if (!isLast)
-                const Expanded(
-                  child: VerticalDivider(width: 10, thickness: 1, color: AppColors.border),
+                Expanded(
+                  child: VerticalDivider(width: 10, thickness: 1, color: dividerColor),
                 ),
             ],
           ),
@@ -103,7 +116,7 @@ class _ActivityRow extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textMain,
+                      color: textMain,
                       height: 1.35,
                     ),
                   ),
@@ -113,7 +126,7 @@ class _ActivityRow extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textMuted,
+                      color: textMuted,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -122,7 +135,7 @@ class _ActivityRow extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textSubtle,
+                      color: textSubtle,
                     ),
                   ),
                 ],

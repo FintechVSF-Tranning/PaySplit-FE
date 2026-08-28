@@ -134,6 +134,12 @@ class _SubAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final iconColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+
     final start = order * 0.15;
     final animation = CurvedAnimation(
       parent: controller,
@@ -155,12 +161,12 @@ class _SubAction extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: surface,
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: border),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -171,7 +177,7 @@ class _SubAction extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textMain,
+                      color: textMain,
                     ),
                   ),
                 ),
@@ -181,17 +187,17 @@ class _SubAction extends StatelessWidget {
                   height: 42,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppColors.surface,
-                    border: Border.all(color: AppColors.border),
+                    color: surface,
+                    border: Border.all(color: border),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: Icon(icon, size: 19, color: AppColors.primary),
+                  child: Icon(icon, size: 19, color: iconColor),
                 ),
               ],
             ),

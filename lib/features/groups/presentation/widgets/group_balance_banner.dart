@@ -16,23 +16,26 @@ class GroupBalanceBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     final (bg, border, fg, copy) = switch (group.balanceState) {
       GroupBalanceState.positive => (
-        AppColors.balancePositiveBg,
-        AppColors.successBorder,
-        AppColors.balancePositive,
+        isDark ? const Color(0xFF064E3B).withValues(alpha: 0.35) : AppColors.balancePositiveBg,
+        isDark ? const Color(0xFF059669).withValues(alpha: 0.4) : AppColors.successBorder,
+        isDark ? const Color(0xFF34D399) : AppColors.balancePositive,
         'Bạn được nhận lại',
       ),
       GroupBalanceState.negative => (
-        AppColors.balanceNegativeBg,
-        AppColors.dangerBorder,
-        AppColors.balanceNegative,
+        isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.35) : AppColors.balanceNegativeBg,
+        isDark ? const Color(0xFFDC2626).withValues(alpha: 0.4) : AppColors.dangerBorder,
+        isDark ? const Color(0xFFF87171) : AppColors.balanceNegative,
         'Bạn cần trả nợ',
       ),
       GroupBalanceState.settled => (
-        AppColors.surfaceSubtle,
-        AppColors.border,
-        AppColors.textMain,
+        isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+        isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
         'Đã cân bằng sạch nợ',
       ),
     };
@@ -57,7 +60,7 @@ class GroupBalanceBanner extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textMuted,
+                    color: textMuted,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -78,7 +81,7 @@ class GroupBalanceBanner extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                    color: textMuted,
                   ),
                 ),
               ],
@@ -105,24 +108,30 @@ class _BalanceActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final disabledBg = isDark ? const Color(0xFF334155).withValues(alpha: 0.5) : AppColors.surface;
+    final disabledBorder = isDark ? const Color(0xFF475569) : AppColors.border;
+    final disabledText = isDark ? const Color(0xFF94A3B8) : AppColors.textMuted;
+
     return Opacity(
-      opacity: isEnabled ? 1 : 0.55,
+      opacity: isEnabled ? 1 : 0.6,
       child: InkWell(
         onTap: isEnabled ? onTap : null,
         borderRadius: BorderRadius.circular(999),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
-            color: isEnabled ? AppColors.primary : AppColors.surface,
+            color: isEnabled ? primaryColor : disabledBg,
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: isEnabled ? AppColors.primary : AppColors.border),
+            border: Border.all(color: isEnabled ? primaryColor : disabledBorder),
           ),
           child: Text(
             label,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
-              color: isEnabled ? Colors.white : AppColors.textMuted,
+              color: isEnabled ? Colors.white : disabledText,
             ),
           ),
         ),
