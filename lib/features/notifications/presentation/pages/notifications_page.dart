@@ -25,6 +25,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(notificationsProvider.notifier).refresh();
+    });
   }
 
   @override

@@ -249,7 +249,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       try {
         final dio = getIt<Dio>();
         await dio.patch(ApiEndpoints.notificationRead(id));
-      } catch (_) {
+      } catch (e) {
         // Rollback lại dữ liệu cũ khi API thất bại
         state = state.copyWith(
           items: previousItems,
@@ -273,8 +273,8 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 
     try {
       final dio = getIt<Dio>();
-      await dio.post(ApiEndpoints.notificationsReadAll);
-    } catch (_) {
+      await dio.patch(ApiEndpoints.notificationsReadAll);
+    } catch (e) {
       // Rollback lại dữ liệu cũ khi API thất bại
       state = state.copyWith(
         items: previousItems,
