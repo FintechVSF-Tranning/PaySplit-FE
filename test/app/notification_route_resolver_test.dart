@@ -139,6 +139,70 @@ void main() {
       },
     );
 
+    test(
+      'FCM payload: new_bill có bill_id và group_id -> route đến Bill Detail',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'new_bill',
+          payload: {
+            'type': 'new_bill',
+            'group_id': 'g-fcm-1',
+            'bill_id': 'b-fcm-1',
+            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+          },
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.billDetail);
+        final map = route.extra! as Map<String, dynamic>;
+        expect(map['billId'], 'b-fcm-1');
+        expect(map['groupId'], 'g-fcm-1');
+      },
+    );
+
+    test(
+      'FCM payload: payment_reminder có group_id và bill_id -> route đến Group Detail tab debts',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'payment_reminder',
+          payload: {
+            'type': 'payment_reminder',
+            'group_id': 'g-fcm-2',
+            'bill_id': 'b-fcm-2',
+            'amount': '150000',
+            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+          },
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.groupDetail('g-fcm-2'));
+        expect(route.extra, isA<GroupDetailRouteArgs>());
+        final args = route.extra! as GroupDetailRouteArgs;
+        expect(args.initialTab, GroupHubTab.debts);
+      },
+    );
+
+    test(
+      'FCM payload: bill_updated có bill_id -> route đến Bill Detail',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'bill_updated',
+          payload: {
+            'type': 'bill_updated',
+            'group_id': 'g-fcm-3',
+            'bill_id': 'b-fcm-3',
+            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+          },
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.billDetail);
+        final map = route.extra! as Map<String, dynamic>;
+        expect(map['billId'], 'b-fcm-3');
+        expect(map['groupId'], 'g-fcm-3');
+      },
+    );
+
     test('loại thông báo không được hỗ trợ và không có ID nhận diện -> trả null', () {
       final route = NotificationRouteResolver.resolve(
         type: 'unknown_type',
@@ -158,3 +222,4 @@ void main() {
     });
   });
 }
+

@@ -112,7 +112,7 @@ class NotificationRouteResolver {
         path: AppRoutes.billDetail,
         extra: <String, dynamic>{
           'billId': billId,
-          if (groupId != null) 'groupId': groupId,
+          'groupId': ?groupId,
         },
       );
     }
@@ -149,7 +149,7 @@ class NotificationRouteResolver {
         path: AppRoutes.billDetail,
         extra: <String, dynamic>{
           'billId': billId,
-          if (groupId != null) 'groupId': groupId,
+          'groupId': ?groupId,
         },
       );
     }
