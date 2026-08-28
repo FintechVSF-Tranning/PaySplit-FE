@@ -17,7 +17,7 @@ GroupBillStatus mapBillStatus(BillStatus status) => switch (status) {
 
 extension BillEntityToGroupBill on BillEntity {
   GroupBillEntity toGroupBill() {
-    final date = billDate ?? createdAt;
+    final date = createdAt.toLocal();
     final now = DateTime.now();
     return GroupBillEntity(
       id: id,
