@@ -9,6 +9,9 @@ abstract class ApiEndpoints {
   static const String resetPassword = '/auth/reset-password';
   static const String refreshToken = '/auth/refresh';
   static const String signOut = '/auth/sign-out';
+  static const String realtimeToken = '/auth/realtime-token';
+  static const String appConfig = '/app-config';
+  static const String syncVersions = '/sync/versions';
   static const String me = '/users/me';
   static const String changePassword = '/users/me/password';
   static const String avatar = '/users/me/avatar';
