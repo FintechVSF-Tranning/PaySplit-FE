@@ -90,13 +90,17 @@ class NetBalanceHeroCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'TỔNG SỐ DƯ CÔNG NỢ',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                  letterSpacing: 0.8,
+              Flexible(
+                child: Text(
+                  'TỔNG SỐ DƯ CÔNG NỢ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    letterSpacing: 0.8,
+                  ),
                 ),
               ),
               Container(

@@ -84,17 +84,32 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
     );
   }
 
-  /// Khóa hóa đơn: chặn thêm/sửa hóa đơn và cố định số tiền mỗi người phải trả.
-  /// Công nợ vẫn tiếp tục được thanh toán sau khi khóa.
+  /// Khóa nhận hóa đơn mới: chặn thêm/quét hóa đơn mới.
   void closeBook(String closedAtText) {
     state = _copy(
-      group: _copyGroup(status: GroupStatus.closed, closedAtText: closedAtText),
+      group: _copyGroup(billSubmissionLocked: true, closedAtText: closedAtText),
       activities: [
         GroupActivityEntity(
           id: 'a_close_${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Nhóm đã được khóa hóa đơn',
-          subtitle:
-              'Bảng chia tiền đã khóa, phần của mỗi người được giữ nguyên',
+          title: 'Nhóm đã khóa nhận hóa đơn mới',
+          subtitle: 'Không thể thêm bill mới. Các hóa đơn hiện có vẫn tiếp tục được xử lý.',
+          timeText: 'Vừa xong',
+          kind: GroupActivityKind.system,
+        ),
+        ...state.activities,
+      ],
+    );
+  }
+
+  /// Mở khóa nhận hóa đơn mới: cho phép thêm/quét hóa đơn trở lại.
+  void unlockBook() {
+    state = _copy(
+      group: _copyGroup(billSubmissionLocked: false, clearClosedAt: true),
+      activities: [
+        GroupActivityEntity(
+          id: 'a_unlock_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Nhóm đã mở khóa nhận hóa đơn',
+          subtitle: 'Thành viên có thể tiếp tục tạo và quét hóa đơn mới.',
           timeText: 'Vừa xong',
           kind: GroupActivityKind.system,
         ),
@@ -109,6 +124,7 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
     int? myBalance,
     bool? isCaptain,
     GroupStatus? status,
+    bool? billSubmissionLocked,
     String? closedAtText,
     bool clearClosedAt = false,
   }) {
@@ -124,6 +140,7 @@ class GroupDetailNotifier extends StateNotifier<GroupDetailEntity> {
       lastActivityAt: g.lastActivityAt,
       pendingBillCount: g.pendingBillCount,
       status: status ?? g.status,
+      billSubmissionLocked: billSubmissionLocked ?? g.billSubmissionLocked,
       closedAtText: clearClosedAt ? null : (closedAtText ?? g.closedAtText),
     );
   }

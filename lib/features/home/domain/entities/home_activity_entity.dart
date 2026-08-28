@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../groups/data/models/activity_mapper.dart';
+
 class HomeActivityEntity extends Equatable {
   const HomeActivityEntity({
     required this.id,
@@ -46,12 +48,14 @@ class HomeActivityEntity extends Equatable {
       parsedAmount = (meta['amount'] as num).toInt();
     }
 
+    final rawDescription = json['description'] as String? ?? 'Hoạt động mới trong nhóm';
+
     return HomeActivityEntity(
       id: json['id'] as String? ?? '',
       groupId: json['group_id'] as String? ?? fallbackGroupId ?? '',
       groupName: groupName ?? (json['group_name'] as String? ?? ''),
       actionType: json['action_type'] as String? ?? 'activity',
-      description: json['description'] as String? ?? 'Hoạt động mới trong nhóm',
+      description: formatActivityTitle(rawDescription),
       createdAt: createdAt,
       actorName: actor['display_name'] as String? ?? '',
       actorAvatarUrl: actor['avatar_url'] as String?,

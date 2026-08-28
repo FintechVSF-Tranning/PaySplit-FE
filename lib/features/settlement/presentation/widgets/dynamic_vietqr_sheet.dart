@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/full_screen_image_viewer.dart';
 import '../../domain/entities/settlement_entities.dart';
 
 typedef ProofPicker = Future<ProofUploadEntity?> Function();
@@ -38,6 +39,7 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
   static const _maxProofBytes = 10 * 1024 * 1024;
 
   final TextEditingController _noteController = TextEditingController();
+  ProofUploadEntity? _selectedProof;
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -60,7 +62,7 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
     );
   }
 
-  Future<void> _pickAndSubmitProof() async {
+  Future<void> _pickProof() async {
     if (_isSubmitting) return;
     setState(() => _errorMessage = null);
 
@@ -85,9 +87,43 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
         return;
       }
 
-      setState(() => _isSubmitting = true);
+      setState(() {
+        _selectedProof = image;
+        _errorMessage = null;
+      });
+      unawaited(HapticFeedback.lightImpact());
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Không thể chọn ảnh. Vui lòng thử lại.';
+      });
+    }
+  }
+
+  void _removeProof() {
+    if (_isSubmitting) return;
+    setState(() {
+      _selectedProof = null;
+      _errorMessage = null;
+    });
+    unawaited(HapticFeedback.lightImpact());
+  }
+
+  Future<void> _submitProof() async {
+    if (_isSubmitting) return;
+    if (_selectedProof == null) {
+      await _pickProof();
+      if (_selectedProof == null) return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    try {
       final note = _noteController.text.trim();
-      await widget.onSubmitProof(image, note.isEmpty ? null : note);
+      await widget.onSubmitProof(_selectedProof!, note.isEmpty ? null : note);
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (_) {
@@ -102,6 +138,14 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   Future<ProofUploadEntity?> _pickProofFromGallery() async {
@@ -204,33 +248,96 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
               ),
               child: Column(
                 children: [
-                  Container(
-                    width: 180,
-                    height: 180,
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF0F766E),
-                        width: 2,
-                      ),
-                    ),
-                    child: Image.network(
-                      payment.qrImageUrl,
-                      key: const Key('vietqr-image'),
-                      fit: BoxFit.contain,
-                      semanticLabel: 'Mã VietQR thanh toán',
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Center(
-                            child: Text(
-                              'Không tải được mã VietQR',
-                              textAlign: TextAlign.center,
+                  InkWell(
+                    onTap: () {
+                      FullScreenImageViewer.show(
+                        context,
+                        imageUrl: payment.qrImageUrl,
+                        title: 'Mã VietQR thanh toán',
+                        subtitle:
+                            '${payment.bankName} • ${CurrencyFormatter.vnd(payment.amount)}',
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 180,
+                          height: 180,
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFF0F766E),
+                              width: 2,
                             ),
                           ),
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: Image.network(
+                                  payment.qrImageUrl,
+                                  key: const Key('vietqr-image'),
+                                  fit: BoxFit.contain,
+                                  semanticLabel: 'Mã VietQR thanh toán',
+                                  errorBuilder:
+                                      (context, error, stackTrace) =>
+                                          const Center(
+                                            child: Text(
+                                              'Không tải được mã VietQR',
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 4,
+                                bottom: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    HugeIcons.strokeRoundedMaximize02,
+                                    size: 13,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              HugeIcons.strokeRoundedMaximize02,
+                              size: 12,
+                              color: Color(0xFF0F766E),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Chạm vào mã để xem phóng to',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF0F766E),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Text(
                     'Quét mã bằng ứng dụng Ngân hàng bất kỳ',
                     style: GoogleFonts.plusJakartaSans(
@@ -289,14 +396,233 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                     ),
                   ),
                   const SizedBox(height: 14),
+
+                  // Khu vực chọn / xem trước ảnh minh chứng
+                  if (_selectedProof == null) ...[
+                    InkWell(
+                      onTap: _isSubmitting ? null : _pickProof,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF132A24)
+                              : const Color(0xFFF0FDFA),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF0F766E).withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                HugeIcons.strokeRoundedCamera01,
+                                color: Color(0xFF0F766E),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Tải lên ảnh minh chứng chuyển tiền',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF0F766E),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Hỗ trợ JPG, PNG, HEIC (tối đa 10 MB)',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                color: textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF132A24)
+                            : const Color(0xFFF0FDFA),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF0F766E).withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              FullScreenImageViewer.show(
+                                context,
+                                bytes: _selectedProof!.bytes,
+                                title: 'Minh chứng chuyển tiền',
+                                subtitle: _selectedProof!.name,
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.memory(
+                                    _selectedProof!.bytes,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                      width: 48,
+                                      height: 48,
+                                      color: Colors.grey.shade300,
+                                      child: const Icon(Icons.image, size: 20),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 2,
+                                  bottom: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.65),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Icon(
+                                      HugeIcons.strokeRoundedMaximize02,
+                                      size: 10,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                FullScreenImageViewer.show(
+                                  context,
+                                  bytes: _selectedProof!.bytes,
+                                  title: 'Minh chứng chuyển tiền',
+                                  subtitle: _selectedProof!.name,
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(6),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        HugeIcons.strokeRoundedCheckmarkCircle02,
+                                        size: 13,
+                                        color: Color(0xFF059669),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          'Đã chọn ảnh (chạm để xem)',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF059669),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _selectedProof!.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: textMain,
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatFileSize(_selectedProof!.bytes.length),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 10.5,
+                                      color: textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Đổi ảnh khác',
+                            padding: const EdgeInsets.all(6),
+                            constraints: const BoxConstraints(),
+                            onPressed: _isSubmitting ? null : _pickProof,
+                            icon: const Icon(
+                              HugeIcons.strokeRoundedExchange01,
+                              size: 17,
+                            ),
+                            color: const Color(0xFF0F766E),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          IconButton(
+                            tooltip: 'Gỡ ảnh',
+                            padding: const EdgeInsets.all(6),
+                            constraints: const BoxConstraints(),
+                            onPressed: _isSubmitting ? null : _removeProof,
+                            icon: const Icon(
+                              HugeIcons.strokeRoundedDelete02,
+                              size: 17,
+                            ),
+                            color: AppColors.danger,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _noteController,
                     maxLines: 2,
                     maxLength: 500,
                     enabled: !_isSubmitting,
-                    decoration: const InputDecoration(
-                      hintText: 'Lời nhắn gửi chủ nợ, tối đa 500 ký tự',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      hintText: 'Lời nhắn gửi chủ nợ (không bắt buộc)',
+                      hintStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 12.5,
+                        color: textMuted,
+                      ),
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                 ],
@@ -313,14 +639,20 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
             ],
             const SizedBox(height: 16),
             AppButton(
-              label: 'Tải ảnh biên lai đã chuyển',
-              icon: const Icon(
-                HugeIcons.strokeRoundedCamera01,
+              label: _selectedProof == null
+                  ? 'Tải ảnh biên lai đã chuyển'
+                  : 'Xác nhận đã chuyển tiền',
+              icon: Icon(
+                _selectedProof == null
+                    ? HugeIcons.strokeRoundedCamera01
+                    : HugeIcons.strokeRoundedCheckmarkCircle02,
                 size: 18,
                 color: Colors.white,
               ),
               isLoading: _isSubmitting,
-              onPressed: _isSubmitting ? null : _pickAndSubmitProof,
+              onPressed: _isSubmitting
+                  ? null
+                  : (_selectedProof == null ? _pickProof : _submitProof),
             ),
             const SizedBox(height: 8),
             AppButton(

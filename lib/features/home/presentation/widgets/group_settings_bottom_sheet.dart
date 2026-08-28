@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 /// DTO biểu diễn thành viên nhóm hiển thị trong Modal Cài đặt nhóm
 class GroupMemberSettingItem {
@@ -31,10 +32,8 @@ class GroupMemberSettingItem {
 ///   3. Trạng thái bill: Nút Khóa hóa đơn nhóm (chỉ Captain, chỉ khi mọi hóa đơn đã chia xong)
 ///   4. Vùng nguy hiểm (Danger Zone): Nút Rời nhóm (kiểm tra sạch nợ), Giải tán nhóm (chỉ Captain)
 ///
-/// Khóa hóa đơn là điểm không quay lui của vòng đời nhóm: sau khi khóa, mọi hành
-/// động quản trị (đổi tên, chuyển quyền, xóa/rời thành viên) đều bị vô hiệu để
-/// bảng chia tiền đã chốt không thể bị thay đổi gián tiếp. Chỉ còn Giải tán
-/// nhóm sáng — lối thoát duy nhất sau khi cả nhóm đã tất toán.
+/// Khóa nhận hóa đơn chỉ chặn tạo bill mới. Quản lý thành viên, sửa draft cũ
+/// và thanh toán công nợ vẫn hoạt động bình thường.
 class GroupSettingsBottomSheet extends StatefulWidget {
   final String groupId;
   final String initialGroupName;
@@ -44,7 +43,7 @@ class GroupSettingsBottomSheet extends StatefulWidget {
   final int currentUserNetBalance; // Dùng để kiểm tra sạch nợ khi rời nhóm (0đ)
   final List<GroupMemberSettingItem> members;
 
-  /// Nhóm đã khóa hóa đơn hay chưa — quyết định trạng thái mở/khóa của cả sheet.
+  /// Nhóm đã khóa nhận hóa đơn mới hay chưa.
   final bool isClosed;
 
   /// Ngày khóa hóa đơn, hiển thị trong thẻ trạng thái khi [isClosed].
@@ -57,6 +56,7 @@ class GroupSettingsBottomSheet extends StatefulWidget {
   final Future<bool> Function(String targetMembershipId)? onTransferCaptain;
   final Future<bool> Function(String targetMembershipId)? onRemoveMember;
   final Future<bool> Function()? onCloseBook;
+  final Future<bool> Function()? onUnlockBook;
   final Future<bool> Function()? onLeaveGroup;
   final Future<bool> Function()? onDisbandGroup;
 
@@ -76,6 +76,7 @@ class GroupSettingsBottomSheet extends StatefulWidget {
     this.onTransferCaptain,
     this.onRemoveMember,
     this.onCloseBook,
+    this.onUnlockBook,
     this.onLeaveGroup,
     this.onDisbandGroup,
   });
@@ -96,6 +97,7 @@ class GroupSettingsBottomSheet extends StatefulWidget {
     Future<bool> Function(String targetMembershipId)? onTransferCaptain,
     Future<bool> Function(String targetMembershipId)? onRemoveMember,
     Future<bool> Function()? onCloseBook,
+    Future<bool> Function()? onUnlockBook,
     Future<bool> Function()? onLeaveGroup,
     Future<bool> Function()? onDisbandGroup,
   }) {
@@ -118,6 +120,7 @@ class GroupSettingsBottomSheet extends StatefulWidget {
         onTransferCaptain: onTransferCaptain,
         onRemoveMember: onRemoveMember,
         onCloseBook: onCloseBook,
+        onUnlockBook: onUnlockBook,
         onLeaveGroup: onLeaveGroup,
         onDisbandGroup: onDisbandGroup,
       ),
@@ -125,7 +128,8 @@ class GroupSettingsBottomSheet extends StatefulWidget {
   }
 
   @override
-  State<GroupSettingsBottomSheet> createState() => _GroupSettingsBottomSheetState();
+  State<GroupSettingsBottomSheet> createState() =>
+      _GroupSettingsBottomSheetState();
 }
 
 class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
@@ -146,9 +150,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     _closedAtText = widget.closedAtText;
   }
 
-  /// Mọi hành động quản trị đều chặn khi đang xử lý hoặc khi bill đã khóa.
-  /// Chỉ Giải tán nhóm được miễn — xem doc của [GroupSettingsBottomSheet].
-  bool get _adminLocked => _isProcessing || _isClosed;
+  bool get _adminLocked => _isProcessing;
 
   // 1. Đổi tên nhóm
   Future<void> _handleRename() async {
@@ -161,7 +163,11 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text(
           'Đổi tên nhóm',
-          style: TextStyle(fontFamily: 'Newsreader', fontSize: 18, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontFamily: 'Newsreader',
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         content: Form(
           key: formKey,
@@ -172,7 +178,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             decoration: const InputDecoration(
               hintText: 'Nhập tên nhóm mới',
               border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
             ),
             validator: (val) {
               if (val == null || val.trim().isEmpty) {
@@ -185,7 +194,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Hủy', style: TextStyle(color: Color(0xFF676E5F))),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: Color(0xFF676E5F)),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -207,7 +219,9 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     if (newName != null && newName != _groupName) {
       setState(() => _isProcessing = true);
       try {
-        final success = widget.onRenameGroup != null ? await widget.onRenameGroup!(newName) : true;
+        final success = widget.onRenameGroup != null
+            ? await widget.onRenameGroup!(newName)
+            : true;
         if (success && mounted) {
           setState(() => _groupName = newName);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -242,10 +256,16 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           title: const Text(
             'Chuyển quyền Trưởng nhóm',
-            style: TextStyle(fontFamily: 'Newsreader', fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontFamily: 'Newsreader',
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -253,21 +273,31 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             children: [
               const Text(
                 'Chọn thành viên nhận vai trò Trưởng nhóm (Captain 👑). Bạn sẽ trở thành thành viên thông thường.',
-                style: TextStyle(fontFamily: 'Roboto Slab', fontSize: 12, color: Color(0xFF676E5F)),
+                style: TextStyle(
+                  fontFamily: 'Roboto Slab',
+                  fontSize: 12,
+                  color: Color(0xFF676E5F),
+                ),
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<GroupMemberSettingItem>(
                 initialValue: selectedMember,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
                 items: candidateMembers.map((m) {
                   return DropdownMenuItem(
                     value: m,
                     child: Text(
                       m.displayName,
-                      style: const TextStyle(fontFamily: 'Roboto Slab', fontSize: 14),
+                      style: const TextStyle(
+                        fontFamily: 'Roboto Slab',
+                        fontSize: 14,
+                      ),
                     ),
                   );
                 }).toList(),
@@ -280,7 +310,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Hủy', style: TextStyle(color: Color(0xFF676E5F))),
+              child: const Text(
+                'Hủy',
+                style: TextStyle(color: Color(0xFF676E5F)),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -328,7 +361,9 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Đã chuyển quyền Trưởng nhóm cho ${selectedMember!.displayName}'),
+              content: Text(
+                'Đã chuyển quyền Trưởng nhóm cho ${selectedMember!.displayName}',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -347,16 +382,27 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text(
           'Xác nhận xóa thành viên',
-          style: TextStyle(fontFamily: 'Newsreader', fontSize: 18, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontFamily: 'Newsreader',
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         content: Text(
           'Bạn có chắc chắn muốn xóa "${member.displayName}" khỏi nhóm không?\n\nLưu ý: Thành viên này phải không còn bất kỳ khoản nợ nào trong nhóm.',
-          style: const TextStyle(fontFamily: 'Roboto Slab', fontSize: 13, color: Color(0xFF1C2118)),
+          style: const TextStyle(
+            fontFamily: 'Roboto Slab',
+            fontSize: 13,
+            color: Color(0xFF1C2118),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Hủy', style: TextStyle(color: Color(0xFF676E5F))),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: Color(0xFF676E5F)),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -383,7 +429,9 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Đã xóa thành viên ${member.displayName} khỏi nhóm'),
+              content: Text(
+                'Đã xóa thành viên ${member.displayName} khỏi nhóm',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -394,17 +442,42 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     }
   }
 
-  // 4. Khóa hóa đơn nhóm
+  // 4. Bật / Tắt Khóa nhận hóa đơn nhóm
+  Future<void> _handleToggleLock(bool lock) async {
+    if (lock) {
+      await _handleCloseBook();
+    } else {
+      await _handleUnlockBook();
+    }
+  }
+
   Future<void> _handleCloseBook() async {
     setState(() => _isProcessing = true);
     try {
-      // Dialog xác nhận (kèm bảng chốt tiền từng người) do màn Chi tiết nhóm
-      // dựng, vì chỉ nó nắm được số liệu hóa đơn.
-      final success = widget.onCloseBook != null ? await widget.onCloseBook!() : true;
+      final success = widget.onCloseBook != null
+          ? await widget.onCloseBook!()
+          : true;
       if (success && mounted) {
         setState(() {
           _isClosed = true;
           _closedAtText = _todayText();
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _handleUnlockBook() async {
+    setState(() => _isProcessing = true);
+    try {
+      final success = widget.onUnlockBook != null
+          ? await widget.onUnlockBook!()
+          : true;
+      if (success && mounted) {
+        setState(() {
+          _isClosed = false;
+          _closedAtText = null;
         });
       }
     } finally {
@@ -425,7 +498,9 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           title: const Text(
             'Không thể rời nhóm',
             style: TextStyle(
@@ -459,10 +534,16 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           title: const Text(
             'Bạn là Trưởng nhóm',
-            style: TextStyle(fontFamily: 'Newsreader', fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontFamily: 'Newsreader',
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           content: const Text(
             'Trưởng nhóm không thể tự ý rời nhóm. Vui lòng chuyển vai trò Trưởng nhóm cho thành viên khác trước khi rời.',
@@ -490,7 +571,11 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text(
           'Rời khỏi nhóm',
-          style: TextStyle(fontFamily: 'Newsreader', fontSize: 18, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontFamily: 'Newsreader',
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         content: const Text(
           'Bạn có chắc chắn muốn rời khỏi nhóm này không? Toàn bộ lịch sử chi tiêu cũ vẫn sẽ được lưu lại.',
@@ -499,7 +584,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Hủy', style: TextStyle(color: Color(0xFF676E5F))),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: Color(0xFF676E5F)),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -517,7 +605,9 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     if (confirmed == true) {
       setState(() => _isProcessing = true);
       try {
-        final success = widget.onLeaveGroup != null ? await widget.onLeaveGroup!() : true;
+        final success = widget.onLeaveGroup != null
+            ? await widget.onLeaveGroup!()
+            : true;
         if (success && mounted) {
           Navigator.of(context).pop(); // Đóng bottom sheet
         }
@@ -549,7 +639,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Hủy', style: TextStyle(color: Color(0xFF676E5F))),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(color: Color(0xFF676E5F)),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -567,7 +660,9 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     if (confirmed == true) {
       setState(() => _isProcessing = true);
       try {
-        final success = widget.onDisbandGroup != null ? await widget.onDisbandGroup!() : true;
+        final success = widget.onDisbandGroup != null
+            ? await widget.onDisbandGroup!()
+            : true;
         if (success && mounted) {
           Navigator.of(context).pop(); // Đóng bottom sheet
         }
@@ -629,7 +724,11 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               Positioned(
                 right: 0,
                 child: IconButton(
-                  icon: const Icon(Icons.close, size: 20, color: Color(0xFF676E5F)),
+                  icon: const Icon(
+                    Icons.close,
+                    size: 20,
+                    color: Color(0xFF676E5F),
+                  ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   splashRadius: 20,
@@ -643,7 +742,11 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           const Text(
             'Quản trị thông tin và vai trò thành viên trong nhóm.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontFamily: 'Roboto Slab', fontSize: 12, color: Color(0xFF676E5F)),
+            style: TextStyle(
+              fontFamily: 'Roboto Slab',
+              fontSize: 12,
+              color: Color(0xFF676E5F),
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -651,7 +754,9 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           // Nội dung cuộn được (ẩn scrollbar)
           Flexible(
             child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+              behavior: ScrollConfiguration.of(
+                context,
+              ).copyWith(scrollbars: false),
               child: SingleChildScrollView(
                 physics: const ClampingScrollPhysics(),
                 child: Column(
@@ -669,28 +774,29 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _buildSectionTitle('Thành viên (${_members.length})'),
-                        if (_isCaptain)
-                          OutlinedButton.icon(
-                            onPressed: _adminLocked ? null : _handleTransferCaptain,
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              side: const BorderSide(color: Color(0xFFDBE0CE)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            icon: const Icon(
-                              Icons.swap_horiz_rounded,
-                              size: 14,
-                              color: Color(0xFF1C2118),
-                            ),
-                            label: const Text(
-                              'Chuyển Trưởng nhóm',
-                              style: TextStyle(
-                                fontFamily: 'Roboto Slab',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1C2118),
+                        if (_isCaptain && _members.length > 1)
+                          Tooltip(
+                            message: 'Chuyển Trưởng nhóm',
+                            child: InkWell(
+                              onTap: _adminLocked ? null : _handleTransferCaptain,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAF9),
+                                  border: Border.all(
+                                    color: const Color(0xFFDBE0CE),
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    HugeIcons.strokeRoundedExchange01,
+                                    size: 16,
+                                    color: Color(0xFF1C2118),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -737,7 +843,12 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
 
   Widget _buildGroupInfoCard() {
     final monogram = _groupName.isNotEmpty
-        ? _groupName.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+        ? _groupName
+              .split(' ')
+              .map((w) => w.isNotEmpty ? w[0] : '')
+              .take(2)
+              .join()
+              .toUpperCase()
         : 'GP';
 
     return Container(
@@ -790,22 +901,26 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                       ),
                     ),
                     if (_isCaptain)
-                      OutlinedButton.icon(
-                        onPressed: _adminLocked ? null : _handleRename,
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          side: const BorderSide(color: Color(0xFFDBE0CE)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                        icon: const Icon(Icons.edit_outlined, size: 12, color: Color(0xFF1C2118)),
-                        label: const Text(
-                          'Đổi tên',
-                          style: TextStyle(
-                            fontFamily: 'Roboto Slab',
-                            fontSize: 11,
-                            color: Color(0xFF1C2118),
+                      Tooltip(
+                        message: 'Đổi tên nhóm',
+                        child: InkWell(
+                          onTap: _adminLocked ? null : _handleRename,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAF9),
+                              border: Border.all(color: const Color(0xFFDBE0CE)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                HugeIcons.strokeRoundedEdit02,
+                                size: 16,
+                                color: Color(0xFF1C2118),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -839,7 +954,8 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _members.length,
-        separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFFDBE0CE)),
+        separatorBuilder: (_, _) =>
+            const Divider(height: 1, color: Color(0xFFDBE0CE)),
         itemBuilder: (context, index) {
           final member = _members[index];
           final monogram = member.displayName.isNotEmpty
@@ -888,19 +1004,35 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                           if (member.isCaptain) ...[
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFEF3C7),
-                                border: Border.all(color: const Color(0xFFFDE68A)),
+                                border: Border.all(
+                                  color: const Color(0xFFFDE68A),
+                                ),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
-                                '👑 Trưởng nhóm',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF92400E),
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    HugeIcons.strokeRoundedCrown,
+                                    size: 10,
+                                    color: Color(0xFF92400E),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  const Text(
+                                    'Trưởng nhóm',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF92400E),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -909,7 +1041,9 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                       Text(
                         member.isCurrentUser
                             ? 'Bạn'
-                            : (member.isCaptain ? 'Người tạo nhóm' : 'Thành viên'),
+                            : (member.isCaptain
+                                  ? 'Người tạo nhóm'
+                                  : 'Thành viên'),
                         style: const TextStyle(
                           fontFamily: 'Roboto Slab',
                           fontSize: 11,
@@ -920,27 +1054,28 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                   ),
                 ),
                 if (_isCaptain && !member.isCaptain)
-                  OutlinedButton.icon(
-                    onPressed: _adminLocked ? null : () => _handleRemoveMember(member),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      side: const BorderSide(color: Color(0xFFFECACA)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
-                    icon: const Icon(
-                      Icons.person_remove_outlined,
-                      size: 12,
-                      color: Color(0xFFDC2626),
-                    ),
-                    label: const Text(
-                      'Xóa',
-                      style: TextStyle(
-                        fontFamily: 'Roboto Slab',
-                        fontSize: 11,
-                        color: Color(0xFFDC2626),
-                        fontWeight: FontWeight.w600,
+                  Tooltip(
+                    message: 'Xóa thành viên',
+                    child: InkWell(
+                      onTap: _adminLocked
+                          ? null
+                          : () => _handleRemoveMember(member),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          border: Border.all(color: const Color(0xFFFECACA)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            HugeIcons.strokeRoundedUserRemove01,
+                            size: 18,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -952,124 +1087,66 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     );
   }
 
-  /// Thẻ trạng thái bill. Đang mở → mô tả + nút Khóa hóa đơn (chỉ Trưởng nhóm,
-  /// chỉ bật khi không còn hóa đơn chia dở). Đã khóa → thẻ tổng kết tĩnh, nói
-  /// rõ vì sao phần còn lại của sheet bị mờ; khóa là một chiều nên không có
-  /// lối mở lại.
+  /// Thẻ trạng thái nhận bill: Switch Toggle On/Off 2 chiều (chỉ Captain được thao tác).
   Widget _buildBillStatusCard() {
-    if (_isClosed) {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5F6F1),
-          border: Border.all(color: const Color(0xFFDBE0CE)),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.lock_outline_rounded, size: 16, color: Color(0xFF475569)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _closedAtText == null
-                        ? 'Nhóm đã khóa hóa đơn'
-                        : 'Nhóm đã khóa hóa đơn ngày $_closedAtText',
-                    style: const TextStyle(
-                      fontFamily: 'Roboto Slab',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1C2118),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Bảng chia tiền đã chốt nên các thao tác quản trị bên trên tạm khóa. '
-                    'Công nợ vẫn thanh toán bình thường. Khóa hóa đơn là một chiều, '
-                    'không mở lại được.',
-                    style: TextStyle(
-                      fontFamily: 'Roboto Slab',
-                      fontSize: 11,
-                      color: Color(0xFF676E5F),
-                      height: 1.45,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final isReady = widget.pendingBillCount == 0;
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isReady ? const Color(0xFFF0FDFA) : const Color(0xFFF5F6F1),
-        border: Border.all(color: isReady ? const Color(0xFFCCFBF1) : const Color(0xFFDBE0CE)),
+        color: _isClosed ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDFA),
+        border: Border.all(
+          color: _isClosed ? const Color(0xFFFDE68A) : const Color(0xFFCCFBF1),
+        ),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(
+            _isClosed ? Icons.lock_outline_rounded : Icons.lock_open_rounded,
+            size: 20,
+            color: _isClosed ? const Color(0xFFB45309) : const Color(0xFF0F766E),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Khóa hóa đơn nhóm',
-                  style: TextStyle(
+                Text(
+                  _isClosed
+                      ? (_closedAtText == null
+                          ? 'Đang khóa nhận hóa đơn mới'
+                          : 'Đang khóa nhận hóa đơn ($_closedAtText)')
+                      : 'Khóa nhận hóa đơn mới',
+                  style: const TextStyle(
                     fontFamily: 'Roboto Slab',
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF1C2118),
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   !_isCaptain
-                      ? 'Chỉ Trưởng nhóm mới khóa được bảng chia tiền của nhóm.'
-                      : isReady
-                      ? 'Chốt bảng chia tiền và cố định phần mỗi người phải trả. Sau khi khóa chỉ còn Giải tán nhóm khả dụng.'
-                      : 'Còn ${widget.pendingBillCount} hóa đơn chưa chia xong. Hoàn tất chia tiền rồi mới khóa hóa đơn được.',
+                      ? 'Chỉ Trưởng nhóm mới có quyền bật/tắt nhận hóa đơn mới.'
+                      : _isClosed
+                          ? 'Tạm dừng nhận thêm bill mới. Gạt tắt để mở nhận bill trở lại.'
+                          : 'Chặn thành viên tạo/quét thêm bill mới. Các bill hiện có vẫn sửa/chốt được.',
                   style: const TextStyle(
                     fontFamily: 'Roboto Slab',
-                    fontSize: 11,
+                    fontSize: 11.5,
                     color: Color(0xFF676E5F),
-                    height: 1.45,
+                    height: 1.4,
                   ),
                 ),
               ],
             ),
           ),
           if (_isCaptain) ...[
-            const SizedBox(width: 10),
-            ElevatedButton.icon(
-              onPressed: (_isProcessing || !isReady) ? null : _handleCloseBook,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFDBE0CE),
-                disabledForegroundColor: const Color(0xFF676E5F),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              icon: const Icon(Icons.lock_outline_rounded, size: 13),
-              label: const Text(
-                'Khóa hóa đơn',
-                style: TextStyle(
-                  fontFamily: 'Roboto Slab',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+            const SizedBox(width: 8),
+            Switch(
+              value: _isClosed,
+              onChanged: _isProcessing ? null : _handleToggleLock,
+              activeThumbColor: const Color(0xFF0F766E),
             ),
           ],
         ],
@@ -1105,9 +1182,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _isClosed
-                          ? 'Nhóm đã khóa hóa đơn nên không thể rời. Hãy giải tán nhóm sau khi cả nhóm tất toán.'
-                          : 'Bạn chỉ có thể rời nhóm khi không còn bất kỳ khoản nợ nào.',
+                      'Bạn chỉ có thể rời nhóm khi không còn bất kỳ khoản nợ nào.',
                       style: const TextStyle(
                         fontFamily: 'Roboto Slab',
                         fontSize: 11,
@@ -1117,23 +1192,27 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                   ],
                 ),
               ),
-              OutlinedButton.icon(
-                onPressed: _adminLocked ? null : _handleLeaveGroup,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFDC2626),
-                  side: const BorderSide(color: Color(0xFFFECACA)),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                icon: const Icon(Icons.logout_rounded, size: 13, color: Color(0xFFDC2626)),
-                label: const Text(
-                  'Rời nhóm',
-                  style: TextStyle(
-                    fontFamily: 'Roboto Slab',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+              const SizedBox(width: 12),
+              Tooltip(
+                message: 'Rời khỏi nhóm',
+                child: InkWell(
+                  onTap: _adminLocked ? null : _handleLeaveGroup,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        HugeIcons.strokeRoundedLogout01,
+                        size: 18,
+                        color: Color(0xFFDC2626),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1169,24 +1248,26 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                     ],
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: _isProcessing ? null : _handleDisbandGroup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFDC2626),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: const Icon(Icons.warning_amber_rounded, size: 13, color: Colors.white),
-                  label: const Text(
-                    'Giải tán',
-                    style: TextStyle(
-                      fontFamily: 'Roboto Slab',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                const SizedBox(width: 12),
+                Tooltip(
+                  message: 'Giải tán nhóm',
+                  child: InkWell(
+                    onTap: _isProcessing ? null : _handleDisbandGroup,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          HugeIcons.strokeRoundedDelete02,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),

@@ -142,13 +142,17 @@ class _AppButtonState extends State<AppButton> with SingleTickerProviderStateMix
             widget.icon!,
             const SizedBox(width: 8),
           ],
-          Text(
-            widget.label,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: fg,
-              letterSpacing: 0.2,
+          Flexible(
+            child: Text(
+              widget.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: fg,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
           if (widget.trailingIcon != null) ...[

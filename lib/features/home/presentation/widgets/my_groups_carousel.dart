@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
+import '../../../groups/presentation/widgets/group_avatar.dart';
 import '../../domain/entities/home_group_item_entity.dart';
 import '../providers/home_groups_provider.dart';
 
@@ -35,13 +36,17 @@ class MyGroupsCarousel extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Nhóm của tôi',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: textMain,
-                letterSpacing: -0.2,
+            Flexible(
+              child: Text(
+                'Nhóm của tôi',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: textMain,
+                  letterSpacing: -0.2,
+                ),
               ),
             ),
             InkWell(
@@ -86,7 +91,8 @@ class MyGroupsCarousel extends ConsumerWidget {
                 children: [
                   for (final g in groups) ...[
                     _GroupCardItem(
-                      emoji: g.emoji,
+                      groupId: g.id,
+                      initials: g.initials,
                       memberCount: g.activeMemberCount,
                       title: g.name,
                       balanceText: g.balanceText,
@@ -147,7 +153,8 @@ class MyGroupsCarousel extends ConsumerWidget {
 
 class _GroupCardItem extends StatelessWidget {
   const _GroupCardItem({
-    required this.emoji,
+    required this.groupId,
+    required this.initials,
     required this.memberCount,
     required this.title,
     required this.balanceText,
@@ -157,7 +164,8 @@ class _GroupCardItem extends StatelessWidget {
     this.onTap,
   });
 
-  final String emoji;
+  final String groupId;
+  final String initials;
   final int memberCount;
   final String title;
   final String balanceText;
@@ -175,6 +183,9 @@ class _GroupCardItem extends StatelessWidget {
 
     const emeraldGreen = Color(0xFF10B981);
     const dangerRed = Color(0xFFEF4444);
+
+    final (background, borderCol, foreground) =
+        GroupAvatar.paletteFor(groupId.isNotEmpty ? groupId : title);
 
     return InkWell(
       onTap: onTap,
@@ -198,25 +209,44 @@ class _GroupCardItem extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Top: Emoji + Member Count Badge & Captain Tag
+            // Top: Group Initials Avatar + Member Count Badge & Captain Crown Tag
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(emoji, style: const TextStyle(fontSize: 18)),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: borderCol),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    initials,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: foreground,
+                    ),
+                  ),
+                ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (isCaptain) ...[
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
                         margin: const EdgeInsets.only(right: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                          color: const Color(0xFFFEF3C7),
+                          border: Border.all(color: const Color(0xFFFDE68A)),
                           borderRadius: BorderRadius.circular(5),
                         ),
-                        child: const Text(
-                          '👑',
-                          style: TextStyle(fontSize: 9),
+                        child: const Icon(
+                          HugeIcons.strokeRoundedCrown,
+                          size: 11,
+                          color: Color(0xFFD97706),
                         ),
                       ),
                     ],

@@ -12,12 +12,16 @@ class AllBillsTab extends StatelessWidget {
     required this.bills,
     required this.onTapBill,
     required this.onScanBill,
+    this.searchQuery,
+    this.onClearSearch,
     super.key,
   });
 
   final List<SettlementBillEntity> bills;
-  final void Function(String billId, String title) onTapBill;
+  final ValueChanged<SettlementBillEntity> onTapBill;
   final VoidCallback onScanBill;
+  final String? searchQuery;
+  final VoidCallback? onClearSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -76,11 +80,48 @@ class AllBillsTab extends StatelessWidget {
         const SizedBox(height: 10),
         if (bills.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 32),
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
             child: Center(
-              child: Text(
-                'Chưa có hóa đơn nào',
-                style: TextStyle(color: textMuted),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    (searchQuery != null && searchQuery!.isNotEmpty)
+                        ? HugeIcons.strokeRoundedSearch01
+                        : HugeIcons.strokeRoundedInvoice01,
+                    size: 38,
+                    color: textMuted.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    (searchQuery != null && searchQuery!.isNotEmpty)
+                        ? 'Không tìm thấy hóa đơn phù hợp với "$searchQuery"'
+                        : 'Chưa có hóa đơn nào',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: textMuted,
+                    ),
+                  ),
+                  if (searchQuery != null &&
+                      searchQuery!.isNotEmpty &&
+                      onClearSearch != null) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: onClearSearch,
+                      icon: const Icon(HugeIcons.strokeRoundedCancel01, size: 14),
+                      label: const Text('Xóa tìm kiếm để xem tất cả'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0F766E),
+                        side: const BorderSide(color: Color(0xFF0F766E)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           )
@@ -94,7 +135,7 @@ class AllBillsTab extends StatelessWidget {
               final bill = bills[index];
               final colors = _statusColors(bill.status);
               return InkWell(
-                onTap: () => onTapBill(bill.id, bill.title),
+                onTap: () => onTapBill(bill),
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: const EdgeInsets.all(14),
@@ -108,7 +149,19 @@ class AllBillsTab extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Text('🧾', style: TextStyle(fontSize: 16)),
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F766E).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: const Icon(
+                              HugeIcons.strokeRoundedInvoice01,
+                              size: 16,
+                              color: Color(0xFF0F766E),
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(

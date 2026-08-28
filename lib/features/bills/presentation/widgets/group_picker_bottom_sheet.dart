@@ -18,6 +18,7 @@ class GroupItemData {
     required this.memberCount,
     required this.balanceText,
     this.isPositive = true,
+    this.billSubmissionLocked = false,
   });
 
   final String id;
@@ -26,6 +27,7 @@ class GroupItemData {
   final int memberCount;
   final String balanceText;
   final bool isPositive;
+  final bool billSubmissionLocked;
 }
 
 class GroupPickerBottomSheet extends StatelessWidget {
@@ -73,6 +75,7 @@ class GroupPickerBottomSheet extends StatelessWidget {
             memberCount: group.memberCount,
             balanceText: CurrencyFormatter.vnd(group.myBalance),
             isPositive: group.myBalance >= 0,
+            billSubmissionLocked: group.billSubmissionLocked,
           ),
       ],
     );
@@ -243,94 +246,107 @@ class GroupPickerBottomSheet extends StatelessWidget {
                   final group = groups[index];
                   final isSelected = group.id == selectedGroupId;
 
-                  return InkWell(
-                    onTap: () => onGroupSelected(group),
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
+                  final itemContent = Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? (isDark
+                                ? AppColors.primary.withValues(alpha: 0.15)
+                                : AppColors.primarySubtle)
+                          : (isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF8FAF9)),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
                         color: isSelected
-                            ? (isDark
-                                  ? AppColors.primary.withValues(alpha: 0.15)
-                                  : AppColors.primarySubtle)
+                            ? AppColors.primary
                             : (isDark
-                                  ? const Color(0xFF0F172A)
-                                  : const Color(0xFFF8FAF9)),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.primary
-                              : (isDark
-                                    ? const Color(0xFF334155)
-                                    : const Color(0xFFE2E8F0)),
-                          width: isSelected ? 1.5 : 1.0,
-                        ),
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0)),
+                        width: isSelected ? 1.5 : 1.0,
                       ),
-                      child: Row(
-                        children: [
-                          // Emoji Box
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
+                    ),
+                    child: Row(
+                      children: [
+                        // Emoji Box
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF1E293B)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
                               color: isDark
-                                  ? const Color(0xFF1E293B)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isDark
-                                    ? const Color(0xFF334155)
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                group.emoji,
-                                style: const TextStyle(fontSize: 20),
-                              ),
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0),
                             ),
                           ),
-                          const SizedBox(width: 12),
-
-                          // Title & Subtitle
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  group.name,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: isSelected
-                                        ? AppColors.primary
-                                        : textMain,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${group.memberCount} thành viên',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    color: textMuted,
-                                  ),
-                                ),
-                              ],
+                          child: Center(
+                            child: Text(
+                              group.emoji,
+                              style: const TextStyle(fontSize: 20),
                             ),
                           ),
+                        ),
+                        const SizedBox(width: 12),
 
-                          // Selected checkmark
-                          if (isSelected)
-                            const Icon(
-                              HugeIcons.strokeRoundedCheckmarkCircle02,
-                              color: AppColors.primary,
-                              size: 22,
-                            ),
-                        ],
-                      ),
+                        // Title & Subtitle
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                group.name,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : textMain,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                group.billSubmissionLocked
+                                    ? '${group.memberCount} thành viên · Đã khóa nhận bill'
+                                    : '${group.memberCount} thành viên',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  color: textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Selected checkmark
+                        if (isSelected)
+                          const Icon(
+                            HugeIcons.strokeRoundedCheckmarkCircle02,
+                            color: AppColors.primary,
+                            size: 22,
+                          ),
+                      ],
+                    ),
+                  );
+
+                  return Semantics(
+                    button: true,
+                    enabled: !group.billSubmissionLocked,
+                    label: group.billSubmissionLocked
+                        ? '${group.name}: Đã khóa nhận bill'
+                        : group.name,
+                    child: InkWell(
+                      onTap: group.billSubmissionLocked
+                          ? null
+                          : () => onGroupSelected(group),
+                      borderRadius: BorderRadius.circular(14),
+                      child: itemContent,
                     ),
                   );
                 },

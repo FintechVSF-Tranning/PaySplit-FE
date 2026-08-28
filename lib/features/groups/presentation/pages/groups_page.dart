@@ -9,6 +9,7 @@ import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/header_wave_painter.dart';
 import '../../domain/entities/group_entity.dart';
 import '../providers/groups_provider.dart';
 import '../widgets/create_group_bottom_sheet.dart';
@@ -41,39 +42,38 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
         ? activeGroups
         : closedGroups;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF9),
-      body: Stack(
-        children: [
-          // Dải sóng Teal ở đầu màn hình
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: CustomPaint(
-              size: const Size(double.infinity, 190),
-              painter: _GroupsHeaderWavePainter(),
-            ),
-          ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
+    final statusBarHeight = MediaQuery.paddingOf(context).top;
 
-          SafeArea(
-            bottom: false,
-            // Danh sách chỉ tự tải một lần mỗi phiên, mà tên nhóm / sĩ số thì
-            // người khác đổi lúc nào không biết — cho người dùng một cách chủ
-            // động lấy dữ liệu mới mà không phải khởi động lại app.
-            child: RefreshIndicator(
-              onRefresh: () => ref.read(groupsProvider.notifier).refresh(),
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _Header(groupCount: groups.length),
-                          const SizedBox(height: 18),
+    return Scaffold(
+      backgroundColor: bg,
+      body: RefreshIndicator(
+        onRefresh: () => ref.read(groupsProvider.notifier).refresh(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Stack(
+                children: [
+                  // Dải sóng Teal ở đầu màn hình (cuộn cùng nội dung)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: CustomPaint(
+                      size: Size(double.infinity, 190 + statusBarHeight),
+                      painter: HeaderWavePainter(isDark: isDark),
+                    ),
+                  ),
+
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 12 + statusBarHeight, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _Header(groupCount: groups.length),
+                        const SizedBox(height: 18),
 
                           // Hàng ngang 2 nút tham gia nhóm
                           Row(
@@ -153,7 +153,9 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                         ],
                       ),
                     ),
-                  ),
+                  ],
+                ),
+              ),
 
                   if (groupsState.isLoading && groups.isEmpty)
                     const SliverToBoxAdapter(
@@ -234,10 +236,7 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
+          );
   }
 
   void _openDetail(BuildContext context, GroupEntity group) {
@@ -616,34 +615,6 @@ class _DashedBorderPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _GroupsHeaderWavePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFF0F766E), Color(0xFF115E59), Color(0xFF134E4A)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(rect);
-
-    final path = Path()
-      ..lineTo(0, size.height - 35)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height + 15,
-        size.width,
-        size.height - 35,
-      )
-      ..lineTo(size.width, 0)
-      ..close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
 
 /// Segmented pill lọc nhóm theo vòng đời: đang hoạt động vs đã khóa hóa đơn.
 class _LifecycleTabs extends StatelessWidget {
@@ -680,7 +651,7 @@ class _LifecycleTabs extends StatelessWidget {
           ),
           Expanded(
             child: _LifecycleTabItem(
-              label: 'Đã khóa hóa đơn',
+              label: 'Tạm khóa nhận bill',
               count: closedCount,
               isActive: current == GroupStatus.closed,
               onTap: () => onChanged(GroupStatus.closed),
@@ -728,15 +699,19 @@ class _LifecycleTabItem extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: isActive ? AppColors.textMain : AppColors.textMuted,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isActive ? AppColors.textMain : AppColors.textMuted,
+                ),
               ),
             ),
-            const SizedBox(width: 5),
+            const SizedBox(width: 4),
             Text(
               '$count',
               style: GoogleFonts.jetBrainsMono(
@@ -752,7 +727,7 @@ class _LifecycleTabItem extends StatelessWidget {
   }
 }
 
-/// Trạng thái rỗng của tab "Đã khóa hóa đơn".
+/// Trạng thái rỗng của tab "Tạm khóa nhận bill".
 class _EmptyClosedState extends StatelessWidget {
   const _EmptyClosedState();
 
@@ -769,14 +744,23 @@ class _EmptyClosedState extends StatelessWidget {
         ),
         child: Column(
           children: [
-            const Icon(
-              HugeIcons.strokeRoundedCheckmarkCircle02,
-              size: 28,
-              color: AppColors.textSubtle,
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.warningSubtle,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.warningBorder),
+              ),
+              child: const Icon(
+                HugeIcons.strokeRoundedLock,
+                size: 22,
+                color: AppColors.warningText,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Text(
-              'Chưa có nhóm nào khóa hóa đơn',
+              'Chưa có nhóm nào tạm khóa nhận bill',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -785,7 +769,7 @@ class _EmptyClosedState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Khi một nhóm chia xong toàn bộ hóa đơn, hãy khóa hóa đơn\nđể chốt bảng chia tiền và lưu lại làm lịch sử.',
+              'Khi cần tạm dừng để đối soát số liệu, trưởng nhóm có thể\nbật tạm khóa nhận hóa đơn mới trong Cài đặt nhóm.',
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12.5,

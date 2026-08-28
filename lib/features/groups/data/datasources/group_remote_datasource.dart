@@ -93,4 +93,10 @@ abstract class GroupRemoteDataSource {
     @Path('id') String id, {
     @Header('Idempotency-Key') required String idempotencyKey,
   });
+
+  /// Mở khóa gửi hóa đơn.
+  @POST('/groups/{id}/bills/unlock-submissions')
+  Future<ApiResponse<GroupBillLockModel>> unlockBillSubmissions(
+    @Path('id') String id,
+  );
 }

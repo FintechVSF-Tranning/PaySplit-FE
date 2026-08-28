@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,13 +8,19 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/time_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/widgets/header_wave_painter.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
 import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
 import '../../../groups/presentation/widgets/create_group_bottom_sheet.dart';
 import '../../../notifications/presentation/providers/notifications_notifier.dart';
+import '../../../settlement/domain/entities/settlement_entities.dart';
 import '../../../settlement/presentation/providers/settlement_controller.dart';
+import '../../../settlement/presentation/widgets/dynamic_vietqr_sheet.dart';
+import '../../../settlement/presentation/widgets/proof_review_sheet.dart';
+import '../../../settlement/presentation/widgets/reject_proof_dialog.dart';
+import '../../../settlement/presentation/widgets/select_debt_batch_sheet.dart';
 import '../../../groups/presentation/providers/groups_provider.dart';
 import '../providers/home_activities_provider.dart';
 import '../providers/home_groups_provider.dart';
@@ -34,6 +41,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).valueOrNull;
     final unreadNotifs = ref.watch(unreadNotificationCountProvider);
+    final settlementState = ref.watch(settlementControllerProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final displayName = (user?.name != null && user!.name.isNotEmpty)
         ? user.name
@@ -41,12 +49,11 @@ class _HomePageState extends ConsumerState<HomePage> {
               ? user.email.split('@').first
               : 'Bạn');
 
-    final settlementState = ref.watch(settlementControllerProvider);
     final overview = settlementState.overview;
 
     final totalPayable = overview?.totalPayable ?? 0;
     final totalReceivable = overview?.totalReceivable ?? 0;
-    final netAmount = totalReceivable - totalPayable;
+    final netAmount = overview?.netBalance ?? (totalReceivable - totalPayable);
     final isBalanced = totalPayable == 0 && totalReceivable == 0;
     final isPositive = netAmount >= 0;
 
@@ -246,17 +253,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                     const SizedBox(height: 20),
 
-                    // 1. Hero Net Balance Card
+                    // 1. Hero Net Balance Card (Dữ liệu thật từ API)
                     NetBalanceHeroCard(
                       netAmount: netAmountFormatted,
                       receivableAmount: receivableFormatted,
                       payableAmount: payableFormatted,
                       isPositive: isPositive,
                       isBalanced: isBalanced,
-                      onPayVietQr: () => context.go(
-                        AppRoutes.settlement,
-                        extra: SettlementTab.payable,
-                      ),
+                      onPayVietQr: _openBatchPaySheet,
                       onScanBill: () async {
                         final selected = await GroupPickerBottomSheet.show(
                           context,
@@ -276,26 +280,22 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                     const SizedBox(height: 22),
 
-                    // 2. Actionable Debts Section
+                    // 2. Actionable Debts Section (Dữ liệu thật từ API)
                     ActionableDebtsSection(
+                      payableDebts: settlementState.payableDebts,
+                      receivableDebts: settlementState.receivableDebts,
+                      pendingProofs: settlementState.pendingProofs,
+                      remindedCooldowns: settlementState.remindedCooldowns,
+                      isLoading: settlementState.isLoading && settlementState.overview == null,
                       onViewAll: (tab) => context.go(
                         AppRoutes.settlement,
                         extra: tab == 0
                             ? SettlementTab.payable
                             : SettlementTab.receivable,
                       ),
-                      onPayQr: (name, amount, ctx) => context.go(
-                        AppRoutes.settlement,
-                        extra: SettlementTab.payable,
-                      ),
-                      onReviewProof: (name, amount) => context.go(
-                        AppRoutes.settlement,
-                        extra: SettlementTab.receivable,
-                      ),
-                      onRemind: (name) => showComingSoonSnackBar(
-                        context,
-                        'Đã gửi nhắc nợ tới $name',
-                      ),
+                      onPayQr: _openSinglePayQr,
+                      onReviewProof: (proof) => _openProofReviewModal(proof),
+                      onRemind: _handleRemindDebt,
                     ),
                     const SizedBox(height: 22),
 
@@ -321,6 +321,150 @@ class _HomePageState extends ConsumerState<HomePage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _openBatchPaySheet() async {
+    final selection = await showModalBottomSheet<BatchPaymentSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const SelectDebtBatchSheet(),
+    );
+
+    if (!mounted || selection == null) return;
+    await _generateAndOpenQr(
+      groupId: selection.groupId,
+      creditorId: selection.creditorId,
+      creditorName: selection.creditorName,
+      debtIds: selection.debtIds,
+    );
+  }
+
+  Future<void> _openSinglePayQr(DebtItemEntity debt) {
+    return _generateAndOpenQr(
+      groupId: debt.groupId,
+      creditorId: debt.creditorId,
+      creditorName: debt.creditorName,
+      debtIds: [debt.id],
+    );
+  }
+
+  Future<void> _generateAndOpenQr({
+    required String groupId,
+    required String creditorId,
+    required String creditorName,
+    required List<String> debtIds,
+  }) async {
+    try {
+      final controller = ref.read(settlementControllerProvider.notifier);
+      final payment = await controller.generatePaymentQr(
+        groupId: groupId,
+        creditorId: creditorId,
+        debtIds: debtIds,
+      );
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => DynamicVietQrSheet(
+          payment: payment,
+          creditorName: creditorName,
+          onSubmitProof: (image, note) async {
+            await controller.submitProof(
+              groupId: groupId,
+              paymentId: payment.id,
+              image: image,
+              note: note,
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackBar(
+        context,
+        'Không thể tạo mã VietQR thanh toán: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _handleRemindDebt(DebtItemEntity debt) async {
+    final cooldown = ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ?? 0;
+    if (cooldown > 0) {
+      final timeStr = TimeFormatter.formatRemainingCooldown(cooldown);
+      showErrorSnackBar(
+        context,
+        'Khoản nợ này vừa được gửi lời nhắc. Vui lòng đợi thêm $timeStr nữa.',
+      );
+      return;
+    }
+    try {
+      await ref.read(settlementControllerProvider.notifier).remindDebt(
+            groupId: debt.groupId,
+            debtId: debt.id,
+          );
+      if (!mounted) return;
+      showSuccessSnackBar(
+        context,
+        'Đã gửi nhắc nợ tới ${debt.debtorName}',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      final err = ref.read(settlementControllerProvider).errorMessage;
+      showErrorSnackBar(
+        context,
+        err ?? 'Không thể gửi nhắc nợ',
+      );
+    }
+  }
+
+  Future<void> _openProofReviewModal(ProofDetailEntity proof) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ProofReviewSheet(
+        proof: proof,
+        onConfirm: () async {
+          await ref
+              .read(settlementControllerProvider.notifier)
+              .confirmPendingPayment(
+                groupId: proof.groupId,
+                paymentId: proof.paymentId,
+              );
+          if (!mounted) return;
+          await HapticFeedback.mediumImpact();
+          if (!mounted) return;
+          showSuccessSnackBar(
+            context,
+            'Đã xác nhận thanh toán từ ${proof.debtorName}! Số dư đã được cập nhật.',
+          );
+        },
+        onReject: () {
+          if (!mounted) return;
+          showDialog<void>(
+            context: context,
+            builder: (_) => RejectProofDialog(
+              onRejectSubmitted: (reason) async {
+                await ref
+                    .read(settlementControllerProvider.notifier)
+                    .rejectPendingPayment(
+                      groupId: proof.groupId,
+                      paymentId: proof.paymentId,
+                      reason: reason,
+                    );
+                if (!mounted) return;
+                showErrorSnackBar(
+                  context,
+                  'Đã từ chối minh chứng. Khoản nợ đã được chuyển về trạng thái chờ thanh toán.',
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }

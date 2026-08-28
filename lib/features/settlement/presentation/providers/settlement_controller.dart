@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failures.dart';
+import '../../../../core/utils/time_formatter.dart';
 import '../../../../di/injection.dart';
 import '../../data/datasources/settlement_remote_data_source.dart';
 import '../../data/repositories/settlement_repository_impl.dart';
@@ -82,7 +83,9 @@ class SettlementState {
 }
 
 final settlementRemoteDataSourceProvider = Provider<SettlementRemoteDataSource>(
-  (ref) => SettlementRemoteDataSourceImpl(getIt<Dio>()),
+  (ref) => SettlementRemoteDataSourceImpl(
+    getIt.isRegistered<Dio>() ? getIt<Dio>() : Dio(),
+  ),
 );
 
 final settlementRepositoryProvider = Provider<SettlementRepository>((ref) {
@@ -100,7 +103,7 @@ final settlementControllerProvider =
 class SettlementController extends StateNotifier<SettlementState> {
   SettlementController(
     this._repository, {
-    this.reminderCooldownSeconds = 60,
+    this.reminderCooldownSeconds = 24 * 3600,
     this.countdownInterval = const Duration(seconds: 1),
   }) : super(const SettlementState()) {
     unawaited(loadData());
@@ -128,6 +131,19 @@ class SettlementController extends StateNotifier<SettlementState> {
       final selection = hadData
           ? previousSelection.intersection(selectableIds)
           : selectableIds;
+
+      final now = DateTime.now();
+      final calculatedCooldowns = Map<String, int>.from(state.remindedCooldowns);
+      for (final debt in data.receivableDebts) {
+        if (debt.lastRemindedAt != null) {
+          final elapsed = now.difference(debt.lastRemindedAt!).inSeconds;
+          final remaining = reminderCooldownSeconds - elapsed;
+          if (remaining > 0) {
+            calculatedCooldowns[debt.id] = remaining;
+          }
+        }
+      }
+
       state = state.copyWith(
         isLoading: false,
         overview: data.overview,
@@ -138,8 +154,12 @@ class SettlementController extends StateNotifier<SettlementState> {
         settledHistory: data.settledHistory,
         bills: data.bills,
         selectedDebtIds: selection,
+        remindedCooldowns: calculatedCooldowns,
         errorMessage: null,
       );
+      if (calculatedCooldowns.isNotEmpty) {
+        _startCountdown();
+      }
     } catch (error) {
       if (mounted) {
         state = state.copyWith(
@@ -236,15 +256,34 @@ class SettlementController extends StateNotifier<SettlementState> {
     required String groupId,
     required String debtId,
   }) async {
-    await _mutate(
-      () => _repository.remindDebt(groupId: groupId, debtId: debtId),
-    );
-    if (!mounted) return;
+    final currentCooldown = state.remindedCooldowns[debtId] ?? 0;
+    if (currentCooldown > 0) {
+      return;
+    }
 
-    final cooldowns = Map<String, int>.from(state.remindedCooldowns)
-      ..[debtId] = reminderCooldownSeconds;
-    state = state.copyWith(remindedCooldowns: cooldowns);
-    _startCountdown();
+    try {
+      await _mutate(
+        () => _repository.remindDebt(groupId: groupId, debtId: debtId),
+      );
+      if (!mounted) return;
+
+      final cooldowns = Map<String, int>.from(state.remindedCooldowns)
+        ..[debtId] = reminderCooldownSeconds;
+      state = state.copyWith(remindedCooldowns: cooldowns, errorMessage: null);
+      _startCountdown();
+    } catch (error) {
+      if (mounted && error is Failure && error.code == 'REMINDER_RATE_LIMITED') {
+        final cooldowns = Map<String, int>.from(state.remindedCooldowns)
+          ..[debtId] = reminderCooldownSeconds;
+        state = state.copyWith(
+          remindedCooldowns: cooldowns,
+          errorMessage: null,
+        );
+        _startCountdown();
+        return;
+      }
+      rethrow;
+    }
   }
 
   Future<T> _mutate<T>(

@@ -1,7 +1,7 @@
 # 0006. Group Bill Close UI v1
 
 **Date**: 2026-08-24
-**Status**: Proposed
+**Status**: In Progress
 **Target release**: V1
 **Platform**: Flutter 3.x, iOS và Android
 **Feature areas**: `features/groups/`, `features/bills/`, `features/home/`
@@ -27,11 +27,10 @@ Bill đã `finalized` luôn ở chế độ chỉ đọc. Các draft tồn tại
 ## 3. Ngoài phạm vi V1
 
 1. Không có debtor consent.
-2. Không có mở khóa gửi bill.
-3. UI không gọi review từng draft trước bulk. Backend tự review và finalize draft hợp lệ trong transaction của bill đó.
-4. Không sửa thuật toán phân bổ hoặc settlement.
-5. Không thay đổi quyền sửa draft hiện tại.
-6. Không chỉnh lại visual language của app.
+2. UI không gọi review từng draft trước bulk. Backend tự review và finalize draft hợp lệ trong transaction của bill đó.
+3. Không sửa thuật toán phân bổ hoặc settlement.
+4. Không thay đổi quyền sửa draft hiện tại.
+5. Không chỉnh lại visual language của app.
 
 ## 4. Kiểm kê mock hiện tại
 
@@ -39,13 +38,13 @@ Bill đã `finalized` luôn ở chế độ chỉ đọc. Các draft tồn tại
 |---|---|---|
 | Home header | `Quét bill` tại `index.html:531` | Mở group picker. Group bị khóa xuất hiện disabled với nhãn `Đã khóa nhận bill` |
 | Home quick action | `Quét bill OCR` tại `index.html:573` | Áp dụng cùng group picker và không cho chọn group bị khóa |
-| Group Hub settings | Nút settings tại `index.html:868` | Thêm mục Captain only `Khóa gửi hóa đơn mới` |
+| Group Hub settings | Nút settings tại `index.html:868` | Thêm Switch On/Off Captain only `Khóa nhận hóa đơn` (bật để khóa, gạt tắt để mở khóa lại) |
 | Group Hub bill tab | Header và filter tại `index.html:885` | Thêm lock banner, trạng thái intake và nút Captain `Chốt toàn bộ` |
 | Group bill cards | Draft OCR và finalized cards tại `index.html:894` | Giữ status hiện tại. Bill thất bại trong batch có error và CTA mở Bill Detail |
 | Group create bill sheet | `Tạo hóa đơn mới` tại `index.html:1719` | Không mở khi locked. Hiển thị reason và không cho chọn nhập tay hoặc OCR |
 | Bill Detail | Draft editor và sticky actions tại `index.html:974` và `index.html:1253` | Draft vẫn sửa được. Reviewed vẫn finalize được. Finalized chuyển hoàn toàn sang read only |
 | Current finalize handler | `handleFinalizeBillPrompt()` tại `js/app.js:2128` | Giữ cho finalize một bill. Bulk finalize dùng API batch, không loop handler trên client |
-| Group activity | Timeline tại `index.html:943` | Thêm event khóa, bắt đầu batch và hoàn tất batch |
+| Group activity | Timeline tại `index.html:943` | Thêm event khóa/mở khóa, bắt đầu batch và hoàn tất batch |
 
 Mock chưa có lock state, bulk progress, batch result hoặc disabled group picker. Đây là surface mới, không phải hành vi đã có sẵn.
 
@@ -60,17 +59,19 @@ Nhóm đã khóa nhận hóa đơn mới
 Bạn vẫn có thể hoàn thiện các bản nháp đã tồn tại.
 ```
 
-Banner hiển thị cho mọi active member. Captain thấy thêm thời gian khóa. V1 không hiển thị action mở khóa.
+Banner hiển thị cho mọi active member. Captain thấy thêm thời gian khóa.
 
-### AC UI 2. Khóa thủ công
+### AC UI 2. Khóa và mở khóa dạng Switch On/Off
 
-Group Settings có action Captain only `Khóa gửi hóa đơn mới`. Action mở confirmation sheet với ba ý rõ ràng:
+Group Settings có Switch toggle Captain only `Khóa nhận hóa đơn`:
 
-1. Mọi thành viên, kể cả Captain, không thể tạo bill mới.
-2. Draft đã có vẫn sửa và chốt được.
-3. V1 không thể mở khóa lại.
+- **Gạt sang Bật (ON)**: Mở dialog xác nhận:
+  1. Mọi thành viên, kể cả Captain, không thể tạo bill mới.
+  2. Các hóa đơn hiện có vẫn được chỉnh sửa và chốt bình thường.
+  3. Captain có thể mở khóa lại bất cứ lúc nào trong Cài đặt nhóm.
+  Nhấn `Khóa nhận hóa đơn` để xác nhận. Sau khi thành công, Switch chuyển sang ON, UI cập nhật banner locked.
 
-Nút cuối là `Xác nhận khóa`. Trong lúc gọi API, sheet không đóng bằng tap nền. Thành công cập nhật group cache, đóng mọi create bill sheet và hiển thị banner locked.
+- **Gạt sang Tắt (OFF)**: Gọi API `POST /api/v1/groups/{groupId}/bills/unlock-submissions` để mở khóa ngay lập tức, tắt banner locked và hiển thị SnackBar thông báo thành công. Mọi thành viên có thể tiếp tục tạo/quét bill mới bình thường.
 
 ### AC UI 3. Create bill gate
 

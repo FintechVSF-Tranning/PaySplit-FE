@@ -1,5 +1,6 @@
 import '../../domain/entities/group_entity.dart';
 import '../../domain/entities/group_member_entity.dart';
+import 'activity_mapper.dart';
 import 'group_models.dart';
 
 extension GroupModelMapper on GroupModel {
@@ -23,13 +24,13 @@ extension GroupModelMapper on GroupModel {
       myBalance: myBalance,
       inviteCode: inviteCode,
       isCaptain: isCaptain,
-      lastActivity: lastActivity,
+      lastActivity: lastActivity != null ? formatActivityTitle(lastActivity) : null,
       lastActivityAt: lastActivityAt,
       pendingBillCount: pendingBillCount,
-      // Khóa gửi hóa đơn của backend là một chiều; FE ánh xạ sang trạng thái
-      // "đã khóa hóa đơn" của UI.
-      status: billSubmissionLocked ? GroupStatus.closed : GroupStatus.active,
-      closedAtText: billSubmissionLockedAt == null ? null : _formatDate(billSubmissionLockedAt!),
+      billSubmissionLocked: billSubmissionLocked,
+      closedAtText: billSubmissionLockedAt == null
+          ? null
+          : _formatDate(billSubmissionLockedAt!),
     );
   }
 }
@@ -39,7 +40,9 @@ extension GroupListItemModelMapper on GroupListItemModel {
     memberCount: activeMemberCount,
     myBalance: int.tryParse(callerNetBalance) ?? 0,
     isCaptain: callerRole == 'captain',
-    lastActivity: lastActivity?.description,
+    lastActivity: lastActivity?.description != null
+        ? formatActivityTitle(lastActivity!.description)
+        : null,
     lastActivityAt: lastActivity?.createdAt,
     pendingBillCount: pendingBillCount,
   );

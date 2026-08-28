@@ -7,8 +7,10 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/time_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/widgets/header_wave_painter.dart';
+import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
 import '../../domain/entities/settlement_entities.dart';
 import '../providers/settlement_controller.dart';
 import '../widgets/all_bills_tab.dart';
@@ -31,6 +33,8 @@ class SettlementPage extends ConsumerStatefulWidget {
 }
 
 class _SettlementPageState extends ConsumerState<SettlementPage> {
+  String _billQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +81,30 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
       creditorName: debt.creditorName,
       debtIds: [debt.id],
     );
+  }
+
+  Future<void> _searchBills() async {
+    final query = await showDialog<String>(
+      context: context,
+      builder: (_) => _BillSearchDialog(initialQuery: _billQuery),
+    );
+    if (!mounted || query == null) return;
+    setState(() => _billQuery = query.trim());
+    ref.read(settlementControllerProvider.notifier).setTab(SettlementTab.bills);
+  }
+
+  Future<void> _scanBill() async {
+    final group = await GroupPickerBottomSheet.show(
+      context,
+      currentGroupId: '',
+    );
+    if (!mounted || group == null) return;
+    await context.push(
+      AppRoutes.scanBill,
+      extra: {'groupId': group.id, 'groupName': group.name},
+    );
+    if (!mounted) return;
+    await ref.read(settlementControllerProvider.notifier).loadData();
   }
 
   Future<void> _generateAndOpenQr({
@@ -240,6 +268,15 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
   }
 
   Future<void> _remindDebt(DebtItemEntity debt) async {
+    final cooldown =
+        ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ??
+        (debt.lastRemindedAt != null
+            ? ((24 * 3600) -
+                DateTime.now().difference(debt.lastRemindedAt!).inSeconds)
+            : 0);
+    if (cooldown > 0) {
+      return;
+    }
     try {
       await ref
           .read(settlementControllerProvider.notifier)
@@ -248,7 +285,12 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
         showSuccessSnackBar(context, 'Đã gửi lời nhắc đến ${debt.debtorName}.');
       }
     } catch (_) {
-      if (mounted) showErrorSnackBar(context, 'Không thể gửi lời nhắc nợ.');
+      if (mounted) {
+        final err = ref.read(settlementControllerProvider).errorMessage;
+        if (err != null && err.isNotEmpty) {
+          showErrorSnackBar(context, err);
+        }
+      }
     }
   }
 
@@ -258,6 +300,7 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
     final controller = ref.read(settlementControllerProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
+    final textMain = isDark ? AppColors.darkTextMain : AppColors.textMain;
     final statusBarHeight = MediaQuery.paddingOf(context).top;
 
     final payableCount = state.payableDebts
@@ -349,8 +392,8 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                       _HeaderCircleAction(
                         icon: HugeIcons.strokeRoundedSearch01,
                         tooltip: 'Tìm kiếm hóa đơn',
-                        onPressed: () =>
-                            showComingSoonSnackBar(context, 'Tìm kiếm hóa đơn'),
+                        isActive: _billQuery.isNotEmpty,
+                        onPressed: _searchBills,
                       ),
                       const SizedBox(width: 8),
                       _HeaderCircleAction(
@@ -400,8 +443,7 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                             tab: SettlementTab.receivable,
                             activeTab: state.currentTab,
                             isDark: isDark,
-                            onTap: () =>
-                                controller.setTab(SettlementTab.receivable),
+                            onTap: () => controller.setTab(SettlementTab.receivable),
                           ),
                         ),
                         Expanded(
@@ -428,7 +470,95 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                   ),
                   const SizedBox(height: 14),
 
-                  // 4. Tab Panels Content
+                  // 3b. Active Search Filter Banner
+                  if (_billQuery.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F766E).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: const Color(0xFF0F766E).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              HugeIcons.strokeRoundedSearch01,
+                              size: 16,
+                              color: Color(0xFF0F766E),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text.rich(
+                                TextSpan(
+                                  text: 'Đang tìm: ',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: textMain,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: '"$_billQuery"',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF0F766E),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () {
+                                setState(() => _billQuery = '');
+                              },
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      HugeIcons.strokeRoundedCancel01,
+                                      size: 12,
+                                      color: Colors.red,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Xóa lọc',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  // 4. Tab Content View
                   if (state.errorMessage != null) ...[
                     Container(
                       width: double.infinity,
@@ -440,9 +570,9 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                       ),
                       child: Row(
                         children: [
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'Không tải hoặc cập nhật được dữ liệu. Vui lòng thử lại.',
+                              state.errorMessage!,
                               key: Key('settlement-error-message'),
                               style: TextStyle(color: Color(0xFFB91C1C)),
                             ),
@@ -460,7 +590,7 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                   ],
                   if (state.isLoading) ...[
                     const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
+                      padding: EdgeInsets.symmetric(vertical: 48),
                       child: Center(
                         child: CircularProgressIndicator(
                           color: Color(0xFF0F766E),
@@ -495,19 +625,29 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                       ),
                     ] else if (state.currentTab == SettlementTab.bills) ...[
                       AllBillsTab(
-                        bills: state.bills,
-                        onTapBill: (id, title) {
-                          showComingSoonSnackBar(
-                            context,
-                            'Chi tiết hóa đơn: $title',
+                        bills: state.bills.where((bill) {
+                          final query = _billQuery.toLowerCase();
+                          return query.isEmpty ||
+                              bill.title.toLowerCase().contains(query) ||
+                              bill.groupName.toLowerCase().contains(query) ||
+                              bill.payerDisplayName.toLowerCase().contains(query);
+                        }).toList(),
+                        searchQuery: _billQuery,
+                        onClearSearch: _billQuery.isNotEmpty
+                            ? () => setState(() => _billQuery = '')
+                            : null,
+                        onTapBill: (bill) {
+                          context.push(
+                            AppRoutes.billDetail,
+                            extra: {
+                              'billId': bill.id,
+                              'groupId': bill.groupId,
+                              'groupName': bill.groupName,
+                              'merchantName': bill.title,
+                            },
                           );
                         },
-                        onScanBill: () {
-                          showComingSoonSnackBar(
-                            context,
-                            'Mở máy quét OCR hóa đơn',
-                          );
-                        },
+                        onScanBill: _scanBill,
                       ),
                     ] else if (state.currentTab == SettlementTab.history) ...[
                       SettledHistoryTab(
@@ -581,11 +721,13 @@ class _HeaderCircleAction extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.tooltip,
+    this.isActive = false,
   });
 
   final IconData icon;
   final VoidCallback onPressed;
   final String? tooltip;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
@@ -594,17 +736,101 @@ class _HeaderCircleAction extends StatelessWidget {
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(50),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.15),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-          ),
-          child: Icon(icon, size: 20, color: Colors.white),
+        child: Stack(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive
+                    ? Colors.white.withValues(alpha: 0.3)
+                    : Colors.white.withValues(alpha: 0.15),
+                border: Border.all(
+                  color: isActive
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.2),
+                  width: isActive ? 1.5 : 1.0,
+                ),
+              ),
+              child: Icon(icon, size: 20, color: Colors.white),
+            ),
+            if (isActive)
+              Positioned(
+                top: 2,
+                right: 2,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF59E0B),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _BillSearchDialog extends StatefulWidget {
+  const _BillSearchDialog({required this.initialQuery});
+  final String initialQuery;
+
+  @override
+  State<_BillSearchDialog> createState() => _BillSearchDialogState();
+}
+
+class _BillSearchDialogState extends State<_BillSearchDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialQuery);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Tìm kiếm hóa đơn'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Tên hóa đơn, người trả, tên nhóm...',
+          prefixIcon: const Icon(HugeIcons.strokeRoundedSearch01, size: 18),
+          suffixIcon: IconButton(
+            icon: const Icon(HugeIcons.strokeRoundedCancel01, size: 16),
+            onPressed: () => _controller.clear(),
+          ),
+        ),
+        onSubmitted: (value) => Navigator.of(context).pop(value),
+      ),
+      actions: [
+        if (widget.initialQuery.isNotEmpty)
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(''),
+            child: const Text('Xóa lọc'),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('Tìm'),
+        ),
+      ],
     );
   }
 }

@@ -28,6 +28,7 @@ class GroupDetailResult {
     this.callerMembershipId = '',
     this.version = 0,
     this.activeBillFinalizeBatchId,
+    this.latestBillFinalizeBatchId,
   });
 
   final GroupEntity group;
@@ -47,6 +48,9 @@ class GroupDetailResult {
   /// Chỉ Captain mới nhận được; `null` với thành viên thường hoặc khi không có
   /// batch chốt hóa đơn nào đang chạy.
   final String? activeBillFinalizeBatchId;
+
+  /// Batch gần nhất để Captain có thể xem lại kết quả sau khi hoàn tất.
+  final String? latestBillFinalizeBatchId;
 
   bool get isCaptain => callerRole == 'captain';
 }
@@ -103,17 +107,26 @@ class GroupJoinResult {
 abstract class GroupRepository {
   Future<Either<Failure, GroupEntity>> createGroup({required String name});
 
-  Future<Either<Failure, GroupPage<GroupEntity>>> listGroups({int? limit, String? cursor});
+  Future<Either<Failure, GroupPage<GroupEntity>>> listGroups({
+    int? limit,
+    String? cursor,
+  });
 
   Future<Either<Failure, GroupDetailResult>> getGroupDetail(String groupId);
 
   /// Catch-up nguội: xin phần còn thiếu kể từ [since], hoặc một snapshot khi
   /// client tụt quá xa. `since = 0` luôn cho ra snapshot.
-  Future<Either<Failure, GroupSyncResult>> syncGroup(String groupId, {required int since});
+  Future<Either<Failure, GroupSyncResult>> syncGroup(
+    String groupId, {
+    required int since,
+  });
 
   /// Kênh nóng. Stream kết thúc bình thường khi server đóng kết nối và ném lỗi
   /// khi mạng đứt — tầng gọi chịu trách nhiệm kết nối lại với version mới nhất.
-  Stream<GroupSyncEvent> streamGroupEvents(String groupId, {required int since});
+  Stream<GroupSyncEvent> streamGroupEvents(
+    String groupId, {
+    required int since,
+  });
 
   Future<Either<Failure, GroupEntity>> renameGroup(String groupId, String name);
 
@@ -135,13 +148,21 @@ abstract class GroupRepository {
   Future<Either<Failure, GroupJoinResult>> joinGroup(String code);
 
   /// Dùng chung cho rời nhóm (tự xóa mình) và Captain xóa thành viên khác.
-  Future<Either<Failure, Unit>> leaveOrRemoveMember(String groupId, String membershipId);
+  Future<Either<Failure, Unit>> leaveOrRemoveMember(
+    String groupId,
+    String membershipId,
+  );
 
-  Future<Either<Failure, Unit>> transferCaptain(String groupId, String membershipId);
+  Future<Either<Failure, Unit>> transferCaptain(
+    String groupId,
+    String membershipId,
+  );
 
-  /// Khóa gửi hóa đơn của nhóm (chỉ Captain). Trả về thời điểm khóa; backend
-  /// không có đường mở lại.
+  /// Khóa nhận hóa đơn mới của nhóm (chỉ Captain).
   Future<Either<Failure, DateTime>> lockBillSubmissions(String groupId);
+
+  /// Mở khóa nhận hóa đơn mới của nhóm (chỉ Captain).
+  Future<Either<Failure, Unit>> unlockBillSubmissions(String groupId);
 
   Future<Either<Failure, GroupPage<GroupActivityEntity>>> listActivities(
     String groupId, {

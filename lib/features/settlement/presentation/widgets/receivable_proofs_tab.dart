@@ -4,6 +4,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/time_formatter.dart';
 import '../../domain/entities/settlement_entities.dart';
 
 class ReceivableProofsTab extends StatelessWidget {
@@ -337,7 +338,7 @@ class ReceivableProofsTab extends StatelessWidget {
                             HugeIcons.strokeRoundedCheckmarkCircle02,
                             size: 15,
                           ),
-                          label: const Text('Xác nhận đã nhận tiền'),
+                          label: const Text('Xem & xác nhận'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF059669),
                             foregroundColor: Colors.white,
@@ -402,7 +403,13 @@ class ReceivableProofsTab extends StatelessWidget {
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final debt = awaitingDebts[index];
-              final cooldown = remindedCooldowns[debt.id] ?? 0;
+              final cooldown = remindedCooldowns[debt.id] ??
+                  (debt.lastRemindedAt != null
+                      ? ((24 * 3600) -
+                          DateTime.now()
+                              .difference(debt.lastRemindedAt!)
+                              .inSeconds)
+                      : 0);
               final isCooldownActive = cooldown > 0;
 
               return Container(
@@ -496,7 +503,9 @@ class ReceivableProofsTab extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  HugeIcons.strokeRoundedNotification01,
+                                  isCooldownActive
+                                      ? HugeIcons.strokeRoundedClock01
+                                      : HugeIcons.strokeRoundedNotification01,
                                   size: 13,
                                   color: isCooldownActive
                                       ? textMuted
@@ -505,7 +514,9 @@ class ReceivableProofsTab extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Text(
                                   isCooldownActive
-                                      ? 'Chờ ${cooldown}s'
+                                      ? TimeFormatter.formatRemainingCooldown(
+                                          cooldown,
+                                        )
                                       : 'Nhắc nợ',
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 11.5,
