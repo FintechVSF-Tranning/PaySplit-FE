@@ -498,10 +498,10 @@ void main() {
         expect(find.text('1p'), findsOneWidget);
         expect(find.text('Nhắc nợ'), findsNothing);
 
-        // 2. Tapping calls onRemindDebt so the page can show warning with remaining time
+        // 2. Buttons in cooldown are disabled and display time quietly
         await tester.tap(find.text('22h'));
         await tester.pump();
-        expect(remindedId, 'debt-rec-cooldown-22h');
+        expect(remindedId, isNull);
       },
     );
   });

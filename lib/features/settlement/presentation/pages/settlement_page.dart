@@ -269,13 +269,12 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
 
   Future<void> _remindDebt(DebtItemEntity debt) async {
     final cooldown =
-        ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ?? 0;
+        ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ??
+        (debt.lastRemindedAt != null
+            ? ((24 * 3600) -
+                DateTime.now().difference(debt.lastRemindedAt!).inSeconds)
+            : 0);
     if (cooldown > 0) {
-      final timeStr = TimeFormatter.formatRemainingCooldown(cooldown);
-      showErrorSnackBar(
-        context,
-        'Khoản nợ này vừa được gửi lời nhắc. Vui lòng đợi thêm $timeStr nữa.',
-      );
       return;
     }
     try {
@@ -287,10 +286,10 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
       }
     } catch (_) {
       if (mounted) {
-        final err =
-            ref.read(settlementControllerProvider).errorMessage ??
-            'Không thể gửi lời nhắc nợ.';
-        showErrorSnackBar(context, err);
+        final err = ref.read(settlementControllerProvider).errorMessage;
+        if (err != null && err.isNotEmpty) {
+          showErrorSnackBar(context, err);
+        }
       }
     }
   }

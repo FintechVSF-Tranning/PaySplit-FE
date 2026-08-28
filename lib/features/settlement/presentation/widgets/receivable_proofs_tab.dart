@@ -403,7 +403,13 @@ class ReceivableProofsTab extends StatelessWidget {
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final debt = awaitingDebts[index];
-              final cooldown = remindedCooldowns[debt.id] ?? 0;
+              final cooldown = remindedCooldowns[debt.id] ??
+                  (debt.lastRemindedAt != null
+                      ? ((24 * 3600) -
+                          DateTime.now()
+                              .difference(debt.lastRemindedAt!)
+                              .inSeconds)
+                      : 0);
               final isCooldownActive = cooldown > 0;
 
               return Container(
@@ -471,7 +477,7 @@ class ReceivableProofsTab extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         InkWell(
-                          onTap: onRemindDebt == null
+                          onTap: isCooldownActive || onRemindDebt == null
                               ? null
                               : () => onRemindDebt!(debt.id, debt.debtorName),
                           borderRadius: BorderRadius.circular(8),

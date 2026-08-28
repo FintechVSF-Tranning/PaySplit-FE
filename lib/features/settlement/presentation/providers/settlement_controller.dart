@@ -258,10 +258,7 @@ class SettlementController extends StateNotifier<SettlementState> {
   }) async {
     final currentCooldown = state.remindedCooldowns[debtId] ?? 0;
     if (currentCooldown > 0) {
-      final timeStr = TimeFormatter.formatRemainingCooldown(currentCooldown);
-      final message = 'Khoản nợ này vừa được nhắc. Vui lòng đợi thêm $timeStr nữa.';
-      state = state.copyWith(errorMessage: message);
-      throw StateError(message);
+      return;
     }
 
     try {
@@ -272,14 +269,18 @@ class SettlementController extends StateNotifier<SettlementState> {
 
       final cooldowns = Map<String, int>.from(state.remindedCooldowns)
         ..[debtId] = reminderCooldownSeconds;
-      state = state.copyWith(remindedCooldowns: cooldowns);
+      state = state.copyWith(remindedCooldowns: cooldowns, errorMessage: null);
       _startCountdown();
     } catch (error) {
       if (mounted && error is Failure && error.code == 'REMINDER_RATE_LIMITED') {
-        final cooldown = state.remindedCooldowns[debtId] ?? reminderCooldownSeconds;
-        final timeStr = TimeFormatter.formatRemainingCooldown(cooldown);
-        final customMsg = 'Khoản nợ này vừa được nhắc. Vui lòng đợi thêm $timeStr nữa.';
-        state = state.copyWith(errorMessage: customMsg);
+        final cooldowns = Map<String, int>.from(state.remindedCooldowns)
+          ..[debtId] = reminderCooldownSeconds;
+        state = state.copyWith(
+          remindedCooldowns: cooldowns,
+          errorMessage: null,
+        );
+        _startCountdown();
+        return;
       }
       rethrow;
     }
