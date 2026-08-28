@@ -350,39 +350,51 @@ class ProfilePage extends ConsumerWidget {
                                       color: const Color(0xFFCCFBF1),
                                     ),
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                      Text(
+                                        'SỐ TÀI KHOẢN',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        bankAccount,
+                                        style: GoogleFonts.jetBrainsMono(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFF0F172A),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
                                         children: [
-                                          Text(
-                                            'SỐ TÀI KHOẢN',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontSize: 9.5,
-                                              fontWeight: FontWeight.w600,
-                                              color: const Color(0xFF64748B),
-                                            ),
+                                          const Icon(
+                                            Icons.person_outline_rounded,
+                                            size: 14,
+                                            color: Color(0xFF0F766E),
                                           ),
-                                          Text(
-                                            bankAccount,
-                                            style: GoogleFonts.jetBrainsMono(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w700,
-                                              color: const Color(0xFF0F172A),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              bankHolder,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: const Color(0xFF0F766E),
+                                                letterSpacing: 0.3,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                         ],
-                                      ),
-                                      Text(
-                                        bankHolder,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: const Color(0xFF0F766E),
-                                        ),
                                       ),
                                     ],
                                   ),
