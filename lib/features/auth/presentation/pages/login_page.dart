@@ -87,6 +87,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final isLoading = authState.isLoading;
 
     ref.listen(authControllerProvider, (previous, next) {
+      if (next.hasValue && next.value != null && previous?.value != next.value) {
+        context.go(AppRoutes.home);
+        return;
+      }
       if (!next.hasError) return;
       final error = next.error;
       if (error is Failure) {

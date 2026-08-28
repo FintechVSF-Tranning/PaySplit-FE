@@ -48,7 +48,7 @@ class _WelcomePageState extends State<WelcomePage> {
         curve: Curves.easeInOutCubic,
       );
     } else {
-      context.push(AppRoutes.login);
+      context.go(AppRoutes.login);
     }
   }
 
@@ -112,19 +112,22 @@ class _WelcomePageState extends State<WelcomePage> {
                                 height: 1.45,
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 16),
 
-                            // Center Hero Mockup
+                            // Center Hero Mockup (FittedBox prevents overflow on small devices)
                             Expanded(
                               child: Center(
-                                child: switch (item.type) {
-                                  _OnboardingType.ocr => _buildOcrMockup(isDark),
-                                  _OnboardingType.group => _buildGroupMockup(isDark),
-                                  _OnboardingType.vietqr => _buildVietQrMockup(isDark),
-                                },
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: switch (item.type) {
+                                    _OnboardingType.ocr => _buildOcrMockup(isDark),
+                                    _OnboardingType.group => _buildGroupMockup(isDark),
+                                    _OnboardingType.vietqr => _buildVietQrMockup(isDark),
+                                  },
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                           ],
                         ),
                       );
