@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -31,10 +32,16 @@ class BillCapturePage extends StatefulWidget {
   State<BillCapturePage> createState() => _BillCapturePageState();
 }
 
-class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProviderStateMixin {
+class _BillCapturePageState extends State<BillCapturePage>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const int _maxPhotos = 5;
   final ImagePicker _picker = ImagePicker();
   final List<CapturedBillPhoto> _photos = [];
+
+  CameraController? _cameraController;
+  List<CameraDescription> _availableCameras = [];
+  bool _isCameraInitialized = false;
+  bool _isCameraPermissionDenied = false;
 
   bool _isFlashOn = false;
   bool _isProcessingImage = false;
@@ -42,9 +49,13 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
   late AnimationController _shutterFlashController;
   late Animation<double> _shutterFlashAnimation;
 
+  bool _isCameraLoading = true;
+  String? _cameraErrorMessage;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _shutterFlashController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 180),
@@ -52,12 +63,132 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
     _shutterFlashAnimation = Tween<double>(begin: 0.0, end: 0.85).animate(
       CurvedAnimation(parent: _shutterFlashController, curve: Curves.easeOut),
     );
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    if (!mounted) return;
+    setState(() {
+      _isCameraLoading = true;
+      _cameraErrorMessage = null;
+    });
+
+    try {
+      _availableCameras = await availableCameras();
+      if (_availableCameras.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isCameraInitialized = false;
+            _isCameraLoading = false;
+            _cameraErrorMessage = 'Không tìm thấy camera trên thiết bị.';
+          });
+        }
+        return;
+      }
+
+      final camera = _availableCameras.firstWhere(
+        (cam) => cam.lensDirection == CameraLensDirection.back,
+        orElse: () => _availableCameras.first,
+      );
+
+      final controller = CameraController(
+        camera,
+        ResolutionPreset.high,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
+      );
+
+      await _cameraController?.dispose();
+      _cameraController = controller;
+      await controller.initialize();
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = true;
+          _isCameraPermissionDenied = false;
+          _isCameraLoading = false;
+          _cameraErrorMessage = null;
+        });
+      }
+    } on CameraException catch (e) {
+      debugPrint('CameraException: ${e.code}, ${e.description}');
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = false;
+          _isCameraLoading = false;
+          if (e.code == 'CameraAccessDenied' ||
+              e.code == 'CameraAccessDeniedWithoutPrompt' ||
+              e.code == 'CameraAccessRestricted') {
+            _isCameraPermissionDenied = true;
+            _cameraErrorMessage =
+                'Cần cấp quyền truy cập Camera để quét hóa đơn.';
+          } else {
+            _cameraErrorMessage =
+                'Không thể mở Camera: ${e.description ?? e.code}';
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Camera init error: $e');
+      final errorStr = e.toString();
+      final isNoCamera =
+          errorStr.contains('Available cameras: 0') ||
+          errorStr.contains('No available camera') ||
+          errorStr.contains('CameraUnavailableException') ||
+          errorStr.contains('CameraIdListIncorrectException');
+
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = false;
+          _isCameraLoading = false;
+          if (isNoCamera) {
+            _cameraErrorMessage =
+                'Máy ảo chưa bật Camera ảo (0 camera khả dụng).\nHãy chọn ảnh từ Thư viện hoặc cài đặt trên Điện thoại thật.';
+          } else {
+            _cameraErrorMessage = 'Không thể khởi động Camera ($e).';
+          }
+        });
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      controller.dispose();
+      if (mounted) setState(() => _isCameraInitialized = false);
+    } else if (state == AppLifecycleState.resumed) {
+      _initCamera();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _cameraController?.dispose();
     _shutterFlashController.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleFlash() async {
+    final nextFlash = !_isFlashOn;
+    setState(() => _isFlashOn = nextFlash);
+    unawaited(HapticFeedback.selectionClick());
+
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      try {
+        await _cameraController!.setFlashMode(
+          nextFlash ? FlashMode.torch : FlashMode.off,
+        );
+      } catch (e) {
+        debugPrint('Set flash mode error: $e');
+      }
+    }
   }
 
   Future<void> _handleCaptureFromCamera() async {
@@ -71,24 +202,33 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
       unawaited(HapticFeedback.heavyImpact());
 
       // Trigger shutter flash animation
-      unawaited(_shutterFlashController.forward().then((_) => _shutterFlashController.reverse()));
-
-      final XFile? captured = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 88,
-        maxWidth: 1920,
-        maxHeight: 1920,
+      unawaited(
+        _shutterFlashController.forward().then(
+          (_) => _shutterFlashController.reverse(),
+        ),
       );
 
-      if (captured != null) {
-        final bytes = await captured.readAsBytes();
-        _addPhoto(captured, bytes);
+      if (_cameraController != null && _cameraController!.value.isInitialized) {
+        final XFile picture = await _cameraController!.takePicture();
+        final bytes = await picture.readAsBytes();
+        _addPhoto(picture, bytes);
       } else {
-        // Fallback simulated capture on web/desktop if camera modal was canceled or unsupported
-        _simulateCaptureIfDesired();
+        final XFile? captured = await _picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 88,
+          maxWidth: 1920,
+          maxHeight: 1920,
+        );
+
+        if (captured != null) {
+          final bytes = await captured.readAsBytes();
+          _addPhoto(captured, bytes);
+        } else {
+          _simulateCaptureIfDesired();
+        }
       }
-    } catch (_) {
-      // If native camera is unavailable (e.g. desktop/web permissions), generate simulated bill photo
+    } catch (e) {
+      debugPrint('Capture error: $e');
       _simulateCaptureIfDesired();
     } finally {
       if (mounted) {
@@ -98,17 +238,81 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
   }
 
   static final Uint8List _dummyReceiptBytes = Uint8List.fromList(<int>[
-    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49,
-    0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06,
-    0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44,
-    0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D,
-    0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42,
-    0x60, 0x82,
+    0x89,
+    0x50,
+    0x4E,
+    0x47,
+    0x0D,
+    0x0A,
+    0x1A,
+    0x0A,
+    0x00,
+    0x00,
+    0x00,
+    0x0D,
+    0x49,
+    0x48,
+    0x44,
+    0x52,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x08,
+    0x06,
+    0x00,
+    0x00,
+    0x00,
+    0x1F,
+    0x15,
+    0xC4,
+    0x89,
+    0x00,
+    0x00,
+    0x00,
+    0x0A,
+    0x49,
+    0x44,
+    0x41,
+    0x54,
+    0x78,
+    0x9C,
+    0x63,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x05,
+    0x00,
+    0x01,
+    0x0D,
+    0x0A,
+    0x2D,
+    0xB4,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x49,
+    0x45,
+    0x4E,
+    0x44,
+    0xAE,
+    0x42,
+    0x60,
+    0x82,
   ]);
 
   void _simulateCaptureIfDesired() {
     final dummyBytes = _dummyReceiptBytes;
-    final dummyFile = XFile.fromData(dummyBytes, name: 'bill_receipt_${_photos.length + 1}.png');
+    final dummyFile = XFile.fromData(
+      dummyBytes,
+      name: 'bill_receipt_${_photos.length + 1}.png',
+    );
     _addPhoto(dummyFile, dummyBytes);
   }
 
@@ -133,7 +337,10 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
           _addPhoto(file, bytes);
         }
         if (mounted && pickedFiles.length > remainingSlots) {
-          showErrorSnackBar(context, 'Chỉ thêm được $remainingSlots ảnh (tối đa $_maxPhotos ảnh).');
+          showErrorSnackBar(
+            context,
+            'Chỉ thêm được $remainingSlots ảnh (tối đa $_maxPhotos ảnh).',
+          );
         }
       }
     } catch (_) {
@@ -253,9 +460,7 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
 
     context.pushReplacement(
       AppRoutes.billDetail,
-      extra: {
-        'bill': fallbackBill,
-      },
+      extra: {'bill': fallbackBill},
     );
   }
 
@@ -281,10 +486,7 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
 
     context.pushReplacement(
       AppRoutes.billDetail,
-      extra: {
-        'bill': initialBill,
-        'autoStartOcr': true,
-      },
+      extra: {'bill': initialBill, 'autoStartOcr': true},
     );
   }
 
@@ -309,7 +511,9 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                    color: isDark
+                        ? const Color(0xFF475569)
+                        : const Color(0xFFCBD5E1),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -320,14 +524,22 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
+                  color: isDark
+                      ? const Color(0xFFF1F5F9)
+                      : const Color(0xFF0F172A),
                 ),
               ),
               const SizedBox(height: 12),
               _buildTipItem('1. Đặt hoá đơn trên mặt phẳng và đủ ánh sáng.'),
-              _buildTipItem('2. Căn góc chụp thẳng đứng, tránh bóng đổ hoặc gấp mép.'),
-              _buildTipItem('3. Nhấn vào ảnh để xem to, cắt xén hoặc xoay 90°.'),
-              _buildTipItem('4. Kéo thả các ảnh nhỏ để sắp xếp đúng thứ tự các trang hoá đơn.'),
+              _buildTipItem(
+                '2. Căn góc chụp thẳng đứng, tránh bóng đổ hoặc gấp mép.',
+              ),
+              _buildTipItem(
+                '3. Nhấn vào ảnh để xem to, cắt xén hoặc xoay 90°.',
+              ),
+              _buildTipItem(
+                '4. Kéo thả các ảnh nhỏ để sắp xếp đúng thứ tự các trang hoá đơn.',
+              ),
               const SizedBox(height: 16),
             ],
           ),
@@ -342,7 +554,11 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle_outline, size: 16, color: AppColors.primary),
+          const Icon(
+            Icons.check_circle_outline,
+            size: 16,
+            color: AppColors.primary,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -417,42 +633,137 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Camera simulated preview backdrop
-                      Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              HugeIcons.strokeRoundedCamera01,
-                              size: 52,
-                              color: Colors.white.withValues(alpha: 0.18),
+                      // Live Camera Preview or Placeholder
+                      if (_isCameraInitialized &&
+                          _cameraController != null &&
+                          _cameraController!.value.isInitialized)
+                        FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width:
+                                _cameraController!.value.previewSize?.height ??
+                                1,
+                            height:
+                                _cameraController!.value.previewSize?.width ??
+                                1,
+                            child: CameraPreview(_cameraController!),
+                          ),
+                        )
+                      else
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_isCameraLoading)
+                                  const SizedBox(
+                                    width: 36,
+                                    height: 36,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: AppColors.primary,
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    _isCameraPermissionDenied
+                                        ? HugeIcons.strokeRoundedCameraOff01
+                                        : HugeIcons.strokeRoundedCamera01,
+                                    size: 52,
+                                    color: Colors.white.withValues(alpha: 0.25),
+                                  ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _isCameraLoading
+                                      ? 'Đang khởi động Camera...'
+                                      : (_cameraErrorMessage ??
+                                            'Không thể kết nối Camera'),
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 13,
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                if (!_isCameraLoading) ...[
+                                  const SizedBox(height: 16),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 8,
+                                    alignment: WrapAlignment.center,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                          Icons.refresh,
+                                          size: 16,
+                                        ),
+                                        label: const Text('Thử lại'),
+                                        onPressed: _initCamera,
+                                      ),
+                                      OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white,
+                                          side: BorderSide(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.3,
+                                            ),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                          HugeIcons.strokeRoundedImage01,
+                                          size: 16,
+                                        ),
+                                        label: const Text('Mở Thư viện'),
+                                        onPressed: _handlePickFromGallery,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Khung ngắm Camera',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                color: Colors.white.withValues(alpha: 0.35),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
 
                       // Interactive Scanner Overlay with Corner Guides & Animated Laser
                       CameraScannerOverlay(
                         isFlashOn: _isFlashOn,
-                        onToggleFlash: () => setState(() => _isFlashOn = !_isFlashOn),
+                        onToggleFlash: _toggleFlash,
                       ),
 
                       // Shutter Flash Effect
                       AnimatedBuilder(
                         animation: _shutterFlashAnimation,
                         builder: (context, child) {
-                          if (_shutterFlashAnimation.value == 0) return const SizedBox.shrink();
+                          if (_shutterFlashAnimation.value == 0) {
+                            return const SizedBox.shrink();
+                          }
                           return Positioned.fill(
                             child: Container(
-                              color: Colors.white.withValues(alpha: _shutterFlashAnimation.value),
+                              color: Colors.white.withValues(
+                                alpha: _shutterFlashAnimation.value,
+                              ),
                             ),
                           );
                         },
@@ -490,7 +801,8 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
                   // Center: Large Shutter Button
                   _ShutterButton(
                     onTap: _handleCaptureFromCamera,
-                    isDisabled: _photos.length >= _maxPhotos || _isProcessingImage,
+                    isDisabled:
+                        _photos.length >= _maxPhotos || _isProcessingImage,
                     photoCount: _photos.length,
                     maxCount: _maxPhotos,
                   ),
@@ -502,10 +814,7 @@ class _BillCapturePageState extends State<BillCapturePage> with SingleTickerProv
                         : HugeIcons.strokeRoundedFlashOff,
                     label: _isFlashOn ? 'Flash Bật' : 'Flash Tắt',
                     isActive: _isFlashOn,
-                    onTap: () {
-                      setState(() => _isFlashOn = !_isFlashOn);
-                      unawaited(HapticFeedback.selectionClick());
-                    },
+                    onTap: _toggleFlash,
                     onLongPress: _showTipsBottomSheet,
                   ),
                 ],
@@ -544,9 +853,7 @@ class _HeaderCircleButton extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         ),
-        child: Center(
-          child: Icon(icon, color: Colors.white, size: 18),
-        ),
+        child: Center(child: Icon(icon, color: Colors.white, size: 18)),
       ),
     );
   }
@@ -576,7 +883,9 @@ class _HeaderPillButton extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: isHighlighted ? AppColors.primary : Colors.black.withValues(alpha: 0.55),
+          color: isHighlighted
+              ? AppColors.primary
+              : Colors.black.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isHighlighted
