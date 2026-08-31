@@ -1,8 +1,13 @@
 plugins {
     id("com.android.application")
-    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.warn("google-services.json is missing, Firebase messaging is disabled for this build")
 }
 
 android {

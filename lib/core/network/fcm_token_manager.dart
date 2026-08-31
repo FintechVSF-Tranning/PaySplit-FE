@@ -7,19 +7,77 @@ import '../../di/injection.dart';
 import '../constants/api_endpoints.dart';
 import 'token_storage.dart';
 
+typedef AccessTokenReader = Future<String?> Function();
+typedef FCMTokenUploader = Future<int?> Function(String token);
+typedef FirebaseTokenDeleter = Future<void> Function();
+
 /// Quản lý vòng đời của Firebase Cloud Messaging (FCM) Registration Token:
 /// - Xin quyền thông báo hệ điều hành (POST_NOTIFICATIONS / APNs).
 /// - Lấy FCM token và gửi lên Backend (`PUT /api/v1/users/me/fcm-token`).
 /// - Lắng nghe sự kiện token refresh và tự động cập nhật lên Backend.
 /// - Dọn dẹp / hủy token khi đăng xuất.
 class FCMTokenManager {
-  FCMTokenManager._();
+  FCMTokenManager._({
+    AccessTokenReader? readAccessToken,
+    FCMTokenUploader? uploadToken,
+    FirebaseTokenDeleter? deleteToken,
+    this._retryDelays = _defaultRetryDelays,
+  }) : _readAccessToken = readAccessToken ?? _defaultReadAccessToken,
+       _uploadToken = uploadToken ?? _defaultUploadToken,
+       _deleteToken = deleteToken ?? _defaultDeleteToken;
 
   static final FCMTokenManager instance = FCMTokenManager._();
 
+  @visibleForTesting
+  factory FCMTokenManager.forTesting({
+    required AccessTokenReader readAccessToken,
+    required FCMTokenUploader uploadToken,
+    required FirebaseTokenDeleter deleteToken,
+    List<Duration> retryDelays = _defaultRetryDelays,
+  }) => FCMTokenManager._(
+    readAccessToken: readAccessToken,
+    uploadToken: uploadToken,
+    deleteToken: deleteToken,
+    retryDelays: retryDelays,
+  );
+
+  static const List<Duration> _defaultRetryDelays = [
+    Duration(seconds: 10),
+    Duration(minutes: 1),
+    Duration(minutes: 5),
+  ];
+
+  final AccessTokenReader _readAccessToken;
+  final FCMTokenUploader _uploadToken;
+  final FirebaseTokenDeleter _deleteToken;
+  final List<Duration> _retryDelays;
+
   StreamSubscription<String>? _tokenRefreshSubscription;
+  Timer? _retryTimer;
   String? _lastSyncedToken;
+  String? _pendingToken;
+  int _retryAttempt = 0;
+  int _sessionEpoch = 0;
   bool _isInitializing = false;
+
+  @visibleForTesting
+  bool get hasPendingRetry => _pendingToken != null || _retryTimer != null;
+
+  static Future<String?> _defaultReadAccessToken() async {
+    return getIt<TokenStorage>().accessToken;
+  }
+
+  static Future<int?> _defaultUploadToken(String token) async {
+    final response = await getIt<Dio>().put<dynamic>(
+      ApiEndpoints.fcmToken,
+      data: {'fcm_token': token},
+    );
+    return response.statusCode;
+  }
+
+  static Future<void> _defaultDeleteToken() {
+    return FirebaseMessaging.instance.deleteToken();
+  }
 
   /// Lấy FCM Token hiện tại của thiết bị.
   Future<String?> getToken() async {
@@ -47,7 +105,6 @@ class FCMTokenManager {
       // 2. Lấy FCM Token ban đầu
       final token = await getToken();
       if (token != null && token.isNotEmpty) {
-        debugPrint('FCM Registration Token: $token');
         await syncTokenWithBackend(token);
       }
 
@@ -56,7 +113,7 @@ class FCMTokenManager {
       _tokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh
           .listen(
             (newToken) async {
-              debugPrint('FCM Token refreshed: $newToken');
+              debugPrint('FCM Token refreshed');
               await syncTokenWithBackend(newToken);
             },
             onError: (Object error) {
@@ -72,15 +129,15 @@ class FCMTokenManager {
 
   /// Gửi FCM Token lên Backend để lưu vào Session hiện tại.
   Future<bool> syncTokenWithBackend([String? token]) async {
+    String? fcmToken = token;
     try {
-      final tokenStorage = getIt<TokenStorage>();
-      final accessToken = await tokenStorage.accessToken;
+      final accessToken = await _readAccessToken();
       if (accessToken == null || accessToken.isEmpty) {
         // Chưa đăng nhập, không cần gửi lên server
         return false;
       }
 
-      final fcmToken = token ?? await getToken();
+      fcmToken ??= await getToken();
       if (fcmToken == null || fcmToken.isEmpty) {
         return false;
       }
@@ -90,22 +147,48 @@ class FCMTokenManager {
         return true;
       }
 
-      final dio = getIt<Dio>();
-      final response = await dio.put<dynamic>(
-        ApiEndpoints.fcmToken,
-        data: {'fcm_token': fcmToken},
-      );
+      final statusCode = await _uploadToken(fcmToken);
 
-      if (response.statusCode == 200 || response.statusCode == 204) {
+      if (statusCode == 200 || statusCode == 204) {
         _lastSyncedToken = fcmToken;
+        _clearRetry();
         debugPrint('FCM Token synced successfully with Backend');
         return true;
       }
+      _scheduleRetry(fcmToken);
       return false;
-    } catch (e) {
-      debugPrint('FCMTokenManager.syncTokenWithBackend error: $e');
+    } catch (_) {
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        _scheduleRetry(fcmToken);
+      }
+      debugPrint('FCMTokenManager.syncTokenWithBackend failed');
       return false;
     }
+  }
+
+  void _scheduleRetry(String token) {
+    _pendingToken = token;
+    if (_retryTimer?.isActive ?? false) return;
+    if (_retryAttempt >= _retryDelays.length) return;
+
+    final delay = _retryDelays[_retryAttempt];
+    _retryAttempt++;
+    final epoch = _sessionEpoch;
+    _retryTimer = Timer(delay, () {
+      _retryTimer = null;
+      if (epoch != _sessionEpoch) return;
+      final pendingToken = _pendingToken;
+      if (pendingToken != null) {
+        unawaited(syncTokenWithBackend(pendingToken));
+      }
+    });
+  }
+
+  void _clearRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _pendingToken = null;
+    _retryAttempt = 0;
   }
 
   /// Xử lý khi đăng xuất: Hủy đăng ký lắng nghe refresh và xóa cache token.
@@ -114,9 +197,11 @@ class FCMTokenManager {
       await _tokenRefreshSubscription?.cancel();
       _tokenRefreshSubscription = null;
       _lastSyncedToken = null;
+      _sessionEpoch++;
+      _clearRetry();
 
       // Xóa token trên Firebase server để thiết bị này không nhận push của user cũ
-      await FirebaseMessaging.instance.deleteToken();
+      await _deleteToken();
     } catch (e) {
       debugPrint('FCMTokenManager.onLogout error: $e');
     }
@@ -126,5 +211,6 @@ class FCMTokenManager {
   void dispose() {
     _tokenRefreshSubscription?.cancel();
     _tokenRefreshSubscription = null;
+    _clearRetry();
   }
 }

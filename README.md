@@ -177,6 +177,20 @@ Cùng cấu trúc như `auth` nhưng chỉ có 1 usecase (`GetBillsUseCase`). Đ
 
 ## 🚀 Bắt đầu chạy
 
+Firebase configuration is supplied outside Git because each environment uses
+its own Firebase app. Place the downloaded files at these exact paths before a
+build that needs push notifications:
+
+```text
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+```
+
+Clean Android and iOS builds still work when those files are absent, with push
+notifications disabled. CI should restore the matching files from its secret
+store before the build. The iOS project copies its plist into the app bundle
+when the file is present.
+
 ```bash
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs   # BẮT BUỘC: sinh *.g.dart / *.freezed.dart

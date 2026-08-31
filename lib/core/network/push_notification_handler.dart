@@ -74,12 +74,10 @@ class PushNotificationHandler {
   /// Kiểm tra tin nhắn khởi động ban đầu (khi app bị kill và user bấm push để mở)
   Future<void> checkInitialMessage() async {
     try {
-      final initialMessage =
-          await FirebaseMessaging.instance.getInitialMessage();
+      final initialMessage = await FirebaseMessaging.instance
+          .getInitialMessage();
       if (initialMessage != null) {
-        debugPrint(
-          'App launched from terminated state via FCM: ${initialMessage.data}',
-        );
+        debugPrint('App launched from terminated state via FCM');
         // Chờ router sẵn sàng một chút rồi điều hướng
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _handleNotificationClick(initialMessage);
@@ -93,7 +91,7 @@ class PushNotificationHandler {
   /// Xử lý tin nhắn đến khi app đang mở (Foreground)
   void _handleForegroundMessage(RemoteMessage message) {
     debugPrint(
-      'FCM Foreground message received: title=${message.notification?.title}, data=${message.data}',
+      'FCM Foreground message received: type=${message.data['type'] ?? 'unknown'}',
     );
 
     final context = rootNavigatorKey.currentContext;
@@ -181,7 +179,7 @@ class PushNotificationHandler {
     if (resolved != null) {
       final context = rootNavigatorKey.currentContext;
       if (context != null && context.mounted) {
-        debugPrint('Navigating to resolved path: ${resolved.path}');
+        debugPrint('Navigating from push notification');
         context.go(resolved.path, extra: resolved.extra);
       }
     }

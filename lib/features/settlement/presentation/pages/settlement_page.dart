@@ -7,7 +7,6 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
-import '../../../../core/utils/time_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/widgets/header_wave_painter.dart';
 import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
@@ -272,7 +271,7 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
         ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ??
         (debt.lastRemindedAt != null
             ? ((24 * 3600) -
-                DateTime.now().difference(debt.lastRemindedAt!).inSeconds)
+                  DateTime.now().difference(debt.lastRemindedAt!).inSeconds)
             : 0);
     if (cooldown > 0) {
       return;
@@ -443,7 +442,8 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                             tab: SettlementTab.receivable,
                             activeTab: state.currentTab,
                             isDark: isDark,
-                            onTap: () => controller.setTab(SettlementTab.receivable),
+                            onTap: () =>
+                                controller.setTab(SettlementTab.receivable),
                           ),
                         ),
                         Expanded(
@@ -483,7 +483,9 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                           color: const Color(0xFF0F766E).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: const Color(0xFF0F766E).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFF0F766E,
+                            ).withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
@@ -630,7 +632,9 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                           return query.isEmpty ||
                               bill.title.toLowerCase().contains(query) ||
                               bill.groupName.toLowerCase().contains(query) ||
-                              bill.payerDisplayName.toLowerCase().contains(query);
+                              bill.payerDisplayName.toLowerCase().contains(
+                                query,
+                              );
                         }).toList(),
                         searchQuery: _billQuery,
                         onClearSearch: _billQuery.isNotEmpty

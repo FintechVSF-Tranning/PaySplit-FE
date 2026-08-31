@@ -40,4 +40,3 @@ class _AppState extends ConsumerState<App> {
     );
   }
 }
-

@@ -31,4 +31,3 @@ Future<void> bootstrap({
 
   runApp(const ProviderScope(child: App()));
 }
-
