@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 /// DTO biểu diễn thành viên nhóm hiển thị trong Modal Cài đặt nhóm
@@ -24,16 +25,13 @@ class GroupMemberSettingItem {
 
 /// Modal Bottom Sheet Quản trị và Cài đặt nhóm (Group Settings Bottom Sheet)
 ///
-/// Tuân thủ Design System PaySplit (Tally x Hallmark / Forui):
+/// Tuân thủ Design System PaySplit (Slate & Deep Teal):
 /// - Header: Tiêu đề "Cài đặt nhóm" căn giữa, nút 'X' góc phải để đóng
 /// - 4 Section chính:
 ///   1. Thông tin nhóm: Monogram, Tên nhóm (có nút Đổi tên cho Captain), Tiền tệ VND, Ngày tạo
 ///   2. Quản trị thành viên: Nút Chuyển quyền Trưởng nhóm, Danh sách thành viên kèm nút Xóa
 ///   3. Trạng thái bill: Nút Khóa hóa đơn nhóm (chỉ Captain, chỉ khi mọi hóa đơn đã chia xong)
 ///   4. Vùng nguy hiểm (Danger Zone): Nút Rời nhóm (kiểm tra sạch nợ), Giải tán nhóm (chỉ Captain)
-///
-/// Khóa nhận hóa đơn chỉ chặn tạo bill mới. Quản lý thành viên, sửa draft cũ
-/// và thanh toán công nợ vẫn hoạt động bình thường.
 class GroupSettingsBottomSheet extends StatefulWidget {
   final String groupId;
   final String initialGroupName;
@@ -156,17 +154,19 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
   Future<void> _handleRename() async {
     final controller = TextEditingController(text: _groupName);
     final formKey = GlobalKey<FormState>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
           'Đổi tên nhóm',
-          style: TextStyle(
-            fontFamily: 'Newsreader',
+          style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
+            color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
           ),
         ),
         content: Form(
@@ -175,10 +175,34 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             controller: controller,
             autofocus: true,
             maxLength: 100,
-            decoration: const InputDecoration(
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14.5,
+              color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
+            ),
+            decoration: InputDecoration(
               hintText: 'Nhập tên nhóm mới',
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(
+              hintStyle: GoogleFonts.plusJakartaSans(
+                color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              ),
+              filled: true,
+              fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFF14B8A6), width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 10,
               ),
@@ -194,9 +218,12 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text(
+            child: Text(
               'Hủy',
-              style: TextStyle(color: Color(0xFF676E5F)),
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
             ),
           ),
           ElevatedButton(
@@ -204,13 +231,19 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               backgroundColor: const Color(0xFF0F766E),
               foregroundColor: Colors.white,
               elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () {
               if (formKey.currentState?.validate() ?? false) {
                 Navigator.of(ctx).pop(controller.text.trim());
               }
             },
-            child: const Text('Lưu thay đổi'),
+            child: Text(
+              'Lưu thay đổi',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -251,40 +284,63 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     }
 
     GroupMemberSettingItem? selectedMember = candidateMembers.first;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
+          title: Text(
             'Chuyển quyền Trưởng nhóm',
-            style: TextStyle(
-              fontFamily: 'Newsreader',
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
             ),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Chọn thành viên nhận vai trò Trưởng nhóm (Captain 👑). Bạn sẽ trở thành thành viên thông thường.',
-                style: TextStyle(
-                  fontFamily: 'Roboto Slab',
-                  fontSize: 12,
-                  color: Color(0xFF676E5F),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<GroupMemberSettingItem>(
                 initialValue: selectedMember,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
+                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
+                ),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF14B8A6), width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
                   ),
@@ -294,9 +350,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                     value: m,
                     child: Text(
                       m.displayName,
-                      style: const TextStyle(
-                        fontFamily: 'Roboto Slab',
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
                       ),
                     ),
                   );
@@ -310,9 +367,12 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text(
+              child: Text(
                 'Hủy',
-                style: TextStyle(color: Color(0xFF676E5F)),
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
               ),
             ),
             ElevatedButton(
@@ -320,9 +380,15 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                 backgroundColor: const Color(0xFF0F766E),
                 foregroundColor: Colors.white,
                 elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Xác nhận chuyển'),
+              child: Text(
+                'Xác nhận chuyển',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
@@ -376,32 +442,36 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
 
   // 3. Xóa thành viên
   Future<void> _handleRemoveMember(GroupMemberSettingItem member) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
           'Xác nhận xóa thành viên',
-          style: TextStyle(
-            fontFamily: 'Newsreader',
+          style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
+            color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
           ),
         ),
         content: Text(
           'Bạn có chắc chắn muốn xóa "${member.displayName}" khỏi nhóm không?\n\nLưu ý: Thành viên này phải không còn bất kỳ khoản nợ nào trong nhóm.',
-          style: const TextStyle(
-            fontFamily: 'Roboto Slab',
+          style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
-            color: Color(0xFF1C2118),
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
+            child: Text(
               'Hủy',
-              style: TextStyle(color: Color(0xFF676E5F)),
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
             ),
           ),
           ElevatedButton(
@@ -409,9 +479,15 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
               elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Xóa thành viên'),
+            child: Text(
+              'Xóa thành viên',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -493,26 +569,31 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
 
   // 5. Rời nhóm
   Future<void> _handleLeaveGroup() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     // Kiểm tra sạch nợ
     if (widget.currentUserNetBalance != 0) {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
+          title: Text(
             'Không thể rời nhóm',
-            style: TextStyle(
-              fontFamily: 'Newsreader',
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFDC2626),
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFDC2626),
             ),
           ),
           content: Text(
             'Bạn vẫn còn công nợ chưa tất toán trong nhóm (${widget.currentUserNetBalance > 0 ? "+${widget.currentUserNetBalance} đ" : "${widget.currentUserNetBalance} đ"}).\n\nVui lòng hoàn tất thanh toán trước khi rời nhóm.',
-            style: const TextStyle(fontFamily: 'Roboto Slab', fontSize: 13),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
           ),
           actions: [
             ElevatedButton(
@@ -520,9 +601,15 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                 backgroundColor: const Color(0xFF0F766E),
                 foregroundColor: Colors.white,
                 elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Đã hiểu'),
+              child: Text(
+                'Đã hiểu',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
@@ -534,20 +621,24 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
+          title: Text(
             'Bạn là Trưởng nhóm',
-            style: TextStyle(
-              fontFamily: 'Newsreader',
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
+              color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
             ),
           ),
-          content: const Text(
+          content: Text(
             'Trưởng nhóm không thể tự ý rời nhóm. Vui lòng chuyển vai trò Trưởng nhóm cho thành viên khác trước khi rời.',
-            style: TextStyle(fontFamily: 'Roboto Slab', fontSize: 13),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
           ),
           actions: [
             ElevatedButton(
@@ -555,9 +646,15 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                 backgroundColor: const Color(0xFF0F766E),
                 foregroundColor: Colors.white,
                 elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Đã hiểu'),
+              child: Text(
+                'Đã hiểu',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
@@ -568,25 +665,32 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
           'Rời khỏi nhóm',
-          style: TextStyle(
-            fontFamily: 'Newsreader',
+          style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
+            color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
           ),
         ),
-        content: const Text(
+        content: Text(
           'Bạn có chắc chắn muốn rời khỏi nhóm này không? Toàn bộ lịch sử chi tiêu cũ vẫn sẽ được lưu lại.',
-          style: TextStyle(fontFamily: 'Roboto Slab', fontSize: 13),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
+            child: Text(
               'Hủy',
-              style: TextStyle(color: Color(0xFF676E5F)),
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
             ),
           ),
           ElevatedButton(
@@ -594,9 +698,15 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
               elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Rời nhóm'),
+            child: Text(
+              'Rời nhóm',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -619,29 +729,36 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
 
   // 6. Giải tán nhóm
   Future<void> _handleDisbandGroup() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
           'Giải tán toàn bộ nhóm',
-          style: TextStyle(
-            fontFamily: 'Newsreader',
+          style: GoogleFonts.plusJakartaSans(
             fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFFDC2626),
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFFDC2626),
           ),
         ),
-        content: const Text(
+        content: Text(
           'CẢNH BÁO: Hành động này sẽ giải tán và xóa nhóm hoàn toàn. Bạn chỉ có thể giải tán khi toàn bộ thành viên đã cân bằng sạch nợ 100%.',
-          style: TextStyle(fontFamily: 'Roboto Slab', fontSize: 13),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
+            child: Text(
               'Hủy',
-              style: TextStyle(color: Color(0xFF676E5F)),
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
             ),
           ),
           ElevatedButton(
@@ -649,9 +766,15 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
               elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Xác nhận giải tán'),
+            child: Text(
+              'Xác nhận giải tán',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -674,13 +797,21 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final maxHeight = MediaQuery.of(context).size.height * 0.88;
 
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: isDark
+            ? const Border(
+                top: BorderSide(color: Color(0xFF334155)),
+                left: BorderSide(color: Color(0xFF334155)),
+                right: BorderSide(color: Color(0xFF334155)),
+              )
+            : null,
       ),
       padding: EdgeInsets.only(
         left: 20,
@@ -697,7 +828,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFBFC6AF),
+                color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -708,26 +839,25 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           Stack(
             alignment: Alignment.center,
             children: [
-              const SizedBox(
+              SizedBox(
                 width: double.infinity,
                 child: Text(
                   'Cài đặt nhóm',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Newsreader',
-                    fontSize: 19,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C2118),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
                   ),
                 ),
               ),
               Positioned(
                 right: 0,
                 child: IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.close,
                     size: 20,
-                    color: Color(0xFF676E5F),
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -739,18 +869,17 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Quản trị thông tin và vai trò thành viên trong nhóm.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Roboto Slab',
+            style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
-              color: Color(0xFF676E5F),
+              fontWeight: FontWeight.w500,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),
           ),
           const SizedBox(height: 16),
 
-          // Nội dung cuộn được
           // Nội dung cuộn được (ẩn scrollbar)
           Flexible(
             child: ScrollConfiguration(
@@ -784,17 +913,17 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                                 width: 34,
                                 height: 34,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF8FAF9),
+                                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                                   border: Border.all(
-                                    color: const Color(0xFFDBE0CE),
+                                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                                   ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Center(
+                                child: Center(
                                   child: Icon(
                                     HugeIcons.strokeRoundedExchange01,
                                     size: 16,
-                                    color: Color(0xFF1C2118),
+                                    color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
                                   ),
                                 ),
                               ),
@@ -829,19 +958,22 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
   }
 
   Widget _buildSectionTitle(String title, {bool isDanger = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       title.toUpperCase(),
-      style: TextStyle(
-        fontFamily: 'Roboto Slab',
+      style: GoogleFonts.plusJakartaSans(
         fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: isDanger ? const Color(0xFFDC2626) : const Color(0xFF676E5F),
+        color: isDanger
+            ? (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626))
+            : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
         letterSpacing: 0.5,
       ),
     );
   }
 
   Widget _buildGroupInfoCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final monogram = _groupName.isNotEmpty
         ? _groupName
               .split(' ')
@@ -854,9 +986,11 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFDBE0CE)),
-        borderRadius: BorderRadius.circular(10),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
@@ -864,18 +998,23 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FDFA),
-              border: Border.all(color: const Color(0xFFCCFBF1)),
-              borderRadius: BorderRadius.circular(8),
+              color: isDark
+                  ? const Color(0xFF0F766E).withValues(alpha: 0.25)
+                  : const Color(0xFFF0FDFA),
+              border: Border.all(
+                color: isDark
+                    ? const Color(0xFF14B8A6).withValues(alpha: 0.4)
+                    : const Color(0xFFCCFBF1),
+              ),
+              borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
             child: Text(
               monogram,
-              style: const TextStyle(
-                fontFamily: 'Newsreader',
-                fontSize: 17,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF0F766E),
+                color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E),
               ),
             ),
           ),
@@ -890,11 +1029,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                     Expanded(
                       child: Text(
                         _groupName,
-                        style: const TextStyle(
-                          fontFamily: 'Newsreader',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1C2118),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -910,15 +1048,17 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                             width: 34,
                             height: 34,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAF9),
-                              border: Border.all(color: const Color(0xFFDBE0CE)),
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Center(
+                            child: Center(
                               child: Icon(
                                 HugeIcons.strokeRoundedEdit02,
                                 size: 16,
-                                color: Color(0xFF1C2118),
+                                color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
                               ),
                             ),
                           ),
@@ -929,10 +1069,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                 const SizedBox(height: 2),
                 Text(
                   'Tiền tệ: ${widget.groupCurrency} • Tạo ngày ${widget.createdAtText}',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto Slab',
-                    fontSize: 11,
-                    color: Color(0xFF676E5F),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -944,18 +1084,24 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
   }
 
   Widget _buildMembersListCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFDBE0CE)),
-        borderRadius: BorderRadius.circular(10),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _members.length,
-        separatorBuilder: (_, _) =>
-            const Divider(height: 1, color: Color(0xFFDBE0CE)),
+        separatorBuilder: (_, _) => Divider(
+          height: 1,
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
         itemBuilder: (context, index) {
           final member = _members[index];
           final monogram = member.displayName.isNotEmpty
@@ -973,13 +1119,17 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: const Color(0xFFF5F6F1),
+                  backgroundColor: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFE2E8F0),
                   child: Text(
                     monogram,
-                    style: const TextStyle(
+                    style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1C2118),
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? const Color(0xFFF1F5F9)
+                          : const Color(0xFF0F172A),
                     ),
                   ),
                 ),
@@ -993,10 +1143,12 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                           Flexible(
                             child: Text(
                               member.displayName,
-                              style: const TextStyle(
-                                fontFamily: 'Roboto Slab',
-                                fontSize: 13,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13.5,
                                 fontWeight: FontWeight.w600,
+                                color: isDark
+                                    ? const Color(0xFFF1F5F9)
+                                    : const Color(0xFF0F172A),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1009,27 +1161,35 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                                 vertical: 1,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFEF3C7),
+                                color: isDark
+                                    ? const Color(0xFF78350F).withValues(alpha: 0.35)
+                                    : const Color(0xFFFEF3C7),
                                 border: Border.all(
-                                  color: const Color(0xFFFDE68A),
+                                  color: isDark
+                                      ? const Color(0xFFD97706).withValues(alpha: 0.4)
+                                      : const Color(0xFFFDE68A),
                                 ),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     HugeIcons.strokeRoundedCrown,
                                     size: 10,
-                                    color: Color(0xFF92400E),
+                                    color: isDark
+                                        ? const Color(0xFFFBBF24)
+                                        : const Color(0xFF92400E),
                                   ),
                                   const SizedBox(width: 3),
-                                  const Text(
+                                  Text(
                                     'Trưởng nhóm',
-                                    style: TextStyle(
+                                    style: GoogleFonts.plusJakartaSans(
                                       fontSize: 9,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFF92400E),
+                                      color: isDark
+                                          ? const Color(0xFFFBBF24)
+                                          : const Color(0xFF92400E),
                                     ),
                                   ),
                                 ],
@@ -1044,10 +1204,12 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                             : (member.isCaptain
                                   ? 'Người tạo nhóm'
                                   : 'Thành viên'),
-                        style: const TextStyle(
-                          fontFamily: 'Roboto Slab',
+                        style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
-                          color: Color(0xFF676E5F),
+                          fontWeight: FontWeight.w500,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -1065,15 +1227,23 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
-                          border: Border.all(color: const Color(0xFFFECACA)),
+                          color: isDark
+                              ? const Color(0xFF7F1D1D).withValues(alpha: 0.35)
+                              : const Color(0xFFFEF2F2),
+                          border: Border.all(
+                            color: isDark
+                                ? const Color(0xFFEF4444).withValues(alpha: 0.4)
+                                : const Color(0xFFFECACA),
+                          ),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Icon(
                             HugeIcons.strokeRoundedUserRemove01,
                             size: 18,
-                            color: Color(0xFFDC2626),
+                            color: isDark
+                                ? const Color(0xFFF87171)
+                                : const Color(0xFFDC2626),
                           ),
                         ),
                       ),
@@ -1089,14 +1259,26 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
 
   /// Thẻ trạng thái nhận bill: Switch Toggle On/Off 2 chiều (chỉ Captain được thao tác).
   Widget _buildBillStatusCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bg = _isClosed
+        ? (isDark ? const Color(0xFF78350F).withValues(alpha: 0.35) : const Color(0xFFFFFBEB))
+        : (isDark ? const Color(0xFF064E3B).withValues(alpha: 0.35) : const Color(0xFFF0FDFA));
+
+    final border = _isClosed
+        ? (isDark ? const Color(0xFFD97706).withValues(alpha: 0.4) : const Color(0xFFFDE68A))
+        : (isDark ? const Color(0xFF059669).withValues(alpha: 0.4) : const Color(0xFFCCFBF1));
+
+    final iconColor = _isClosed
+        ? (isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309))
+        : (isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E));
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _isClosed ? const Color(0xFFFFFBEB) : const Color(0xFFF0FDFA),
-        border: Border.all(
-          color: _isClosed ? const Color(0xFFFDE68A) : const Color(0xFFCCFBF1),
-        ),
-        borderRadius: BorderRadius.circular(10),
+        color: bg,
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1104,7 +1286,7 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           Icon(
             _isClosed ? Icons.lock_outline_rounded : Icons.lock_open_rounded,
             size: 20,
-            color: _isClosed ? const Color(0xFFB45309) : const Color(0xFF0F766E),
+            color: iconColor,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1117,11 +1299,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                           ? 'Đang khóa nhận hóa đơn mới'
                           : 'Đang khóa nhận hóa đơn ($_closedAtText)')
                       : 'Khóa nhận hóa đơn mới',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto Slab',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C2118),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A),
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -1131,10 +1312,10 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                       : _isClosed
                           ? 'Tạm dừng nhận thêm bill mới. Gạt tắt để mở nhận bill trở lại.'
                           : 'Chặn thành viên tạo/quét thêm bill mới. Các bill hiện có vẫn sửa/chốt được.',
-                  style: const TextStyle(
-                    fontFamily: 'Roboto Slab',
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
-                    color: Color(0xFF676E5F),
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                     height: 1.4,
                   ),
                 ),
@@ -1146,7 +1327,8 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             Switch(
               value: _isClosed,
               onChanged: _isProcessing ? null : _handleToggleLock,
-              activeThumbColor: const Color(0xFF0F766E),
+              activeThumbColor: const Color(0xFF14B8A6),
+              activeTrackColor: isDark ? const Color(0xFF0F766E) : const Color(0xFFCCFBF1),
             ),
           ],
         ],
@@ -1155,12 +1337,20 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
   }
 
   Widget _buildDangerZoneCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
-        border: Border.all(color: const Color(0xFFFECACA)),
-        borderRadius: BorderRadius.circular(10),
+        color: isDark
+            ? const Color(0xFF7F1D1D).withValues(alpha: 0.25)
+            : const Color(0xFFFEF2F2),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFFEF4444).withValues(alpha: 0.35)
+              : const Color(0xFFFECACA),
+        ),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
@@ -1171,22 +1361,25 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Rời khỏi nhóm',
-                      style: TextStyle(
-                        fontFamily: 'Roboto Slab',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFDC2626),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? const Color(0xFFF87171)
+                            : const Color(0xFFDC2626),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Bạn chỉ có thể rời nhóm khi không còn bất kỳ khoản nợ nào.',
-                      style: const TextStyle(
-                        fontFamily: 'Roboto Slab',
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 11,
-                        color: Color(0xFF676E5F),
+                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
                       ),
                     ),
                   ],
@@ -1202,15 +1395,21 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: const Color(0xFFFECACA)),
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFFEF4444).withValues(alpha: 0.4)
+                            : const Color(0xFFFECACA),
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Icon(
                         HugeIcons.strokeRoundedLogout01,
                         size: 18,
-                        color: Color(0xFFDC2626),
+                        color: isDark
+                            ? const Color(0xFFF87171)
+                            : const Color(0xFFDC2626),
                       ),
                     ),
                   ),
@@ -1219,30 +1418,38 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
             ],
           ),
           if (_isCaptain) ...[
-            const Divider(height: 20, color: Color(0xFFFECACA)),
+            Divider(
+              height: 20,
+              color: isDark
+                  ? const Color(0xFFEF4444).withValues(alpha: 0.35)
+                  : const Color(0xFFFECACA),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Giải tán nhóm',
-                        style: TextStyle(
-                          fontFamily: 'Roboto Slab',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFDC2626),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? const Color(0xFFF87171)
+                              : const Color(0xFFDC2626),
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
                         'Xóa toàn bộ nhóm sau khi tất cả thành viên đã cân bằng sạch nợ.',
-                        style: TextStyle(
-                          fontFamily: 'Roboto Slab',
+                        style: GoogleFonts.plusJakartaSans(
                           fontSize: 11,
-                          color: Color(0xFF676E5F),
+                          fontWeight: FontWeight.w500,
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ],

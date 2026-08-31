@@ -1022,6 +1022,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                               members: bill.members,
                               isEvenSplit: isEvenSplit,
                               isEditable: canEdit,
+                              isFinalized: isReadOnlyStatus,
                               onSave: canEdit
                                   ? (updated) => notifier.updateItem(updated)
                                   : null,

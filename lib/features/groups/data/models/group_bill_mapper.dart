@@ -17,7 +17,7 @@ GroupBillStatus mapBillStatus(BillStatus status) => switch (status) {
 
 extension BillEntityToGroupBill on BillEntity {
   GroupBillEntity toGroupBill() {
-    final date = billDate ?? createdAt;
+    final date = (billDate ?? createdAt).toLocal();
     final now = DateTime.now();
     return GroupBillEntity(
       id: id,
@@ -48,7 +48,8 @@ extension BillListPageToGroupBills on BillListPage {
     return GroupBillsPage(
       bills: [for (final bill in bills) bill.toGroupBill()],
       counts: {
-        for (final entry in counts.entries) mapBillStatus(entry.key): entry.value,
+        for (final entry in counts.entries)
+          mapBillStatus(entry.key): entry.value,
       },
       totalCount: totalCount,
       nextCursor: nextCursor,

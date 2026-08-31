@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -6,6 +7,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../../core/network/dio_failure_mapper.dart';
+import '../../../../core/network/fcm_token_manager.dart';
 import '../../../../core/network/token_storage.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -26,17 +28,23 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     try {
       final deviceId = await _tokenStorage.getOrCreateDeviceId();
-      final response = await _remoteDataSource.login({
+      final fcmToken = await FCMTokenManager.instance.getToken();
+      final loginBody = <String, dynamic>{
         'email': email,
         'password': password,
         'device_id': deviceId,
         'device_name': 'Mobile Device',
-      });
+      };
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        loginBody['fcm_token'] = fcmToken;
+      }
+      final response = await _remoteDataSource.login(loginBody);
       final auth = response.requireData;
       await _tokenStorage.saveTokens(
         accessToken: auth.accessToken,
         refreshToken: auth.refreshToken,
       );
+      unawaited(FCMTokenManager.instance.initialize());
       return Right(auth.user.toEntity());
     } on DioException catch (e) {
       return Left(mapDioError(e));
@@ -243,6 +251,7 @@ class AuthRepositoryImpl implements AuthRepository {
     } catch (_) {
       // Bỏ qua: đăng xuất cục bộ vẫn phải diễn ra.
     }
+    await FCMTokenManager.instance.onLogout();
     await _tokenStorage.clear();
     return const Right(null);
   }

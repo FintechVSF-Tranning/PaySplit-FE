@@ -100,6 +100,14 @@ class _InviteLinkBottomSheetState extends State<InviteLinkBottomSheet> {
   }
 
   Widget _body(BuildContext context, GroupInvite invite) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final urlBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+    final urlBorder = isDark ? const Color(0xFF14B8A6).withValues(alpha: 0.4) : AppColors.primaryBorder;
+    final codeBoxBg = isDark ? const Color(0xFF0F172A) : AppColors.surfaceMuted;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       child: Column(
@@ -113,16 +121,16 @@ class _InviteLinkBottomSheetState extends State<InviteLinkBottomSheet> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
+              color: textMain,
             ),
           ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
             decoration: BoxDecoration(
-              color: AppColors.primarySubtle,
+              color: urlBg,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.primaryBorder),
+              border: Border.all(color: urlBorder),
             ),
             child: Row(
               children: [
@@ -132,7 +140,7 @@ class _InviteLinkBottomSheetState extends State<InviteLinkBottomSheet> {
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.primaryActive,
+                      color: primaryColor,
                     ),
                   ),
                 ),
@@ -144,10 +152,10 @@ class _InviteLinkBottomSheetState extends State<InviteLinkBottomSheet> {
                     if (!context.mounted) return;
                     showSuccessSnackBar(context, 'Đã sao chép link mời');
                   },
-                  icon: const Icon(
+                  icon: Icon(
                     HugeIcons.strokeRoundedCopy01,
                     size: 20,
-                    color: AppColors.primary,
+                    color: primaryColor,
                   ),
                 ),
               ],
@@ -160,7 +168,7 @@ class _InviteLinkBottomSheetState extends State<InviteLinkBottomSheet> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
+              color: textMain,
             ),
           ),
           const SizedBox(height: 8),
@@ -169,16 +177,16 @@ class _InviteLinkBottomSheetState extends State<InviteLinkBottomSheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
+                  color: codeBoxBg,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: border),
                 ),
                 child: Text(
                   invite.code,
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textMain,
+                    color: textMain,
                     letterSpacing: 2,
                   ),
                 ),
@@ -241,12 +249,19 @@ class _GroupPreviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+    final avatarBoxBg = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSubtle,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: border),
       ),
       child: Row(
         children: [
@@ -254,9 +269,9 @@ class _GroupPreviewRow extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: avatarBoxBg,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: border),
             ),
             alignment: Alignment.center,
             child: GroupAvatar(group: group, size: 44),
@@ -273,7 +288,7 @@ class _GroupPreviewRow extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textMain,
+                    color: textMain,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -282,7 +297,7 @@ class _GroupPreviewRow extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                    color: textMuted,
                   ),
                 ),
               ],

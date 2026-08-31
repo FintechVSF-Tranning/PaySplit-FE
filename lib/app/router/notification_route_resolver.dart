@@ -37,7 +37,10 @@ class NotificationRouteResolver {
     _ => _fallbackRoute(payload),
   };
 
-  static String? _extractString(Map<String, dynamic> payload, List<String> keys) {
+  static String? _extractString(
+    Map<String, dynamic> payload,
+    List<String> keys,
+  ) {
     for (final key in keys) {
       final value = payload[key];
       if (value is String && value.isNotEmpty) return value;
@@ -62,7 +65,9 @@ class NotificationRouteResolver {
     );
   }
 
-  static ResolvedRoute? _paymentSubmittedOrStalled(Map<String, dynamic> payload) {
+  static ResolvedRoute? _paymentSubmittedOrStalled(
+    Map<String, dynamic> payload,
+  ) {
     final groupId = _extractString(payload, const ['group_id', 'groupId']);
     if (groupId != null) {
       return ResolvedRoute(
@@ -110,10 +115,7 @@ class NotificationRouteResolver {
     if (billId != null) {
       return ResolvedRoute(
         path: AppRoutes.billDetail,
-        extra: <String, dynamic>{
-          'billId': billId,
-          if (groupId != null) 'groupId': groupId,
-        },
+        extra: <String, dynamic>{'billId': billId, 'groupId': ?groupId},
       );
     }
     if (groupId != null) {
@@ -140,17 +142,21 @@ class NotificationRouteResolver {
   }
 
   static ResolvedRoute? _fallbackRoute(Map<String, dynamic> payload) {
+    final batchId = _extractString(payload, const ['batch_id', 'batchId']);
     final billId = _extractString(payload, const ['bill_id', 'billId']);
     final groupId = _extractString(payload, const ['group_id', 'groupId']);
-    final paymentId = _extractString(payload, const ['payment_id', 'paymentId']);
+    final paymentId = _extractString(payload, const [
+      'payment_id',
+      'paymentId',
+    ]);
 
+    if (batchId != null) {
+      return _batchCompleted(payload);
+    }
     if (billId != null) {
       return ResolvedRoute(
         path: AppRoutes.billDetail,
-        extra: <String, dynamic>{
-          'billId': billId,
-          if (groupId != null) 'groupId': groupId,
-        },
+        extra: <String, dynamic>{'billId': billId, 'groupId': ?groupId},
       );
     }
     if (paymentId != null) {

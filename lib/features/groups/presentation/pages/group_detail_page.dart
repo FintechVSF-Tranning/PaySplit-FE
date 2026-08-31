@@ -12,6 +12,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../di/injection.dart';
+import '../widgets/group_avatar.dart';
 import '../../../bills/domain/entities/bill_detail_entity.dart';
 import '../../../bills/domain/repositories/bill_repository.dart';
 import '../../../home/presentation/widgets/group_settings_bottom_sheet.dart';
@@ -286,8 +287,11 @@ class _GroupDetailPageState extends ConsumerState<GroupDetailPage> {
 
     _checkAutoOpenBatch(detail, roster);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF9),
+      backgroundColor: bg,
       body: SafeArea(
         bottom: false,
         child: Stack(
@@ -1250,9 +1254,12 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final group = detail.group;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
         children: [
           _CircleIconButton(
@@ -1261,25 +1268,8 @@ class _Header extends StatelessWidget {
             onTap: onBack,
           ),
           const SizedBox(width: 10),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primarySubtle,
-              border: Border.all(color: AppColors.primaryBorder),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              _monogram(group.name),
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
+          GroupAvatar(group: group, size: 44),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1294,7 +1284,7 @@ class _Header extends StatelessWidget {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textMain,
+                          color: textMain,
                           letterSpacing: -0.3,
                         ),
                       ),
@@ -1305,9 +1295,9 @@ class _Header extends StatelessWidget {
                         width: 16,
                         height: 16,
                         decoration: BoxDecoration(
-                          color: AppColors.warningSubtle,
+                          color: isDark ? const Color(0xFF78350F).withValues(alpha: 0.35) : AppColors.warningSubtle,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.warningBorder),
+                          border: Border.all(color: isDark ? const Color(0xFFD97706).withValues(alpha: 0.4) : AppColors.warningBorder),
                         ),
                         alignment: Alignment.center,
                         child: Text(
@@ -1315,7 +1305,7 @@ class _Header extends StatelessWidget {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 9,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.warningText,
+                            color: isDark ? const Color(0xFFFBBF24) : AppColors.warningText,
                           ),
                         ),
                       ),
@@ -1324,16 +1314,13 @@ class _Header extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  // Ngày tạo chỉ có sau khi tải danh sách nhóm; nhóm mở thẳng
-                  // từ deep link chưa có nó, và "3 thành viên, " cụt đuôi thì
-                  // xấu hơn là không nói gì.
                   detail.createdAtText.isEmpty
                       ? '${group.memberCount} thành viên'
                       : '${group.memberCount} thành viên, ${detail.createdAtText}',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                    color: textMuted,
                   ),
                 ),
               ],
@@ -1348,17 +1335,6 @@ class _Header extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _monogram(String name) {
-    final parts = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((p) => p.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return 'PS';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
   }
 }
 
@@ -1375,6 +1351,11 @@ class _CircleIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final iconColor = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -1385,10 +1366,10 @@ class _CircleIconButton extends StatelessWidget {
           height: 40,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.surface,
-            border: Border.all(color: AppColors.border),
+            color: surface,
+            border: Border.all(color: border),
           ),
-          child: Icon(icon, size: 20, color: AppColors.textMain),
+          child: Icon(icon, size: 20, color: iconColor),
         ),
       ),
     );
@@ -1411,6 +1392,9 @@ class _TabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     final items = <(GroupHubTab, String, int?)>[
       (GroupHubTab.bills, 'Hóa đơn', billCount),
       (GroupHubTab.debts, 'Công nợ', null),
@@ -1419,8 +1403,8 @@ class _TabBar extends StatelessWidget {
     ];
 
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -1455,6 +1439,12 @@ class _TabItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final activeText = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final inactiveText = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final subColor = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -1462,7 +1452,7 @@ class _TabItem extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: isActive ? AppColors.primary : Colors.transparent,
+              color: isActive ? primaryColor : Colors.transparent,
               width: 2,
             ),
           ),
@@ -1474,7 +1464,7 @@ class _TabItem extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                color: isActive ? AppColors.textMain : AppColors.textMuted,
+                color: isActive ? activeText : inactiveText,
               ),
             ),
             if (count != null) ...[
@@ -1484,7 +1474,7 @@ class _TabItem extends StatelessWidget {
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
-                  color: isActive ? AppColors.primary : AppColors.textSubtle,
+                  color: isActive ? primaryColor : subColor,
                 ),
               ),
             ],
@@ -1510,6 +1500,13 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final unselectedText = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final subColor = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
@@ -1517,10 +1514,10 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 13),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surface,
+          color: isSelected ? primaryColor : surface,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
+            color: isSelected ? primaryColor : border,
           ),
         ),
         child: Row(
@@ -1531,7 +1528,7 @@ class _FilterChip extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : AppColors.textMuted,
+                color: isSelected ? Colors.white : unselectedText,
               ),
             ),
             const SizedBox(width: 5),
@@ -1542,7 +1539,7 @@ class _FilterChip extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: isSelected
                     ? Colors.white.withValues(alpha: 0.85)
-                    : AppColors.textSubtle,
+                    : subColor,
               ),
             ),
           ],
@@ -1561,13 +1558,17 @@ class _LoadMoreBillsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: OutlinedButton(
         onPressed: isLoading ? null : onTap,
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 13),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: borderColor),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -1583,7 +1584,7 @@ class _LoadMoreBillsButton extends StatelessWidget {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                  color: primaryColor,
                 ),
               ),
       ),
@@ -1641,12 +1642,17 @@ class _BillsPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSubtle,
+        color: surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: border),
       ),
       child: Column(
         children: [
@@ -1663,7 +1669,7 @@ class _BillsPlaceholder extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.textMuted,
+              color: textMuted,
             ),
           ),
           if (onRetry != null) ...[
@@ -1683,12 +1689,18 @@ class _EmptyBills extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSubtle,
+        color: surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: border),
       ),
       child: Column(
         children: [
@@ -1698,7 +1710,7 @@ class _EmptyBills extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14.5,
               fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
+              color: textMain,
             ),
           ),
           const SizedBox(height: 6),
@@ -1708,7 +1720,7 @@ class _EmptyBills extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
-              color: AppColors.textMuted,
+              color: textMuted,
             ),
           ),
         ],
@@ -1725,10 +1737,15 @@ class _AddMemberOptionsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final handleColor = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
         top: false,
@@ -1740,7 +1757,7 @@ class _AddMemberOptionsSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.borderStrong,
+                color: handleColor,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -1754,7 +1771,7 @@ class _AddMemberOptionsSheet extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textMain,
+                      color: textMain,
                       letterSpacing: -0.3,
                     ),
                   ),
@@ -1807,15 +1824,24 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final iconBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+    final iconColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textSubtle = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: border),
         ),
         child: Row(
           children: [
@@ -1823,11 +1849,11 @@ class _OptionTile extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: AppColors.primarySubtle,
+                color: iconBg,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primaryBorder),
+                border: Border.all(color: isDark ? const Color(0xFF14B8A6).withValues(alpha: 0.4) : AppColors.primaryBorder),
               ),
-              child: Icon(icon, size: 19, color: AppColors.primary),
+              child: Icon(icon, size: 19, color: iconColor),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1839,7 +1865,7 @@ class _OptionTile extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textMain,
+                      color: textMain,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1848,16 +1874,16 @@ class _OptionTile extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textMuted,
+                      color: textMuted,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               HugeIcons.strokeRoundedArrowRight01,
               size: 18,
-              color: AppColors.textSubtle,
+              color: textSubtle,
             ),
           ],
         ),
@@ -1866,8 +1892,7 @@ class _OptionTile extends StatelessWidget {
   }
 }
 
-/// Dải ribbon dưới header khi nhóm tạm khóa nhận hóa đơn: nói rõ nhóm đang tạm dừng
-/// nhận bill mới và các hóa đơn hiện có vẫn xử lý bình thường.
+/// Dải ribbon dưới header khi nhóm tạm khóa nhận hóa đơn
 class _ClosedRibbon extends StatelessWidget {
   const _ClosedRibbon({required this.closedAtText});
 
@@ -1875,13 +1900,20 @@ class _ClosedRibbon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF78350F).withValues(alpha: 0.35) : AppColors.warningSubtle;
+    final border = isDark ? const Color(0xFFD97706).withValues(alpha: 0.4) : AppColors.warningBorder;
+    final innerBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textMain = isDark ? const Color(0xFFFBBF24) : AppColors.warningText;
+    final textMuted = isDark ? const Color(0xFFD1D5DB) : const Color(0xFF64748B);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       decoration: BoxDecoration(
-        color: AppColors.warningSubtle,
+        color: bg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.warningBorder),
+        border: Border.all(color: border),
       ),
       child: Row(
         children: [
@@ -1889,14 +1921,14 @@ class _ClosedRibbon extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: innerBg,
               borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: AppColors.warningBorder),
+              border: Border.all(color: border),
             ),
-            child: const Icon(
+            child: Icon(
               HugeIcons.strokeRoundedLock,
               size: 18,
-              color: AppColors.warningText,
+              color: textMain,
             ),
           ),
           const SizedBox(width: 11),
@@ -1911,7 +1943,7 @@ class _ClosedRibbon extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.warningText,
+                    color: textMain,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1920,7 +1952,7 @@ class _ClosedRibbon extends StatelessWidget {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                    color: textMuted,
                   ),
                 ),
               ],
@@ -1930,8 +1962,8 @@ class _ClosedRibbon extends StatelessWidget {
       ),
     );
   }
-}
 
+}
 /// Hộp thoại nhập lý do huỷ hóa đơn đã chốt. Backend bắt buộc lý do 1-500 ký
 /// tự và ghi nó vào nhật ký nhóm, nên đây không phải ô cho có.
 class _VoidBillDialog extends StatefulWidget {
@@ -2020,15 +2052,23 @@ class _CloseBookDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final surfaceSubtle = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+
     return AlertDialog(
-      backgroundColor: AppColors.surface,
+      backgroundColor: surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(
         'Khóa nhận hóa đơn mới?',
         style: GoogleFonts.plusJakartaSans(
           fontSize: 17,
           fontWeight: FontWeight.w800,
-          color: AppColors.textMain,
+          color: textMain,
         ),
       ),
       content: Column(
@@ -2040,7 +2080,7 @@ class _CloseBookDialog extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppColors.textMuted,
+              color: textMuted,
               height: 1.45,
             ),
           ),
@@ -2048,16 +2088,16 @@ class _CloseBookDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.surfaceSubtle,
+              color: surfaceSubtle,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: border),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline_rounded,
                   size: 20,
-                  color: AppColors.primary,
+                  color: primaryColor,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -2066,7 +2106,7 @@ class _CloseBookDialog extends StatelessWidget {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textMain,
+                      color: textMain,
                     ),
                   ),
                 ),
@@ -2083,14 +2123,14 @@ class _CloseBookDialog extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
-              color: AppColors.textMuted,
+              color: textMuted,
             ),
           ),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF0F766E),
+            backgroundColor: primaryColor,
           ),
           child: Text(
             'Khóa nhận hóa đơn',

@@ -27,24 +27,31 @@ class AddMembersPage extends ConsumerStatefulWidget {
 class _AddMembersPageState extends ConsumerState<AddMembersPage> {
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9);
+    final appBarBg = isDark ? const Color(0xFF1E293B) : AppColors.surface;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final bottomBarBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF9),
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: appBarBg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0.5,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(HugeIcons.strokeRoundedArrowLeft01, size: 22),
-          color: AppColors.textMain,
+          icon: Icon(HugeIcons.strokeRoundedArrowLeft01, size: 22, color: textMain),
         ),
         title: Text(
           'Thêm thành viên',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 17,
             fontWeight: FontWeight.w800,
-            color: AppColors.textMain,
+            color: textMain,
             letterSpacing: -0.2,
           ),
         ),
@@ -56,7 +63,7 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textMuted,
+                color: textMuted,
               ),
             ),
           ),
@@ -122,9 +129,9 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
             // Sticky bottom bar
             Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                border: Border(top: BorderSide(color: AppColors.border)),
+              decoration: BoxDecoration(
+                color: bottomBarBg,
+                border: Border(top: BorderSide(color: border)),
               ),
               child: Row(
                 children: [
@@ -134,7 +141,7 @@ class _AddMembersPageState extends ConsumerState<AddMembersPage> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textMuted,
+                        color: textMuted,
                       ),
                     ),
                   ),
@@ -266,18 +273,26 @@ class _InviteActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final iconBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+    final iconColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -290,11 +305,11 @@ class _InviteActionCard extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: AppColors.primarySubtle,
+                color: iconBg,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primaryBorder),
+                border: Border.all(color: isDark ? const Color(0xFF14B8A6).withValues(alpha: 0.4) : AppColors.primaryBorder),
               ),
-              child: Icon(icon, size: 19, color: AppColors.primary),
+              child: Icon(icon, size: 19, color: iconColor),
             ),
             const SizedBox(height: 10),
             Text(
@@ -302,7 +317,7 @@ class _InviteActionCard extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textMain,
+                color: textMain,
               ),
             ),
             const SizedBox(height: 2),
@@ -311,7 +326,7 @@ class _InviteActionCard extends StatelessWidget {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textMuted,
+                color: textMuted,
                 height: 1.3,
               ),
             ),
@@ -328,20 +343,25 @@ class _InviteOnlyNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC);
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSubtle,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             HugeIcons.strokeRoundedInformationCircle,
             size: 18,
-            color: AppColors.textMuted,
+            color: textMuted,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -352,7 +372,7 @@ class _InviteOnlyNote extends StatelessWidget {
                 fontSize: 12.5,
                 height: 1.45,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textMuted,
+                color: textMuted,
               ),
             ),
           ),

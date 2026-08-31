@@ -24,6 +24,22 @@ void main() {
       },
     );
 
+    test(
+      'payload backend cũ thiếu type nhưng có batch_id vẫn mở đúng batch',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: '',
+          payload: {'group_id': 'g-123', 'batch_id': 'batch-456'},
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.groupDetail('g-123'));
+        final args = route.extra! as GroupDetailRouteArgs;
+        expect(args.openBatchId, 'batch-456');
+        expect(args.initialTab, GroupHubTab.bills);
+      },
+    );
+
     test('bill_bulk_finalize_completed thiếu group_id -> trả null an toàn', () {
       final route = NotificationRouteResolver.resolve(
         type: 'bill_bulk_finalize_completed',
@@ -139,14 +155,78 @@ void main() {
       },
     );
 
-    test('loại thông báo không được hỗ trợ và không có ID nhận diện -> trả null', () {
+    test(
+      'FCM payload: new_bill có bill_id và group_id -> route đến Bill Detail',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'new_bill',
+          payload: {
+            'type': 'new_bill',
+            'group_id': 'g-fcm-1',
+            'bill_id': 'b-fcm-1',
+            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+          },
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.billDetail);
+        final map = route.extra! as Map<String, dynamic>;
+        expect(map['billId'], 'b-fcm-1');
+        expect(map['groupId'], 'g-fcm-1');
+      },
+    );
+
+    test(
+      'FCM payload: payment_reminder có group_id và bill_id -> route đến Group Detail tab debts',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'payment_reminder',
+          payload: {
+            'type': 'payment_reminder',
+            'group_id': 'g-fcm-2',
+            'bill_id': 'b-fcm-2',
+            'amount': '150000',
+            'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+          },
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.groupDetail('g-fcm-2'));
+        expect(route.extra, isA<GroupDetailRouteArgs>());
+        final args = route.extra! as GroupDetailRouteArgs;
+        expect(args.initialTab, GroupHubTab.debts);
+      },
+    );
+
+    test('FCM payload: bill_updated có bill_id -> route đến Bill Detail', () {
       final route = NotificationRouteResolver.resolve(
-        type: 'unknown_type',
-        payload: {'foo': 'bar'},
+        type: 'bill_updated',
+        payload: {
+          'type': 'bill_updated',
+          'group_id': 'g-fcm-3',
+          'bill_id': 'b-fcm-3',
+          'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+        },
       );
 
-      expect(route, isNull);
+      expect(route, isNotNull);
+      expect(route!.path, AppRoutes.billDetail);
+      final map = route.extra! as Map<String, dynamic>;
+      expect(map['billId'], 'b-fcm-3');
+      expect(map['groupId'], 'g-fcm-3');
     });
+
+    test(
+      'loại thông báo không được hỗ trợ và không có ID nhận diện -> trả null',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'unknown_type',
+          payload: {'foo': 'bar'},
+        );
+
+        expect(route, isNull);
+      },
+    );
 
     test('payload rỗng không gây crash và trả null', () {
       final route = NotificationRouteResolver.resolve(

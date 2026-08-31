@@ -85,6 +85,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ref.refresh(homeActivitiesProvider.future),
             ref.read(groupsProvider.notifier).refresh(),
             ref.read(settlementControllerProvider.notifier).loadData(),
+            ref.read(notificationsProvider.notifier).refresh(),
           ]);
         },
         child: SingleChildScrollView(
@@ -207,7 +208,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                         // Notification Bell Button
                         InkWell(
-                          onTap: () => context.push(AppRoutes.notifications),
+                          onTap: () {
+                            ref.read(notificationsProvider.notifier).refresh();
+                            context.push(AppRoutes.notifications);
+                          },
                           borderRadius: BorderRadius.circular(50),
                           child: Container(
                             width: 40,

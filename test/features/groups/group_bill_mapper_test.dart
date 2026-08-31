@@ -143,5 +143,14 @@ void main() {
       final bill = billWith(BillStatus.draft).copyWith(payerName: '');
       expect(bill.toGroupBill().payerName, 'Thành viên nhóm');
     });
+
+    test('ưu tiên ngày trên hóa đơn thay vì thời điểm tạo bản ghi', () {
+      final bill = billWith(BillStatus.draft).copyWith(
+        createdAt: DateTime(2026, 8, 26, 14, 24),
+        billDate: DateTime(2026, 8, 25, 9, 30),
+      );
+
+      expect(bill.toGroupBill().dateText, '25/08 · 09:30');
+    });
   });
 }

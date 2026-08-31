@@ -105,13 +105,19 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final preview = _preview;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final handleColor = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
           top: false,
@@ -125,7 +131,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.borderStrong,
+                    color: handleColor,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -143,7 +149,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 19,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textMain,
+                              color: textMain,
                               letterSpacing: -0.3,
                             ),
                           ),
@@ -155,7 +161,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.textMuted,
+                              color: textMuted,
                             ),
                           ),
                         ],
@@ -164,16 +170,16 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
                       tooltip: 'Đóng',
-                      icon: const Icon(
+                      icon: Icon(
                         HugeIcons.strokeRoundedCancel01,
                         size: 22,
-                        color: AppColors.textMuted,
+                        color: textMuted,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: border),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                 child: preview == null ? _buildInputStep() : _buildPreviewStep(preview),
@@ -186,12 +192,19 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
   }
 
   Widget _buildInputStep() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasError = _errorText != null;
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final fieldBg = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textSubtle = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+
     final borderColor = hasError
-        ? AppColors.danger
+        ? (isDark ? const Color(0xFFEF4444) : AppColors.danger)
         : _focusNode.hasFocus
-        ? AppColors.borderFocus
-        : AppColors.border;
+        ? primaryColor
+        : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -199,14 +212,15 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
         AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
+            color: fieldBg,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: borderColor, width: 1.4),
           ),
           child: Row(
             children: [
-              const Padding(
-                padding: EdgeInsets.only(left: 14, right: 8),
-                child: Icon(HugeIcons.strokeRoundedLink01, size: 19, color: AppColors.textMuted),
+              Padding(
+                padding: const EdgeInsets.only(left: 14, right: 8),
+                child: Icon(HugeIcons.strokeRoundedLink01, size: 19, color: textMuted),
               ),
               Expanded(
                 child: TextField(
@@ -220,7 +234,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textMain,
+                    color: textMain,
                   ),
                   decoration: InputDecoration(
                     border: InputBorder.none,
@@ -229,7 +243,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                     hintStyle: GoogleFonts.jetBrainsMono(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textSubtle,
+                      color: textSubtle,
                     ),
                   ),
                 ),
@@ -245,7 +259,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                     _errorText = null;
                   });
                 },
-                icon: const Icon(HugeIcons.strokeRoundedCopy01, size: 19, color: AppColors.primary),
+                icon: Icon(HugeIcons.strokeRoundedCopy01, size: 19, color: primaryColor),
               ),
             ],
           ),
@@ -257,7 +271,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: AppColors.danger,
+              color: isDark ? const Color(0xFFF87171) : AppColors.danger,
             ),
           ),
         ],
@@ -268,15 +282,23 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
   }
 
   Widget _buildPreviewStep(GroupEntity group) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final previewBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+    final previewBorder = isDark ? const Color(0xFF14B8A6).withValues(alpha: 0.4) : AppColors.primaryBorder;
+    final avatarBoxBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final avatarBoxBorder = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.primarySubtle,
+            color: previewBg,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.primaryBorder),
+            border: Border.all(color: previewBorder),
           ),
           child: Row(
             children: [
@@ -284,9 +306,9 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: avatarBoxBg,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: avatarBoxBorder),
                 ),
                 alignment: Alignment.center,
                 child: GroupAvatar(group: group, size: 48),
@@ -301,7 +323,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.textMain,
+                        color: textMain,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -310,7 +332,7 @@ class _JoinByLinkBottomSheetState extends State<JoinByLinkBottomSheet> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textMuted,
+                        color: textMuted,
                       ),
                     ),
                   ],

@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failures.dart';
-import '../../../../core/utils/time_formatter.dart';
 import '../../../../di/injection.dart';
 import '../../data/datasources/settlement_remote_data_source.dart';
 import '../../data/repositories/settlement_repository_impl.dart';
@@ -133,7 +132,9 @@ class SettlementController extends StateNotifier<SettlementState> {
           : selectableIds;
 
       final now = DateTime.now();
-      final calculatedCooldowns = Map<String, int>.from(state.remindedCooldowns);
+      final calculatedCooldowns = Map<String, int>.from(
+        state.remindedCooldowns,
+      );
       for (final debt in data.receivableDebts) {
         if (debt.lastRemindedAt != null) {
           final elapsed = now.difference(debt.lastRemindedAt!).inSeconds;
@@ -272,7 +273,9 @@ class SettlementController extends StateNotifier<SettlementState> {
       state = state.copyWith(remindedCooldowns: cooldowns, errorMessage: null);
       _startCountdown();
     } catch (error) {
-      if (mounted && error is Failure && error.code == 'REMINDER_RATE_LIMITED') {
+      if (mounted &&
+          error is Failure &&
+          error.code == 'REMINDER_RATE_LIMITED') {
         final cooldowns = Map<String, int>.from(state.remindedCooldowns)
           ..[debtId] = reminderCooldownSeconds;
         state = state.copyWith(

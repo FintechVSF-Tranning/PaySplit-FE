@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../app/theme/app_colors.dart';
-
 /// Trạng thái đang tải mã mời, dùng chung cho sheet link mời và QR mời.
 class InviteSheetLoading extends StatelessWidget {
   const InviteSheetLoading({super.key});
@@ -25,6 +23,9 @@ class InviteSheetError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 40, 24, 40),
       child: Column(
@@ -36,7 +37,7 @@ class InviteSheetError extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13.5,
               fontWeight: FontWeight.w500,
-              color: AppColors.textMuted,
+              color: textMuted,
             ),
           ),
           const SizedBox(height: 12),

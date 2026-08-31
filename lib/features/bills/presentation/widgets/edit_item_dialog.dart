@@ -13,6 +13,7 @@ class EditItemDialog extends StatefulWidget {
   final List<BillMemberEntity> members;
   final bool isEvenSplit;
   final bool isEditable;
+  final bool isFinalized;
   final Function(BillItemEntity item)? onSave;
   final VoidCallback? onDelete;
 
@@ -22,6 +23,7 @@ class EditItemDialog extends StatefulWidget {
     required this.members,
     this.isEvenSplit = false,
     this.isEditable = true,
+    this.isFinalized = false,
     this.onSave,
     this.onDelete,
   });
@@ -32,6 +34,7 @@ class EditItemDialog extends StatefulWidget {
     required List<BillMemberEntity> members,
     bool isEvenSplit = false,
     bool isEditable = true,
+    bool isFinalized = false,
     Function(BillItemEntity item)? onSave,
     VoidCallback? onDelete,
   }) {
@@ -44,6 +47,7 @@ class EditItemDialog extends StatefulWidget {
         members: members,
         isEvenSplit: isEvenSplit,
         isEditable: isEditable,
+        isFinalized: isFinalized,
         onSave: onSave,
         onDelete: onDelete,
       ),
@@ -266,34 +270,36 @@ class _EditItemDialogState extends State<EditItemDialog> {
         ),
         const SizedBox(height: 16),
 
-        // Nói thẳng vì sao không sửa được, thay vì để người dùng đoán tại sao
-        // các ô nhập biến mất.
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: border),
-          ),
-          child: Row(
-            children: [
-              Icon(HugeIcons.strokeRoundedInformationCircle, size: 15, color: textMuted),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Chỉ trưởng nhóm hoặc người tạo hoá đơn mới sửa được giá và nội dung món.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: textMuted,
+        // Nói thẳng vì sao không sửa được khi là thành viên xem bill nháp.
+        // Đối với hoá đơn đã chốt, không hiển thị vì hoá đơn đã đóng băng hoàn toàn.
+        if (!widget.isFinalized) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: border),
+            ),
+            child: Row(
+              children: [
+                Icon(HugeIcons.strokeRoundedInformationCircle, size: 15, color: textMuted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Chỉ trưởng nhóm hoặc người tạo hoá đơn mới sửa được giá và nội dung món.',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: textMuted,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
 
         // Header
         Row(

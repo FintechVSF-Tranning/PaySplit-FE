@@ -76,6 +76,15 @@ class _InviteQrBottomSheetState extends State<InviteQrBottomSheet> {
   }
 
   Widget _body(BuildContext context, GroupInvite invite) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final codeBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+    final codeBorder = isDark ? const Color(0xFF14B8A6).withValues(alpha: 0.4) : AppColors.primaryBorder;
+    final codeColor = isDark ? const Color(0xFF14B8A6) : AppColors.primaryActive;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       child: Column(
@@ -84,12 +93,12 @@ class _InviteQrBottomSheetState extends State<InviteQrBottomSheet> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 22),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: border),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -105,7 +114,7 @@ class _InviteQrBottomSheetState extends State<InviteQrBottomSheet> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textMain,
+                    color: textMain,
                   ),
                 ),
                 Text(
@@ -113,29 +122,36 @@ class _InviteQrBottomSheetState extends State<InviteQrBottomSheet> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
+                    color: textMuted,
                   ),
                 ),
                 const SizedBox(height: 18),
-                InviteQrCodeWithLabel(
-                  data: invite.inviteUrl,
-                  size: 216,
-                  centerLabel: group.initials,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: InviteQrCodeWithLabel(
+                    data: invite.inviteUrl,
+                    size: 200,
+                    centerLabel: group.initials,
+                  ),
                 ),
                 const SizedBox(height: 18),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                   decoration: BoxDecoration(
-                    color: AppColors.primarySubtle,
+                    color: codeBg,
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.primaryBorder),
+                    border: Border.all(color: codeBorder),
                   ),
                   child: Text(
                     'Mã: ${invite.code}',
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.primaryActive,
+                      color: codeColor,
                       letterSpacing: 1.5,
                     ),
                   ),

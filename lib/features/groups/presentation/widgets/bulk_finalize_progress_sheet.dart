@@ -76,13 +76,18 @@ class _BulkFinalizeProgressSheetState
       _maybeAnnounceProgress(batch);
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final handleColor = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+
     return DraggableScrollableSheet(
       initialChildSize: 0.72,
       minChildSize: 0.45,
       maxChildSize: 0.94,
       expand: false,
       builder: (context, scrollController) => Material(
-        color: Colors.white,
+        color: surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         child: ListView(
           controller: scrollController,
@@ -93,15 +98,19 @@ class _BulkFinalizeProgressSheetState
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color: handleColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Tiến trình chốt toàn bộ',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: textMain,
+              ),
             ),
             const SizedBox(height: 8),
             if (state.isLoading && batch == null)
@@ -112,7 +121,7 @@ class _BulkFinalizeProgressSheetState
             else if (state.errorMessage != null && batch == null) ...[
               Text(
                 state.errorMessage!,
-                style: const TextStyle(color: AppColors.danger),
+                style: TextStyle(color: isDark ? const Color(0xFFF87171) : AppColors.danger),
               ),
               const SizedBox(height: 12),
               FilledButton(
@@ -139,8 +148,8 @@ class _BulkFinalizeProgressSheetState
                             : Icons.hourglass_top,
                         size: 40,
                         color: batch.targetCount == 0
-                            ? AppColors.success
-                            : AppColors.warningText,
+                            ? (isDark ? const Color(0xFF34D399) : AppColors.success)
+                            : (isDark ? const Color(0xFFFBBF24) : AppColors.warningText),
                       ),
                       const SizedBox(height: 10),
                       Text(
@@ -148,9 +157,10 @@ class _BulkFinalizeProgressSheetState
                             ? 'Không có bill mở cần chốt.'
                             : 'Đang chuẩn bị danh sách bill...',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
+                          color: textMain,
                         ),
                       ),
                     ],
@@ -182,7 +192,7 @@ class _BulkFinalizeProgressSheetState
                 const SizedBox(height: 8),
                 Text(
                   state.errorMessage!,
-                  style: const TextStyle(color: AppColors.danger),
+                  style: TextStyle(color: isDark ? const Color(0xFFF87171) : AppColors.danger),
                 ),
               ],
             ],
@@ -201,6 +211,13 @@ class _BillItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final dangerColor = isDark ? const Color(0xFFF87171) : AppColors.danger;
+    final successColor = isDark ? const Color(0xFF34D399) : AppColors.success;
+    final warningColor = isDark ? const Color(0xFFFBBF24) : AppColors.warningText;
+
     final statusLabel = switch (item.status) {
       BulkFinalizeItemStatus.finalized => 'Đã chốt thành công',
       BulkFinalizeItemStatus.failed => 'Thất bại: ${item.resultText}',
@@ -208,17 +225,17 @@ class _BillItemRow extends StatelessWidget {
     };
 
     final icon = switch (item.status) {
-      BulkFinalizeItemStatus.finalized => const Icon(
+      BulkFinalizeItemStatus.finalized => Icon(
         Icons.check_circle,
-        color: AppColors.success,
+        color: successColor,
       ),
-      BulkFinalizeItemStatus.failed => const Icon(
+      BulkFinalizeItemStatus.failed => Icon(
         Icons.error_outline,
-        color: AppColors.danger,
+        color: dangerColor,
       ),
-      BulkFinalizeItemStatus.pending => const Icon(
+      BulkFinalizeItemStatus.pending => Icon(
         Icons.schedule,
-        color: AppColors.warningText,
+        color: warningColor,
       ),
     };
 
@@ -229,14 +246,14 @@ class _BillItemRow extends StatelessWidget {
         leading: Semantics(label: statusLabel, child: icon),
         title: Text(
           item.billName,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(fontWeight: FontWeight.w600, color: textMain),
         ),
         subtitle: Text(
           item.resultText,
           style: TextStyle(
             color: item.status == BulkFinalizeItemStatus.failed
-                ? AppColors.danger
-                : AppColors.textMuted,
+                ? dangerColor
+                : textMuted,
             fontSize: 12.5,
           ),
         ),
@@ -258,6 +275,11 @@ class _Summary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceMuted = isDark ? const Color(0xFF0F172A) : AppColors.surfaceMuted;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     final progress = batch.targetCount == 0
         ? 1.0
         : batch.processedCount / batch.targetCount;
@@ -267,7 +289,7 @@ class _Summary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: surfaceMuted,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -275,7 +297,7 @@ class _Summary extends StatelessWidget {
         children: [
           Text(
             batch.isComplete ? 'Đã hoàn tất' : 'Đang xử lý',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: TextStyle(fontWeight: FontWeight.w700, color: textMain),
           ),
           const SizedBox(height: 10),
           Semantics(
@@ -284,7 +306,7 @@ class _Summary extends StatelessWidget {
             child: LinearProgressIndicator(value: progress.clamp(0, 1)),
           ),
           const SizedBox(height: 10),
-          Text(summaryText),
+          Text(summaryText, style: TextStyle(color: textMuted)),
         ],
       ),
     );

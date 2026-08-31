@@ -1,4 +1,4 @@
-package com.paysplit.paysplit
+package com.paysplit.app
 
 import io.flutter.embedding.android.FlutterActivity
 

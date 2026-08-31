@@ -89,14 +89,21 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final handleColor = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
           top: false,
@@ -111,7 +118,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.borderStrong,
+                    color: handleColor,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -128,24 +135,24 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textMain,
+                          color: textMain,
                           letterSpacing: -0.3,
                         ),
                       ),
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(
+                      icon: Icon(
                         HugeIcons.strokeRoundedCancel01,
                         size: 22,
-                        color: AppColors.textMuted,
+                        color: textMuted,
                       ),
                       tooltip: 'Đóng',
                     ),
                   ],
                 ),
               ),
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: border),
 
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -157,7 +164,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textMain,
+                        color: textMain,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -174,7 +181,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.danger,
+                          color: isDark ? const Color(0xFFF87171) : AppColors.danger,
                         ),
                       ),
                     ],
@@ -207,25 +214,31 @@ class _NameField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasError = errorText != null;
     final isFocused = focusNode.hasFocus;
 
+    final fieldBg = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textSubtle = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+
     final borderColor = hasError
-        ? AppColors.danger
+        ? (isDark ? const Color(0xFFEF4444) : AppColors.danger)
         : isFocused
-        ? AppColors.borderFocus
-        : AppColors.border;
+        ? primaryColor
+        : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0));
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: fieldBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor, width: isFocused || hasError ? 1.5 : 1.2),
         boxShadow: isFocused
             ? [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.10),
+                  color: primaryColor.withValues(alpha: 0.15),
                   blurRadius: 14,
                   offset: const Offset(0, 4),
                 ),
@@ -242,7 +255,7 @@ class _NameField extends StatelessWidget {
         style: GoogleFonts.plusJakartaSans(
           fontSize: 15,
           fontWeight: FontWeight.w600,
-          color: AppColors.textMain,
+          color: textMain,
         ),
         decoration: InputDecoration(
           counterText: '',
@@ -252,7 +265,7 @@ class _NameField extends StatelessWidget {
           hintStyle: GoogleFonts.plusJakartaSans(
             fontSize: 15,
             fontWeight: FontWeight.w500,
-            color: AppColors.textSubtle,
+            color: textSubtle,
           ),
         ),
       ),

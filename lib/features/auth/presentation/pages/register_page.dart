@@ -307,7 +307,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () => context.push(AppRoutes.login),
+                            onTap: () => context.go(AppRoutes.login),
                             child: Text(
                               'Đăng nhập',
                               style: GoogleFonts.plusJakartaSans(

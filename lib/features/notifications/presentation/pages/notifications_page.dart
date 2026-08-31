@@ -291,7 +291,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     final payload = notif.payload;
     final billId = (payload['bill_id'] ?? payload['billId']) as String?;
     final groupId = (payload['group_id'] ?? payload['groupId']) as String?;
-    final paymentId = (payload['payment_id'] ?? payload['paymentId']) as String?;
+    final paymentId =
+        (payload['payment_id'] ?? payload['paymentId']) as String?;
 
     if (billId != null && billId.isNotEmpty) {
       context.push(
@@ -585,17 +586,11 @@ class _NotificationCard extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: isDark
-                    ? style.color.withValues(alpha: 0.15)
-                    : style.bg,
+                color: isDark ? style.color.withValues(alpha: 0.15) : style.bg,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(
-                child: Icon(
-                  style.icon,
-                  size: 19,
-                  color: style.color,
-                ),
+                child: Icon(style.icon, size: 19, color: style.color),
               ),
             ),
             const SizedBox(width: 12),
