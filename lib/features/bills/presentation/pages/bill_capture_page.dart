@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +15,7 @@ import '../../../../core/utils/image_validator.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
+import '../camera_lifecycle.dart';
 import '../widgets/camera_scanner_overlay.dart';
 import '../widgets/captured_photos_tray.dart';
 import '../widgets/photo_detail_dialog.dart';
@@ -23,10 +25,12 @@ class BillCapturePage extends StatefulWidget {
     super.key,
     this.groupId = 'g-1',
     this.groupName = 'Du lịch Đà Lạt',
+    this.loadAvailableCameras = availableCameras,
   });
 
   final String groupId;
   final String groupName;
+  final Future<List<CameraDescription>> Function() loadAvailableCameras;
 
   @override
   State<BillCapturePage> createState() => _BillCapturePageState();
@@ -42,6 +46,10 @@ class _BillCapturePageState extends State<BillCapturePage>
   List<CameraDescription> _availableCameras = [];
   bool _isCameraInitialized = false;
   bool _isCameraPermissionDenied = false;
+  int _cameraSession = 0;
+  final CameraOperationQueue _cameraOperations = CameraOperationQueue();
+  bool _isPickingMedia = false;
+  bool _wasCameraReleasedByLifecycle = false;
 
   bool _isFlashOn = false;
   bool _isProcessingImage = false;
@@ -63,26 +71,68 @@ class _BillCapturePageState extends State<BillCapturePage>
     _shutterFlashAnimation = Tween<double>(begin: 0.0, end: 0.85).animate(
       CurvedAnimation(parent: _shutterFlashController, curve: Curves.easeOut),
     );
-    _initCamera();
+    unawaited(_initCamera());
+  }
+
+  Future<void> _releaseCamera() async {
+    _cameraSession++;
+    await _cameraOperations.schedule(_releaseCameraNow);
+  }
+
+  Future<void> _releaseCameraNow() async {
+    final CameraController? controller = _cameraController;
+    _cameraController = null;
+    if (mounted) {
+      setState(() {
+        _isCameraInitialized = false;
+        _isCameraLoading = true;
+        _cameraErrorMessage = null;
+      });
+    }
+    if (controller == null) return;
+    await controller.dispose();
+  }
+
+  Future<void> _disposeFailedController(CameraController? controller) async {
+    if (controller == null) return;
+    try {
+      await controller.dispose();
+    } catch (e) {
+      debugPrint('Dispose failed camera controller error: $e');
+    }
   }
 
   Future<void> _initCamera() async {
     if (!mounted) return;
+    final int session = ++_cameraSession;
+    await _cameraOperations.schedule(() => _initCameraNow(session));
+  }
+
+  Future<void> _initCameraNow(int session) async {
+    if (!mounted || session != _cameraSession) return;
+    CameraController? initializingController;
     setState(() {
       _isCameraLoading = true;
       _cameraErrorMessage = null;
     });
 
     try {
-      _availableCameras = await availableCameras();
+      final CameraController? previous = _cameraController;
+      _cameraController = null;
+      if (previous != null) {
+        await previous.dispose();
+      }
+
+      if (!mounted || session != _cameraSession) return;
+
+      _availableCameras = await widget.loadAvailableCameras();
+      if (!mounted || session != _cameraSession) return;
       if (_availableCameras.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _isCameraInitialized = false;
-            _isCameraLoading = false;
-            _cameraErrorMessage = 'Không tìm thấy camera trên thiết bị.';
-          });
-        }
+        setState(() {
+          _isCameraInitialized = false;
+          _isCameraLoading = false;
+          _cameraErrorMessage = 'Không tìm thấy camera trên thiết bị.';
+        });
         return;
       }
 
@@ -97,38 +147,59 @@ class _BillCapturePageState extends State<BillCapturePage>
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
+      initializingController = controller;
 
-      await _cameraController?.dispose();
-      _cameraController = controller;
       await controller.initialize();
-      if (mounted) {
-        setState(() {
-          _isCameraInitialized = true;
-          _isCameraPermissionDenied = false;
-          _isCameraLoading = false;
-          _cameraErrorMessage = null;
-        });
+      if (!mounted || session != _cameraSession) {
+        await controller.dispose();
+        initializingController = null;
+        return;
       }
+
+      if (_isFlashOn) {
+        try {
+          await controller.setFlashMode(FlashMode.torch);
+        } catch (e) {
+          debugPrint('Restore flash mode error: $e');
+        }
+      }
+
+      if (!mounted || session != _cameraSession) {
+        await controller.dispose();
+        initializingController = null;
+        return;
+      }
+
+      _cameraController = controller;
+      initializingController = null;
+      setState(() {
+        _isCameraInitialized = true;
+        _isCameraPermissionDenied = false;
+        _isCameraLoading = false;
+        _cameraErrorMessage = null;
+      });
     } on CameraException catch (e) {
+      await _disposeFailedController(initializingController);
       debugPrint('CameraException: ${e.code}, ${e.description}');
-      if (mounted) {
-        setState(() {
-          _isCameraInitialized = false;
-          _isCameraLoading = false;
-          if (e.code == 'CameraAccessDenied' ||
-              e.code == 'CameraAccessDeniedWithoutPrompt' ||
-              e.code == 'CameraAccessRestricted') {
-            _isCameraPermissionDenied = true;
-            _cameraErrorMessage =
-                'Cần cấp quyền truy cập Camera để quét hóa đơn.';
-          } else {
-            _cameraErrorMessage =
-                'Không thể mở Camera: ${e.description ?? e.code}';
-          }
-        });
-      }
+      if (!mounted || session != _cameraSession) return;
+      setState(() {
+        _isCameraInitialized = false;
+        _isCameraLoading = false;
+        if (e.code == 'CameraAccessDenied' ||
+            e.code == 'CameraAccessDeniedWithoutPrompt' ||
+            e.code == 'CameraAccessRestricted') {
+          _isCameraPermissionDenied = true;
+          _cameraErrorMessage =
+              'Cần cấp quyền truy cập Camera để quét hóa đơn.';
+        } else {
+          _cameraErrorMessage =
+              'Không thể mở Camera: ${e.description ?? e.code}';
+        }
+      });
     } catch (e) {
+      await _disposeFailedController(initializingController);
       debugPrint('Camera init error: $e');
+      if (!mounted || session != _cameraSession) return;
       final errorStr = e.toString();
       final isNoCamera =
           errorStr.contains('Available cameras: 0') ||
@@ -136,41 +207,48 @@ class _BillCapturePageState extends State<BillCapturePage>
           errorStr.contains('CameraUnavailableException') ||
           errorStr.contains('CameraIdListIncorrectException');
 
-      if (mounted) {
-        setState(() {
-          _isCameraInitialized = false;
-          _isCameraLoading = false;
-          if (isNoCamera) {
-            _cameraErrorMessage =
-                'Máy ảo chưa bật Camera ảo (0 camera khả dụng).\nHãy chọn ảnh từ Thư viện hoặc cài đặt trên Điện thoại thật.';
-          } else {
-            _cameraErrorMessage = 'Không thể khởi động Camera ($e).';
-          }
-        });
-      }
+      setState(() {
+        _isCameraInitialized = false;
+        _isCameraLoading = false;
+        if (isNoCamera) {
+          _cameraErrorMessage =
+              'Máy ảo chưa bật Camera ảo (0 camera khả dụng).\nHãy chọn ảnh từ Thư viện hoặc cài đặt trên Điện thoại thật.';
+        } else {
+          _cameraErrorMessage = 'Không thể khởi động Camera ($e).';
+        }
+      });
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final CameraController? controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized) {
-      return;
-    }
-
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
-      controller.dispose();
-      if (mounted) setState(() => _isCameraInitialized = false);
-    } else if (state == AppLifecycleState.resumed) {
-      _initCamera();
+    switch (cameraLifecycleAction(state, isWeb: kIsWeb)) {
+      case CameraLifecycleAction.release:
+        _wasCameraReleasedByLifecycle = true;
+        unawaited(_releaseCamera());
+      case CameraLifecycleAction.reinitialize:
+        final shouldReinitialize = shouldReinitializeCamera(
+          isWeb: kIsWeb,
+          wasReleasedByLifecycle: _wasCameraReleasedByLifecycle,
+        );
+        _wasCameraReleasedByLifecycle = false;
+        if (!_isPickingMedia && shouldReinitialize) {
+          unawaited(_initCamera());
+        }
+      case CameraLifecycleAction.none:
+        break;
     }
   }
 
   @override
   void dispose() {
+    _cameraSession++;
     WidgetsBinding.instance.removeObserver(this);
-    _cameraController?.dispose();
+    final CameraController? controller = _cameraController;
+    _cameraController = null;
+    if (controller != null) {
+      unawaited(controller.dispose());
+    }
     _shutterFlashController.dispose();
     super.dispose();
   }
@@ -213,18 +291,27 @@ class _BillCapturePageState extends State<BillCapturePage>
         final bytes = await picture.readAsBytes();
         _addPhoto(picture, bytes);
       } else {
-        final XFile? captured = await _picker.pickImage(
-          source: ImageSource.camera,
-          imageQuality: 88,
-          maxWidth: 1920,
-          maxHeight: 1920,
-        );
+        _isPickingMedia = true;
+        await _releaseCamera();
+        try {
+          final XFile? captured = await _picker.pickImage(
+            source: ImageSource.camera,
+            imageQuality: 88,
+            maxWidth: 1920,
+            maxHeight: 1920,
+          );
 
-        if (captured != null) {
-          final bytes = await captured.readAsBytes();
-          _addPhoto(captured, bytes);
-        } else {
-          _simulateCaptureIfDesired();
+          if (captured != null) {
+            final bytes = await captured.readAsBytes();
+            _addPhoto(captured, bytes);
+          } else {
+            _simulateCaptureIfDesired();
+          }
+        } finally {
+          _isPickingMedia = false;
+          if (mounted) {
+            unawaited(_initCamera());
+          }
         }
       }
     } catch (e) {
@@ -325,6 +412,8 @@ class _BillCapturePageState extends State<BillCapturePage>
 
     try {
       setState(() => _isProcessingImage = true);
+      _isPickingMedia = true;
+      await _releaseCamera();
       final List<XFile> pickedFiles = await _picker.pickMultiImage(
         imageQuality: 88,
         limit: remainingSlots,
@@ -348,8 +437,10 @@ class _BillCapturePageState extends State<BillCapturePage>
         showErrorSnackBar(context, 'Không thể mở thư viện ảnh.');
       }
     } finally {
+      _isPickingMedia = false;
       if (mounted) {
         setState(() => _isProcessingImage = false);
+        unawaited(_initCamera());
       }
     }
   }

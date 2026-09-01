@@ -1,9 +1,12 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
-
 import 'package:image_picker/image_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../core/error/failures.dart';
 import '../../../../core/utils/ui_feedback.dart';
@@ -16,10 +19,8 @@ import '../widgets/join_by_link_bottom_sheet.dart';
 
 /// Màn hình quét QR để vào nhóm.
 ///
-/// Khung ngắm, đèn flash và nút thư viện đã dựng đúng bố cục cuối; phần khung
-/// hình camera hiện là placeholder mocup. Khi tích hợp thật, thay
-/// [_ViewfinderPlaceholder] bằng `MobileScanner` và bắn kết quả qua
-/// `_onCodeDetected`.
+/// Camera quét liên tục mã QR. Ảnh từ thư viện và link thủ công là hai đường
+/// dự phòng khi thiết bị không có camera hoặc người dùng từ chối quyền.
 class ScanQrJoinPage extends StatefulWidget {
   const ScanQrJoinPage({super.key});
 
@@ -27,51 +28,132 @@ class ScanQrJoinPage extends StatefulWidget {
   State<ScanQrJoinPage> createState() => _ScanQrJoinPageState();
 }
 
-class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProviderStateMixin {
+class _ScanQrJoinPageState extends State<ScanQrJoinPage>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _scanLineController;
-  bool _isTorchOn = false;
+  late final MobileScannerController _scannerController;
+  bool _isDecoding = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scannerController = MobileScannerController(
+      autoStart: false,
+      formats: const <BarcodeFormat>[BarcodeFormat.qrCode],
+    );
     _scanLineController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2200),
     )..repeat(reverse: true);
+    unawaited(_startScanner());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scanLineController.dispose();
+    unawaited(_scannerController.dispose());
     super.dispose();
   }
 
-  bool _isDecoding = false;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final scannerState = _scannerController.value;
+    if (!scannerState.hasCameraPermission) return;
 
-  /// Điểm vào duy nhất cho mọi nguồn mã: chọn ảnh, và sau này là camera.
+    switch (state) {
+      case AppLifecycleState.resumed:
+        unawaited(_startScanner());
+      case AppLifecycleState.inactive:
+        if (!kIsWeb) unawaited(_stopScanner());
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        unawaited(_stopScanner());
+      case AppLifecycleState.detached:
+        break;
+    }
+  }
+
+  Future<void> _startScanner() async {
+    if (!mounted || _scannerController.value.isRunning) return;
+    try {
+      await _scannerController.start();
+    } on MobileScannerException catch (error) {
+      if (error.errorCode != MobileScannerErrorCode.controllerInitializing) {
+        debugPrint('Start QR scanner error: $error');
+      }
+    }
+  }
+
+  Future<void> _stopScanner() async {
+    if (!_scannerController.value.isRunning) return;
+    try {
+      await _scannerController.stop();
+    } on MobileScannerException catch (error) {
+      debugPrint('Stop QR scanner error: $error');
+    }
+  }
+
+  Future<void> _toggleTorch() async {
+    unawaited(HapticFeedback.selectionClick());
+    try {
+      await _scannerController.toggleTorch();
+    } on MobileScannerException catch (error) {
+      debugPrint('Toggle QR scanner torch error: $error');
+    }
+  }
+
+  void _handleBarcodeCapture(BarcodeCapture capture) {
+    if (_isDecoding) return;
+    for (final barcode in capture.barcodes) {
+      final raw = barcode.rawValue?.trim();
+      if (raw != null && raw.isNotEmpty) {
+        unawaited(_processDetectedCode(raw));
+        return;
+      }
+    }
+  }
+
+  Future<void> _processDetectedCode(String raw) async {
+    if (_isDecoding || !mounted) return;
+    setState(() => _isDecoding = true);
+    await _stopScanner();
+
+    final accepted = await _onCodeDetected(raw);
+    if (!mounted || accepted) return;
+
+    setState(() => _isDecoding = false);
+    await _startScanner();
+  }
+
+  /// Điểm vào duy nhất cho mọi nguồn mã: camera và ảnh từ thư viện.
   ///
   /// Nhận **chuỗi thô** trong mã QR (chính là `invite_url`), tách lấy mã mời rồi
   /// xác thực với backend qua `GET /groups/invites/{code}` trước khi trả về màn
   /// gọi — không tin tưởng nội dung quét được.
-  Future<void> _onCodeDetected(String raw) async {
+  Future<bool> _onCodeDetected(String raw) async {
     final code = extractInviteCode(raw);
     if (code.length != kInviteCodeLength) {
-      showErrorSnackBar(context, 'Mã QR này không phải lời mời vào nhóm PaySplit.');
-      return;
+      showErrorSnackBar(
+        context,
+        'Mã QR này không phải lời mời vào nhóm PaySplit.',
+      );
+      return false;
     }
 
     final result = await getIt<PreviewInviteUseCase>().call(code);
-    if (!mounted) return;
+    if (!mounted) return false;
 
     final failure = result.fold<Failure?>((f) => f, (_) => null);
     if (failure != null) {
       showErrorSnackBar(context, failure.message);
-      return;
+      return false;
     }
 
     final preview = result.getRight().toNullable()!;
     await HapticFeedback.mediumImpact();
-    if (!mounted) return;
+    if (!mounted) return false;
     Navigator.of(context).pop(
       GroupEntity(
         // Chưa biết id thật của nhóm trước khi tham gia.
@@ -84,29 +166,55 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
         lastActivity: 'Trưởng nhóm: ${preview.captainDisplayName}',
       ),
     );
+    return true;
   }
 
   /// Chọn một ảnh QR từ thư viện và giải mã hoàn toàn phía client.
   ///
-  /// Đây là cách thử luồng vào nhóm khi chưa tích hợp camera, và là cách duy
-  /// nhất chạy được trên Flutter Web.
+  /// Đây là đường dự phòng khi camera không khả dụng hoặc người dùng đã có ảnh.
   Future<void> _pickQrImage() async {
     if (_isDecoding) return;
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked == null || !mounted) return;
-
     setState(() => _isDecoding = true);
-    final bytes = await picked.readAsBytes();
-    final decoded = decodeQrFromImageBytes(bytes);
-    if (!mounted) return;
-    setState(() => _isDecoding = false);
+    await _stopScanner();
 
-    switch (decoded) {
-      case QrDecodeFailure(:final message):
-        showErrorSnackBar(context, message);
-      case QrDecodeSuccess(:final text):
-        await _onCodeDetected(text);
+    var accepted = false;
+    try {
+      final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (picked == null || !mounted) return;
+
+      final bytes = await picked.readAsBytes();
+      final decoded = decodeQrFromImageBytes(bytes);
+      if (!mounted) return;
+
+      switch (decoded) {
+        case QrDecodeFailure(:final message):
+          showErrorSnackBar(context, message);
+        case QrDecodeSuccess(:final text):
+          accepted = await _onCodeDetected(text);
+      }
+    } finally {
+      if (mounted && !accepted) {
+        setState(() => _isDecoding = false);
+        await _startScanner();
+      }
     }
+  }
+
+  Future<void> _openLinkEntry() async {
+    if (_isDecoding) return;
+    setState(() => _isDecoding = true);
+    await _stopScanner();
+    if (!mounted) return;
+
+    final group = await JoinByLinkBottomSheet.show(context);
+    if (!mounted) return;
+    if (group != null) {
+      Navigator.of(context).pop(group);
+      return;
+    }
+
+    setState(() => _isDecoding = false);
+    await _startScanner();
   }
 
   @override
@@ -115,7 +223,21 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
       backgroundColor: const Color(0xFF0B1120),
       body: Stack(
         children: [
-          Positioned.fill(child: _ViewfinderPlaceholder(controller: _scanLineController)),
+          Positioned.fill(
+            child: MobileScanner(
+              controller: _scannerController,
+              onDetect: _handleBarcodeCapture,
+              placeholderBuilder: (_) => const _ScannerLoadingView(),
+              errorBuilder: (_, error) =>
+                  _ScannerErrorView(error: error, onRetry: _startScanner),
+            ),
+          ),
+          const Positioned.fill(child: _CameraScrim()),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: _ScannerOverlay(controller: _scanLineController),
+            ),
+          ),
 
           SafeArea(
             child: Column(
@@ -141,15 +263,23 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
                           ),
                         ),
                       ),
-                      _GlassIconButton(
-                        icon: _isTorchOn
-                            ? HugeIcons.strokeRoundedFlash
-                            : HugeIcons.strokeRoundedFlashOff,
-                        tooltip: 'Đèn flash',
-                        isActive: _isTorchOn,
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          setState(() => _isTorchOn = !_isTorchOn);
+                      ValueListenableBuilder<MobileScannerState>(
+                        valueListenable: _scannerController,
+                        builder: (context, scannerState, _) {
+                          final isTorchOn =
+                              scannerState.torchState == TorchState.on;
+                          final hasTorch =
+                              scannerState.torchState != TorchState.unavailable;
+                          return _GlassIconButton(
+                            icon: isTorchOn
+                                ? HugeIcons.strokeRoundedFlash
+                                : HugeIcons.strokeRoundedFlashOff,
+                            tooltip: hasTorch
+                                ? 'Đèn flash'
+                                : 'Thiết bị không hỗ trợ đèn flash',
+                            isActive: isTorchOn,
+                            onTap: hasTorch ? _toggleTorch : null,
+                          );
                         },
                       ),
                     ],
@@ -184,12 +314,7 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
                         child: _GhostAction(
                           icon: HugeIcons.strokeRoundedLink01,
                           label: 'Nhập link',
-                          onTap: () async {
-                            final group = await JoinByLinkBottomSheet.show(context);
-                            if (group != null && context.mounted) {
-                              Navigator.of(context).pop(group);
-                            }
-                          },
+                          onTap: _isDecoding ? null : _openLinkEntry,
                         ),
                       ),
                     ],
@@ -204,50 +329,128 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage> with SingleTickerProvid
   }
 }
 
-/// Nền camera giả lập + khung ngắm bo góc + vạch quét chạy dọc.
-class _ViewfinderPlaceholder extends StatelessWidget {
-  const _ViewfinderPlaceholder({required this.controller});
+class _CameraScrim extends StatelessWidget {
+  const _CameraScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            const Color(0xFF071A16).withValues(alpha: 0.72),
+            Colors.transparent,
+            const Color(0xFF0B1120).withValues(alpha: 0.88),
+          ],
+          stops: const <double>[0, 0.45, 1],
+        ),
+      ),
+    );
+  }
+}
+
+/// Khung ngắm bo góc và vạch quét nằm trên preview camera thật.
+class _ScannerOverlay extends StatelessWidget {
+  const _ScannerOverlay({required this.controller});
 
   final AnimationController controller;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF132A24), Color(0xFF0B1120)],
-        ),
-      ),
-      child: Center(
-        child: SizedBox(
-          width: 250,
-          height: 250,
-          child: Stack(
-            children: [
-              Positioned.fill(child: CustomPaint(painter: _ViewfinderCornersPainter())),
-              AnimatedBuilder(
-                animation: controller,
-                builder: (context, _) {
-                  return Positioned(
-                    top: 12 + controller.value * 220,
-                    left: 16,
-                    right: 16,
-                    child: Container(
-                      height: 2,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFF14B8A6).withValues(alpha: 0),
-                            const Color(0xFF14B8A6),
-                            const Color(0xFF14B8A6).withValues(alpha: 0),
-                          ],
-                        ),
+    return Center(
+      child: SizedBox(
+        width: 250,
+        height: 250,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: CustomPaint(painter: _ViewfinderCornersPainter()),
+            ),
+            AnimatedBuilder(
+              animation: controller,
+              builder: (context, _) {
+                return Positioned(
+                  top: 12 + controller.value * 220,
+                  left: 16,
+                  right: 16,
+                  child: Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF14B8A6).withValues(alpha: 0),
+                          const Color(0xFF14B8A6),
+                          const Color(0xFF14B8A6).withValues(alpha: 0),
+                        ],
                       ),
                     ),
-                  );
-                },
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScannerLoadingView extends StatelessWidget {
+  const _ScannerLoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Color(0xFF0B1120),
+      child: Center(child: CircularProgressIndicator(color: Color(0xFF14B8A6))),
+    );
+  }
+}
+
+class _ScannerErrorView extends StatelessWidget {
+  const _ScannerErrorView({required this.error, required this.onRetry});
+
+  final MobileScannerException error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPermissionDenied =
+        error.errorCode == MobileScannerErrorCode.permissionDenied;
+    final message = isPermissionDenied
+        ? 'Cần cấp quyền Camera để quét mã QR.'
+        : 'Không thể khởi động Camera. Bạn có thể thử lại hoặc chọn ảnh QR.';
+
+    return ColoredBox(
+      color: const Color(0xFF0B1120),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                HugeIcons.strokeRoundedCameraOff01,
+                size: 48,
+                color: Colors.white70,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Thử lại'),
               ),
             ],
           ),
@@ -299,7 +502,7 @@ class _GlassIconButton extends StatelessWidget {
 
   final IconData icon;
   final String tooltip;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool isActive;
 
   @override
@@ -327,7 +530,11 @@ class _GlassIconButton extends StatelessWidget {
 }
 
 class _GhostAction extends StatelessWidget {
-  const _GhostAction({required this.icon, required this.label, required this.onTap});
+  const _GhostAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
