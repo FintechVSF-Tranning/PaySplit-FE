@@ -15,7 +15,6 @@ import '../providers/groups_provider.dart';
 import '../widgets/create_group_bottom_sheet.dart';
 import '../widgets/group_list_card.dart';
 import '../widgets/join_by_link_bottom_sheet.dart';
-import 'scan_qr_join_page.dart';
 import '../widgets/group_avatar.dart';
 
 /// Tab "Nhóm" — trung tâm điều phối mọi nhóm chi tiêu của người dùng.
@@ -68,175 +67,172 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                   ),
 
                   Padding(
-                    padding: EdgeInsets.fromLTRB(16, 12 + statusBarHeight, 16, 0),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      12 + statusBarHeight,
+                      16,
+                      0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _Header(groupCount: groups.length),
                         const SizedBox(height: 18),
 
-                          // Hàng ngang 2 nút tham gia nhóm
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _JoinActionTile(
-                                  icon: HugeIcons.strokeRoundedLink01,
-                                  label: 'Nhập link vào nhóm',
-                                  onTap: () => _joinByLink(context, ref),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _JoinActionTile(
-                                  icon: HugeIcons.strokeRoundedQrCode,
-                                  label: 'Quét QR vào nhóm',
-                                  onTap: () => _joinByQr(context, ref),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-
-                          AppButton(
-                            label: 'Tạo nhóm chi tiêu mới',
-                            variant: AppButtonVariant.gradient,
-                            icon: const Icon(
-                              HugeIcons.strokeRoundedAdd01,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                            onPressed: () => _createGroup(context, ref),
-                          ),
-                          const SizedBox(height: 24),
-
-                          if (recentGroups.isNotEmpty) ...[
-                            _SectionTitle(
-                              title: 'Nhóm gần đây',
-                              trailing: 'Lịch sử truy cập',
-                            ),
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              height: 44,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: recentGroups.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(width: 10),
-                                itemBuilder: (context, index) =>
-                                    _RecentGroupChip(
-                                      group: recentGroups[index],
-                                      onTap: () => _openDetail(
-                                        context,
-                                        recentGroups[index],
-                                      ),
-                                    ),
+                        // Hàng ngang 2 nút tham gia nhóm
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _JoinActionTile(
+                                icon: HugeIcons.strokeRoundedLink01,
+                                label: 'Nhập link vào nhóm',
+                                onTap: () => _joinByLink(context, ref),
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _JoinActionTile(
+                                icon: HugeIcons.strokeRoundedQrCode,
+                                label: 'Quét QR vào nhóm',
+                                onTap: () => _joinByQr(context, ref),
+                              ),
+                            ),
                           ],
+                        ),
+                        const SizedBox(height: 14),
 
+                        AppButton(
+                          label: 'Tạo nhóm chi tiêu mới',
+                          variant: AppButtonVariant.gradient,
+                          icon: const Icon(
+                            HugeIcons.strokeRoundedAdd01,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          onPressed: () => _createGroup(context, ref),
+                        ),
+                        const SizedBox(height: 24),
+
+                        if (recentGroups.isNotEmpty) ...[
                           _SectionTitle(
-                            title: 'Nhóm của tôi',
-                            trailing: '${visibleGroups.length} nhóm',
+                            title: 'Nhóm gần đây',
+                            trailing: 'Lịch sử truy cập',
                           ),
                           const SizedBox(height: 10),
-                          _LifecycleTabs(
-                            current: _lifecycle,
-                            activeCount: activeGroups.length,
-                            closedCount: closedGroups.length,
-                            onChanged: (value) {
-                              HapticFeedback.selectionClick();
-                              setState(() => _lifecycle = value);
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-                  if (groupsState.isLoading && groups.isEmpty)
-                    const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 48),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    )
-                  else if (groupsState.failure != null && groups.isEmpty)
-                    SliverToBoxAdapter(
-                      child: _GroupsErrorState(
-                        message: groupsState.failure!.message,
-                        onRetry: () =>
-                            ref.read(groupsProvider.notifier).refresh(),
-                      ),
-                    )
-                  else if (groups.isEmpty)
-                    SliverToBoxAdapter(
-                      child: _EmptyGroupsState(
-                        onCreate: () => _createGroup(context, ref),
-                      ),
-                    )
-                  else if (visibleGroups.isEmpty)
-                    const SliverToBoxAdapter(child: _EmptyClosedState())
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                      sliver: SliverList.separated(
-                        itemCount: visibleGroups.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) => GroupListCard(
-                          group: visibleGroups[index],
-                          onTap: () =>
-                              _openDetail(context, visibleGroups[index]),
-                        ),
-                      ),
-                    ),
-
-                  // Backend phân trang 20 nhóm mỗi lần; thiếu chỗ này thì người
-                  // có nhiều nhóm không bao giờ thấy nhóm thứ 21.
-                  if (groupsState.nextCursor != null && groups.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                        child: OutlinedButton(
-                          onPressed: groupsState.isLoadingMore
-                              ? null
-                              : () =>
-                                    ref.read(groupsProvider.notifier).loadMore(),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            side: const BorderSide(color: AppColors.border),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                          SizedBox(
+                            height: 44,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: recentGroups.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(width: 10),
+                              itemBuilder: (context, index) => _RecentGroupChip(
+                                group: recentGroups[index],
+                                onTap: () =>
+                                    _openDetail(context, recentGroups[index]),
+                              ),
                             ),
                           ),
-                          child: groupsState.isLoadingMore
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  'Tải thêm nhóm',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
+                          const SizedBox(height: 24),
+                        ],
 
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                        _SectionTitle(
+                          title: 'Nhóm của tôi',
+                          trailing: '${visibleGroups.length} nhóm',
+                        ),
+                        const SizedBox(height: 10),
+                        _LifecycleTabs(
+                          current: _lifecycle,
+                          activeCount: activeGroups.length,
+                          closedCount: closedGroups.length,
+                          onChanged: (value) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _lifecycle = value);
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          );
+
+            if (groupsState.isLoading && groups.isEmpty)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              )
+            else if (groupsState.failure != null && groups.isEmpty)
+              SliverToBoxAdapter(
+                child: _GroupsErrorState(
+                  message: groupsState.failure!.message,
+                  onRetry: () => ref.read(groupsProvider.notifier).refresh(),
+                ),
+              )
+            else if (groups.isEmpty)
+              SliverToBoxAdapter(
+                child: _EmptyGroupsState(
+                  onCreate: () => _createGroup(context, ref),
+                ),
+              )
+            else if (visibleGroups.isEmpty)
+              const SliverToBoxAdapter(child: _EmptyClosedState())
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                sliver: SliverList.separated(
+                  itemCount: visibleGroups.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) => GroupListCard(
+                    group: visibleGroups[index],
+                    onTap: () => _openDetail(context, visibleGroups[index]),
+                  ),
+                ),
+              ),
+
+            // Backend phân trang 20 nhóm mỗi lần; thiếu chỗ này thì người
+            // có nhiều nhóm không bao giờ thấy nhóm thứ 21.
+            if (groupsState.nextCursor != null && groups.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  child: OutlinedButton(
+                    onPressed: groupsState.isLoadingMore
+                        ? null
+                        : () => ref.read(groupsProvider.notifier).loadMore(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: const BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: groupsState.isLoadingMore
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            'Tải thêm nhóm',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ],
+        ),
+      ),
+    );
   }
 
   void _openDetail(BuildContext context, GroupEntity group) {
@@ -258,9 +254,7 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
   }
 
   Future<void> _joinByQr(BuildContext context, WidgetRef ref) async {
-    final group = await Navigator.of(context).push<GroupEntity>(
-      MaterialPageRoute(builder: (_) => const ScanQrJoinPage()),
-    );
+    final group = await context.push<GroupEntity>(AppRoutes.scanGroupQr);
     if (group == null || !context.mounted) return;
     await _join(context, ref, group);
   }
@@ -386,7 +380,9 @@ class _JoinActionTile extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-    final iconBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+    final iconBg = isDark
+        ? const Color(0xFF0F766E).withValues(alpha: 0.25)
+        : AppColors.primarySubtle;
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
 
     return InkWell(
@@ -415,7 +411,11 @@ class _JoinActionTile extends StatelessWidget {
                 color: iconBg,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 18, color: isDark ? const Color(0xFF14B8A6) : AppColors.primary),
+              child: Icon(
+                icon,
+                size: 18,
+                color: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -446,7 +446,9 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -485,7 +487,9 @@ class _RecentGroupChip extends StatelessWidget {
     final surface = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textSubtle = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+    final textSubtle = isDark
+        ? const Color(0xFF64748B)
+        : const Color(0xFF94A3B8);
 
     return InkWell(
       onTap: onTap,
@@ -542,8 +546,12 @@ class _EmptyGroupsState extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-    final iconBg = isDark ? const Color(0xFF0F766E).withValues(alpha: 0.25) : AppColors.primarySubtle;
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
+    final iconBg = isDark
+        ? const Color(0xFF0F766E).withValues(alpha: 0.25)
+        : AppColors.primarySubtle;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -601,7 +609,9 @@ class DottedBorderBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1);
+    final borderColor = isDark
+        ? const Color(0xFF475569)
+        : const Color(0xFFCBD5E1);
 
     return CustomPaint(
       painter: _DashedBorderPainter(color: borderColor),
@@ -710,8 +720,12 @@ class _LifecycleTabItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final activeBg = isDark ? const Color(0xFF334155) : Colors.white;
-    final activeText = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final inactiveText = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final activeText = isDark
+        ? const Color(0xFFF1F5F9)
+        : const Color(0xFF0F172A);
+    final inactiveText = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
     final primaryColor = isDark ? const Color(0xFF14B8A6) : AppColors.primary;
 
     return GestureDetector(

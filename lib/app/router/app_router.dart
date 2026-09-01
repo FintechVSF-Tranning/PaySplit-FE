@@ -16,6 +16,7 @@ import '../../features/groups/domain/entities/group_entity.dart';
 import '../../features/groups/presentation/pages/add_members_page.dart';
 import '../../features/groups/presentation/pages/group_detail_page.dart';
 import '../../features/groups/presentation/pages/groups_page.dart';
+import '../../features/groups/presentation/pages/scan_qr_join_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/profile/presentation/pages/bank_settings_page.dart';
@@ -222,6 +223,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       // Các luồng full-screen (ngoài bottom navigation shell)
+      GoRoute(
+        path: AppRoutes.scanGroupQr,
+        builder: (context, state) => const ScanQrJoinPage(),
+      ),
       GoRoute(
         path: AppRoutes.scanBill,
         redirect: (context, state) {
