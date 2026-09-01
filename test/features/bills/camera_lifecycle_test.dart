@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:paysplit/core/utils/camera_operation_queue.dart';
 import 'package:paysplit/features/bills/presentation/camera_lifecycle.dart';
 
 void main() {

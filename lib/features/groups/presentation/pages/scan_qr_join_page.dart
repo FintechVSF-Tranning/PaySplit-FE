@@ -9,7 +9,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../core/error/failures.dart';
+import '../../../../core/utils/camera_operation_queue.dart';
 import '../../../../core/utils/ui_feedback.dart';
+import '../../../../core/utils/web_camera_cleanup.dart';
 import '../../../../di/injection.dart';
 import '../../data/qr_image_decoder.dart';
 import '../../domain/entities/group_entity.dart';
@@ -22,7 +24,9 @@ import '../widgets/join_by_link_bottom_sheet.dart';
 /// Camera quét liên tục mã QR. Ảnh từ thư viện và link thủ công là hai đường
 /// dự phòng khi thiết bị không có camera hoặc người dùng từ chối quyền.
 class ScanQrJoinPage extends StatefulWidget {
-  const ScanQrJoinPage({super.key});
+  const ScanQrJoinPage({super.key, this.scannerController});
+
+  final MobileScannerController? scannerController;
 
   @override
   State<ScanQrJoinPage> createState() => _ScanQrJoinPageState();
@@ -32,16 +36,22 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _scanLineController;
   late final MobileScannerController _scannerController;
+  final CameraOperationQueue _scannerOperations = CameraOperationQueue();
   bool _isDecoding = false;
+  bool _isDisposing = false;
+  bool _isClosing = false;
+  bool _canPop = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _scannerController = MobileScannerController(
-      autoStart: false,
-      formats: const <BarcodeFormat>[BarcodeFormat.qrCode],
-    );
+    _scannerController =
+        widget.scannerController ??
+        MobileScannerController(
+          autoStart: false,
+          formats: const <BarcodeFormat>[BarcodeFormat.qrCode],
+        );
     _scanLineController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2200),
@@ -51,9 +61,10 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage>
 
   @override
   void dispose() {
+    _isDisposing = true;
     WidgetsBinding.instance.removeObserver(this);
     _scanLineController.dispose();
-    unawaited(_scannerController.dispose());
+    unawaited(_scannerOperations.schedule(_disposeScanner));
     super.dispose();
   }
 
@@ -76,23 +87,49 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage>
   }
 
   Future<void> _startScanner() async {
-    if (!mounted || _scannerController.value.isRunning) return;
-    try {
-      await _scannerController.start();
-    } on MobileScannerException catch (error) {
-      if (error.errorCode != MobileScannerErrorCode.controllerInitializing) {
-        debugPrint('Start QR scanner error: $error');
+    if (!mounted || _isDisposing || _isClosing) return;
+    await _scannerOperations.schedule(() async {
+      if (_isDisposing || _isClosing || _scannerController.value.isRunning) {
+        return;
       }
-    }
+      try {
+        await _scannerController.start();
+      } on MobileScannerException catch (error) {
+        if (error.errorCode != MobileScannerErrorCode.controllerInitializing) {
+          debugPrint('Start QR scanner error: $error');
+        }
+      }
+    });
   }
 
   Future<void> _stopScanner() async {
-    if (!_scannerController.value.isRunning) return;
+    await _scannerOperations.schedule(_stopScannerNow);
+  }
+
+  Future<void> _stopScannerNow() async {
     try {
       await _scannerController.stop();
     } on MobileScannerException catch (error) {
       debugPrint('Stop QR scanner error: $error');
     }
+    await stopWebCameraTracks();
+  }
+
+  Future<void> _disposeScanner() async {
+    await _stopScannerNow();
+    await _scannerController.dispose();
+  }
+
+  Future<void> _closeScanner([GroupEntity? result]) async {
+    if (_isClosing) return;
+    _isClosing = true;
+    await _stopScanner();
+    if (!mounted) return;
+
+    setState(() => _canPop = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    Navigator.of(context).pop(result);
   }
 
   Future<void> _toggleTorch() async {
@@ -154,7 +191,7 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage>
     final preview = result.getRight().toNullable()!;
     await HapticFeedback.mediumImpact();
     if (!mounted) return false;
-    Navigator.of(context).pop(
+    await _closeScanner(
       GroupEntity(
         // Chưa biết id thật của nhóm trước khi tham gia.
         id: 'preview:$code',
@@ -209,7 +246,7 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage>
     final group = await JoinByLinkBottomSheet.show(context);
     if (!mounted) return;
     if (group != null) {
-      Navigator.of(context).pop(group);
+      await _closeScanner(group);
       return;
     }
 
@@ -219,111 +256,120 @@ class _ScanQrJoinPageState extends State<ScanQrJoinPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0B1120),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: MobileScanner(
-              controller: _scannerController,
-              onDetect: _handleBarcodeCapture,
-              placeholderBuilder: (_) => const _ScannerLoadingView(),
-              errorBuilder: (_, error) =>
-                  _ScannerErrorView(error: error, onRetry: _startScanner),
+    return PopScope<GroupEntity>(
+      canPop: _canPop,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) unawaited(_closeScanner(result));
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0B1120),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: MobileScanner(
+                controller: _scannerController,
+                onDetect: _handleBarcodeCapture,
+                placeholderBuilder: (_) => const _ScannerLoadingView(),
+                errorBuilder: (_, error) =>
+                    _ScannerErrorView(error: error, onRetry: _startScanner),
+              ),
             ),
-          ),
-          const Positioned.fill(child: _CameraScrim()),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: _ScannerOverlay(controller: _scanLineController),
+            const Positioned.fill(child: _CameraScrim()),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: _ScannerOverlay(controller: _scanLineController),
+              ),
             ),
-          ),
 
-          SafeArea(
-            child: Column(
-              children: [
-                // Header: back + tiêu đề + đèn flash
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                  child: Row(
-                    children: [
-                      _GlassIconButton(
-                        icon: HugeIcons.strokeRoundedArrowLeft01,
-                        tooltip: 'Quay lại',
-                        onTap: () => Navigator.of(context).pop(),
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Quét QR vào nhóm',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 16.5,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+            SafeArea(
+              child: Column(
+                children: [
+                  // Header: back + tiêu đề + đèn flash
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: Row(
+                      children: [
+                        _GlassIconButton(
+                          icon: HugeIcons.strokeRoundedArrowLeft01,
+                          tooltip: 'Quay lại',
+                          onTap: _closeScanner,
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Quét QR vào nhóm',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                      ),
-                      ValueListenableBuilder<MobileScannerState>(
-                        valueListenable: _scannerController,
-                        builder: (context, scannerState, _) {
-                          final isTorchOn =
-                              scannerState.torchState == TorchState.on;
-                          final hasTorch =
-                              scannerState.torchState != TorchState.unavailable;
-                          return _GlassIconButton(
-                            icon: isTorchOn
-                                ? HugeIcons.strokeRoundedFlash
-                                : HugeIcons.strokeRoundedFlashOff,
-                            tooltip: hasTorch
-                                ? 'Đèn flash'
-                                : 'Thiết bị không hỗ trợ đèn flash',
-                            isActive: isTorchOn,
-                            onTap: hasTorch ? _toggleTorch : null,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-                Text(
-                  'Đưa mã QR của nhóm vào giữa khung',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _GhostAction(
-                          icon: HugeIcons.strokeRoundedImage02,
-                          label: _isDecoding ? 'Đang đọc mã...' : 'Chọn ảnh QR',
-                          onTap: _isDecoding ? null : _pickQrImage,
+                        ValueListenableBuilder<MobileScannerState>(
+                          valueListenable: _scannerController,
+                          builder: (context, scannerState, _) {
+                            final isTorchOn =
+                                scannerState.torchState == TorchState.on;
+                            final hasTorch =
+                                scannerState.torchState !=
+                                TorchState.unavailable;
+                            return _GlassIconButton(
+                              icon: isTorchOn
+                                  ? HugeIcons.strokeRoundedFlash
+                                  : HugeIcons.strokeRoundedFlashOff,
+                              tooltip: hasTorch
+                                  ? 'Đèn flash'
+                                  : 'Thiết bị không hỗ trợ đèn flash',
+                              isActive: isTorchOn,
+                              onTap: hasTorch ? _toggleTorch : null,
+                            );
+                          },
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _GhostAction(
-                          icon: HugeIcons.strokeRoundedLink01,
-                          label: 'Nhập link',
-                          onTap: _isDecoding ? null : _openLinkEntry,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+
+                  const Spacer(),
+
+                  Text(
+                    'Đưa mã QR của nhóm vào giữa khung',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _GhostAction(
+                            icon: HugeIcons.strokeRoundedImage02,
+                            label: _isDecoding
+                                ? 'Đang đọc mã...'
+                                : 'Chọn ảnh QR',
+                            onTap: _isDecoding ? null : _pickQrImage,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _GhostAction(
+                            icon: HugeIcons.strokeRoundedLink01,
+                            label: 'Nhập link',
+                            onTap: _isDecoding ? null : _openLinkEntry,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
