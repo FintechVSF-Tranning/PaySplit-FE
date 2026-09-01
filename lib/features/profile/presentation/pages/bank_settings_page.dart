@@ -9,20 +9,8 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/utils/vietnamese_utils.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
-
-class BankOption {
-  final String code;
-  final String shortName;
-  final String fullName;
-  final String bin;
-
-  const BankOption({
-    required this.code,
-    required this.shortName,
-    required this.fullName,
-    required this.bin,
-  });
-}
+import '../../domain/entities/bank_entity.dart';
+import '../providers/supported_banks_provider.dart';
 
 class BankSettingsPage extends ConsumerStatefulWidget {
   const BankSettingsPage({super.key});
@@ -34,31 +22,11 @@ class BankSettingsPage extends ConsumerStatefulWidget {
 class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
   final _formKey = GlobalKey<FormState>();
 
-  static const List<BankOption> _allBanks = [
-    BankOption(code: 'MB', shortName: 'MBBank', fullName: 'Ngân hàng TMCP Quân Đội', bin: '970422'),
-    BankOption(code: 'VCB', shortName: 'Vietcombank', fullName: 'Ngân hàng TMCP Ngoại Thương', bin: '970436'),
-    BankOption(code: 'TCB', shortName: 'Techcombank', fullName: 'Ngân hàng TMCP Kỹ Thương', bin: '970407'),
-    BankOption(code: 'VPB', shortName: 'VPBank', fullName: 'Ngân hàng TMCP Việt Nam Thịnh Vượng', bin: '970432'),
-    BankOption(code: 'ACB', shortName: 'ACB', fullName: 'Ngân hàng TMCP Á Châu', bin: '970416'),
-    BankOption(code: 'BIDV', shortName: 'BIDV', fullName: 'Ngân hàng TMCP Đầu Tư và Phát Triển', bin: '970418'),
-    BankOption(code: 'CTG', shortName: 'VietinBank', fullName: 'Ngân hàng TMCP Công Thương', bin: '970415'),
-    BankOption(code: 'TPB', shortName: 'TPBank', fullName: 'Ngân hàng TMCP Tiên Phong', bin: '970423'),
-    BankOption(code: 'OCB', shortName: 'OCB', fullName: 'Ngân hàng TMCP Phương Đông', bin: '970448'),
-    BankOption(code: 'STB', shortName: 'Sacombank', fullName: 'Ngân hàng TMCP Sài Gòn Thương Tín', bin: '970403'),
-    BankOption(code: 'MSB', shortName: 'MSB', fullName: 'Ngân hàng TMCP Hàng Hải', bin: '970426'),
-    BankOption(code: 'VBA', shortName: 'Agribank', fullName: 'Ngân hàng Nông nghiệp & Phát triển Nông thôn', bin: '970405'),
-    BankOption(code: 'SHB', shortName: 'SHB', fullName: 'Ngân hàng TMCP Sài Gòn - Hà Nội', bin: '970443'),
-    BankOption(code: 'HDB', shortName: 'HDBank', fullName: 'Ngân hàng TMCP Phát triển TP.HCM', bin: '970437'),
-    BankOption(code: 'VIB', shortName: 'VIB', fullName: 'Ngân hàng TMCP Quốc Tế', bin: '970441'),
-    BankOption(code: 'LPB', shortName: 'LPBank', fullName: 'Ngân hàng TMCP Lộc Phát Việt Nam', bin: '970449'),
-    BankOption(code: 'SEAB', shortName: 'SeABank', fullName: 'Ngân hàng TMCP Đông Nam Á', bin: '970440'),
-  ];
-
   String? _initialBankCode;
   String _initialAccount = '';
   String _initialHolder = '';
 
-  BankOption? _selectedBank;
+  BankEntity? _selectedBank;
   late TextEditingController _accountController;
   late TextEditingController _holderController;
   bool _isLoading = false;
@@ -68,17 +36,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
     super.initState();
     final user = ref.read(authControllerProvider).valueOrNull;
 
-    if (user?.bankCode != null && user!.bankCode!.isNotEmpty) {
-      try {
-        _selectedBank = _allBanks.firstWhere((b) => b.code == user.bankCode);
-      } catch (_) {
-        _selectedBank = null;
-      }
-    } else {
-      _selectedBank = null;
-    }
-
-    _initialBankCode = _selectedBank?.code;
+    _initialBankCode = _normalizeBankCode(user?.bankCode);
     _initialAccount = user?.bankAccountNumber ?? '';
     _initialHolder = user?.bankAccountHolder ?? '';
 
@@ -88,6 +46,23 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
     _accountController.addListener(() => setState(() {}));
     _holderController.addListener(() => setState(() {}));
   }
+
+  String? _normalizeBankCode(String? code) {
+    if (code == null || code.trim().isEmpty) return null;
+    final normalized = code.trim().toUpperCase();
+    return normalized == 'CTG' ? 'ICB' : normalized;
+  }
+
+  BankEntity? _bankByCode(List<BankEntity> banks, String? code) {
+    if (code == null) return null;
+    for (final bank in banks) {
+      if (bank.code == code) return bank;
+    }
+    return null;
+  }
+
+  BankEntity? _effectiveSelectedBank(List<BankEntity> banks) =>
+      _selectedBank ?? _bankByCode(banks, _initialBankCode);
 
   @override
   void dispose() {
@@ -99,7 +74,10 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
   Future<void> _onSave() async {
     if (_isLoading) return;
 
-    if (_selectedBank == null) {
+    final banks = ref.read(supportedBanksProvider).valueOrNull ?? const [];
+    final selectedBank = _effectiveSelectedBank(banks);
+
+    if (selectedBank == null) {
       showErrorSnackBar(context, 'Vui lòng chọn ngân hàng thụ hưởng');
       return;
     }
@@ -108,21 +86,30 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
       setState(() => _isLoading = true);
       try {
         final user = ref.read(authControllerProvider).valueOrNull;
-        final holder = VietnameseUtils.toBankHolderFormat(_holderController.text);
-        await ref.read(authControllerProvider.notifier).updateProfile(
+        final holder = VietnameseUtils.toBankHolderFormat(
+          _holderController.text,
+        );
+        await ref
+            .read(authControllerProvider.notifier)
+            .updateProfile(
               name: user?.name,
               phoneNumber: user?.phoneNumber,
-              bankCode: _selectedBank!.code,
+              bankCode: selectedBank.code,
               bankAccountNumber: _accountController.text.trim(),
               bankAccountHolder: holder,
             );
         if (mounted) {
-          showSuccessSnackBar(context, 'Đã lưu tài khoản ngân hàng VietQR thành công!');
+          showSuccessSnackBar(
+            context,
+            'Đã lưu tài khoản ngân hàng VietQR thành công!',
+          );
           context.pop();
         }
       } catch (e) {
         if (mounted) {
-          final message = e is Failure ? e.message : 'Lưu thông tin ngân hàng thất bại. Vui lòng thử lại.';
+          final message = e is Failure
+              ? e.message
+              : 'Lưu thông tin ngân hàng thất bại. Vui lòng thử lại.';
           showErrorSnackBar(context, message);
         }
       } finally {
@@ -133,7 +120,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
     }
   }
 
-  void _showBankSearchModal() {
+  void _showBankSearchModal(List<BankEntity> banks) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
@@ -147,12 +134,21 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
         String searchQuery = '';
         return StatefulBuilder(
           builder: (modalCtx, setModalState) {
-            final filtered = _allBanks.where((b) {
+            final filtered = banks.where((b) {
               final q = searchQuery.toLowerCase().trim();
               if (q.isEmpty) return true;
+              final qAscii = VietnameseUtils.toBankHolderFormat(
+                searchQuery,
+              ).toLowerCase();
               return b.shortName.toLowerCase().contains(q) ||
-                  b.fullName.toLowerCase().contains(q) ||
-                  b.code.toLowerCase().contains(q);
+                  b.name.toLowerCase().contains(q) ||
+                  b.code.toLowerCase().contains(q) ||
+                  VietnameseUtils.toBankHolderFormat(
+                    b.shortName,
+                  ).toLowerCase().contains(qAscii) ||
+                  VietnameseUtils.toBankHolderFormat(
+                    b.name,
+                  ).toLowerCase().contains(qAscii);
             }).toList();
 
             return DraggableScrollableSheet(
@@ -169,7 +165,9 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                        color: isDark
+                            ? const Color(0xFF475569)
+                            : const Color(0xFFCBD5E1),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -186,7 +184,9 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                           ),
                           InkWell(
@@ -197,7 +197,9 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                               child: Icon(
                                 HugeIcons.strokeRoundedCancel01,
                                 size: 20,
-                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                color: isDark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B),
                               ),
                             ),
                           ),
@@ -212,13 +214,17 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                       child: Container(
                         height: 44,
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                          color: isDark
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: TextField(
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                           ),
                           decoration: InputDecoration(
                             hintText: 'Tìm kiếm theo tên ngân hàng...',
@@ -226,9 +232,15 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                               fontSize: 13.5,
                               color: const Color(0xFF94A3B8),
                             ),
-                            prefixIcon: const Icon(HugeIcons.strokeRoundedSearch01, color: Color(0xFF94A3B8), size: 18),
+                            prefixIcon: const Icon(
+                              HugeIcons.strokeRoundedSearch01,
+                              color: Color(0xFF94A3B8),
+                              size: 18,
+                            ),
                             border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                            ),
                           ),
                           onChanged: (val) {
                             setModalState(() => searchQuery = val);
@@ -242,55 +254,65 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                     Expanded(
                       child: ListView.separated(
                         controller: scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         itemCount: filtered.length,
                         separatorBuilder: (context, index) => Divider(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFF1F5F9),
                           height: 1,
                         ),
                         itemBuilder: (context, index) {
                           final bank = filtered[index];
-                          final isSelected = bank.code == _selectedBank?.code;
+                          final isSelected =
+                              bank.code == _effectiveSelectedBank(banks)?.code;
 
                           return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             leading: Container(
-                              width: 40,
-                              height: 40,
+                              width: 58,
+                              height: 38,
                               decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF0F766E).withValues(alpha: 0.15)
-                                    : (isDark ? const Color(0xFF334155) : const Color(0xFFF8FAF9)),
-                                borderRadius: BorderRadius.circular(10),
-                                border: isSelected
-                                    ? Border.all(color: const Color(0xFF0F766E), width: 1.5)
-                                    : null,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  bank.code.characters.take(3).toString(),
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: isSelected
-                                        ? const Color(0xFF0F766E)
-                                        : (isDark ? Colors.white70 : const Color(0xFF475569)),
-                                  ),
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF0F766E)
+                                      : (isDark
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFE2E8F0)),
+                                  width: isSelected ? 1.5 : 1,
                                 ),
+                              ),
+                              child: _BankLogo(
+                                bank: bank,
+                                fallbackColor: isSelected
+                                    ? const Color(0xFF0F766E)
+                                    : const Color(0xFF475569),
                               ),
                             ),
                             title: Text(
                               bank.shortName,
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 14.5,
-                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                fontWeight: isSelected
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
                                 color: isSelected
                                     ? const Color(0xFF0F766E)
-                                    : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                    : (isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A)),
                               ),
                             ),
                             subtitle: Text(
-                              bank.fullName,
+                              bank.name,
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 color: const Color(0xFF64748B),
@@ -299,7 +321,11 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             trailing: isSelected
-                                ? const Icon(Icons.check_circle_rounded, color: Color(0xFF0F766E), size: 22)
+                                ? const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: Color(0xFF0F766E),
+                                    size: 22,
+                                  )
                                 : null,
                             onTap: () {
                               setState(() => _selectedBank = bank);
@@ -322,15 +348,20 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final banksAsync = ref.watch(supportedBanksProvider);
+    final banks = banksAsync.valueOrNull ?? const <BankEntity>[];
+    final selectedBank = _effectiveSelectedBank(banks);
 
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
     final primaryTeal = const Color(0xFF0F766E);
 
-    final displayBankName = _selectedBank?.shortName ?? 'CHƯA CHỌN NGÂN HÀNG';
+    final displayBankName = selectedBank?.shortName ?? 'CHƯA CHỌN NGÂN HÀNG';
     final displayAccount = _accountController.text.trim().isNotEmpty
         ? _accountController.text.trim()
         : '•••• •••• ••••';
@@ -376,7 +407,11 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF0F766E), Color(0xFF115E59), Color(0xFF042F2E)],
+                        colors: [
+                          Color(0xFF0F766E),
+                          Color(0xFF115E59),
+                          Color(0xFF042F2E),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -410,11 +445,16 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3.5,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                ),
                               ),
                               child: const Text(
                                 'VIETQR NAPAS 247',
@@ -486,7 +526,9 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                       border: Border.all(color: border),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.2 : 0.02,
+                          ),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -510,98 +552,191 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                         // Dropdown Ngân hàng có Search
                         _buildFieldLabel('Ngân hàng thụ hưởng', textMuted),
                         InkWell(
-                          onTap: _showBankSearchModal,
+                          onTap: banksAsync.isLoading
+                              ? null
+                              : () {
+                                  if (banks.isEmpty) {
+                                    ref.invalidate(supportedBanksProvider);
+                                    return;
+                                  }
+                                  _showBankSearchModal(banks);
+                                },
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 13,
+                            ),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
+                              color: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFFF8FAF9),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: border),
                             ),
-                            child: Row(
-                              children: [
-                                if (_selectedBank != null) ...[
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _selectedBank!.shortName,
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                            color: textMain,
-                                          ),
-                                        ),
-                                        Text(
-                                          _selectedBank!.fullName,
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 12,
-                                            color: textMuted,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
+                            child: banksAsync.when(
+                              loading: () => Row(
+                                children: [
+                                  const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF0F766E),
                                     ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: primaryTeal.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
                                     child: Text(
-                                      'Đổi ngân hàng',
+                                      'Đang tải danh sách ngân hàng...',
                                       style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: primaryTeal,
+                                        fontSize: 13.5,
+                                        color: textMuted,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              error: (error, stackTrace) => Row(
+                                children: [
+                                  Icon(
+                                    HugeIcons.strokeRoundedAlertCircle,
+                                    size: 20,
+                                    color: textMuted,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Không tải được danh sách. Chạm để thử lại',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        color: textMuted,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              data: (_) => Row(
+                                children: [
+                                  if (selectedBank != null) ...[
+                                    Container(
+                                      width: 54,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: isDark
+                                              ? const Color(0xFF334155)
+                                              : const Color(0xFFE2E8F0),
+                                        ),
+                                      ),
+                                      child: _BankLogo(
+                                        bank: selectedBank,
+                                        fallbackColor: textMuted,
                                       ),
                                     ),
-                                  ),
-                                ] else ...[
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.account_balance_outlined,
-                                          size: 20,
-                                          color: textMuted,
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            'Chọn ngân hàng thụ hưởng',
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            selectedBank.shortName,
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 14,
-                                              fontWeight: FontWeight.w500,
+                                              fontWeight: FontWeight.w700,
+                                              color: textMain,
+                                            ),
+                                          ),
+                                          Text(
+                                            selectedBank.name,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 12,
                                               color: textMuted,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: primaryTeal.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      'Chọn ngay',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: primaryTeal,
+                                        ],
                                       ),
                                     ),
-                                  ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: primaryTeal.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Đổi ngân hàng',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: primaryTeal,
+                                        ),
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.account_balance_outlined,
+                                            size: 20,
+                                            color: textMuted,
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              banks.isEmpty
+                                                  ? 'Chưa có ngân hàng được hỗ trợ'
+                                                  : 'Chọn ngân hàng thụ hưởng',
+                                              style:
+                                                  GoogleFonts.plusJakartaSans(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: textMuted,
+                                                  ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: primaryTeal.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Chọn ngay',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: primaryTeal,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
                         ),
@@ -617,7 +752,10 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                             color: textMain,
                             fontWeight: FontWeight.w700,
                           ),
-                          decoration: _buildInputDecoration('Ví dụ: 0123456789', isDark),
+                          decoration: _buildInputDecoration(
+                            'Ví dụ: 0123456789',
+                            isDark,
+                          ),
                           validator: (val) {
                             if (val == null || val.trim().isEmpty) {
                               return 'Vui lòng nhập số tài khoản';
@@ -631,7 +769,10 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                         const SizedBox(height: 16),
 
                         // Tên chủ tài khoản
-                        _buildFieldLabel('Tên chủ tài khoản (In hoa không dấu)', textMuted),
+                        _buildFieldLabel(
+                          'Tên chủ tài khoản (In hoa không dấu)',
+                          textMuted,
+                        ),
                         TextFormField(
                           controller: _holderController,
                           textCapitalization: TextCapitalization.characters,
@@ -640,15 +781,24 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                             color: primaryTeal,
                             fontWeight: FontWeight.w700,
                           ),
-                          decoration: _buildInputDecoration('Ví dụ: NGUYEN VAN A', isDark),
-                          validator: (val) => (val == null || val.trim().isEmpty) ? 'Vui lòng nhập tên chủ tài khoản' : null,
+                          decoration: _buildInputDecoration(
+                            'Ví dụ: NGUYEN VAN A',
+                            isDark,
+                          ),
+                          validator: (val) =>
+                              (val == null || val.trim().isEmpty)
+                              ? 'Vui lòng nhập tên chủ tài khoản'
+                              : null,
                           onChanged: (val) {
                             final uppercase = val.toUpperCase();
                             if (uppercase != val) {
-                              _holderController.value = _holderController.value.copyWith(
-                                text: uppercase,
-                                selection: TextSelection.collapsed(offset: uppercase.length),
-                              );
+                              _holderController.value = _holderController.value
+                                  .copyWith(
+                                    text: uppercase,
+                                    selection: TextSelection.collapsed(
+                                      offset: uppercase.length,
+                                    ),
+                                  );
                             }
                           },
                         ),
@@ -680,10 +830,13 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
               ),
               child: Builder(
                 builder: (context) {
-                  final hasChanged = _selectedBank?.code != _initialBankCode ||
+                  final hasChanged =
+                      selectedBank?.code != _initialBankCode ||
                       _accountController.text.trim() != _initialAccount ||
-                      _holderController.text.trim().toUpperCase() != _initialHolder.toUpperCase();
-                  final canSave = _selectedBank != null &&
+                      _holderController.text.trim().toUpperCase() !=
+                          _initialHolder.toUpperCase();
+                  final canSave =
+                      selectedBank != null &&
                       _accountController.text.trim().isNotEmpty &&
                       _holderController.text.trim().isNotEmpty &&
                       hasChanged &&
@@ -704,7 +857,9 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                             : null,
                         color: canSave
                             ? null
-                            : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            : (isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0)),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: canSave
                             ? [
@@ -733,7 +888,9 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                                   fontWeight: FontWeight.w700,
                                   color: canSave
                                       ? Colors.white
-                                      : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                                      : (isDark
+                                            ? const Color(0xFF64748B)
+                                            : const Color(0xFF94A3B8)),
                                 ),
                               ),
                       ),
@@ -768,7 +925,10 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
 
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13.5, color: const Color(0xFF94A3B8)),
+      hintStyle: GoogleFonts.plusJakartaSans(
+        fontSize: 13.5,
+        color: const Color(0xFF94A3B8),
+      ),
       filled: true,
       fillColor: fill,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -783,6 +943,41 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5),
+      ),
+    );
+  }
+}
+
+class _BankLogo extends StatelessWidget {
+  const _BankLogo({required this.bank, required this.fallbackColor});
+
+  final BankEntity bank;
+  final Color fallbackColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Center(
+      child: Text(
+        bank.code.characters.take(3).toString(),
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: fallbackColor,
+        ),
+      ),
+    );
+
+    if (bank.logoUrl.isEmpty) return fallback;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+      child: Image.network(
+        bank.logoUrl,
+        fit: BoxFit.contain,
+        semanticLabel: 'Logo ngân hàng ${bank.shortName}',
+        loadingBuilder: (context, child, loadingProgress) =>
+            loadingProgress == null ? child : fallback,
+        errorBuilder: (context, error, stackTrace) => fallback,
       ),
     );
   }

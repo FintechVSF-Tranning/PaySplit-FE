@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/camera_operation_queue.dart';
 import '../../../../core/utils/image_validator.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../domain/entities/bill_detail_entity.dart';

@@ -12,6 +12,7 @@ abstract class AppRoutes {
   static const String scanBill = '/scan-bill';
   static const String billDetail = '/bill-detail';
   static const String groups = '/groups';
+  static const String scanGroupQr = '/scan-group-qr';
   static const String notifications = '/notifications';
   static const String profile = '/profile';
   static const String editProfile = '/edit-profile';

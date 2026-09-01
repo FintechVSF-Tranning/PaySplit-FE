@@ -176,6 +176,23 @@ void main() {
     expect((detailRoute.routes.single as GoRoute).path, 'add-members');
   });
 
+  test('group QR scanner is registered outside the navigation shell', () {
+    final container = ProviderContainer(
+      overrides: [
+        authControllerProvider.overrideWith(_SignedInAuthController.new),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final router = container.read(appRouterProvider);
+    addTearDown(router.dispose);
+
+    final rootPaths = router.configuration.routes.whereType<GoRoute>().map(
+      (route) => route.path,
+    );
+    expect(rootPaths, contains(AppRoutes.scanGroupQr));
+  });
+
   testWidgets('Hóa đơn bottom nav opens the bills tab', (tester) async {
     final container = ProviderContainer(
       overrides: [
