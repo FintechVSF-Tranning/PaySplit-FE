@@ -13,6 +13,7 @@ abstract class ApiEndpoints {
   static const String changePassword = '/users/me/password';
   static const String avatar = '/users/me/avatar';
   static const String fcmToken = '/users/me/fcm-token';
+  static const String banks = '/banks';
 
   static const String bills = '/bills';
   static String billById(String id) => '/bills/$id';
