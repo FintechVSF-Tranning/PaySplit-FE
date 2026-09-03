@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/camera_operation_queue.dart';
+import '../../../../core/utils/image_compressor.dart';
 import '../../../../core/utils/image_validator.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../domain/entities/bill_detail_entity.dart';
@@ -290,7 +291,7 @@ class _BillCapturePageState extends State<BillCapturePage>
       if (_cameraController != null && _cameraController!.value.isInitialized) {
         final XFile picture = await _cameraController!.takePicture();
         final bytes = await picture.readAsBytes();
-        _addPhoto(picture, bytes);
+        await _addPhoto(picture, bytes);
       } else {
         _isPickingMedia = true;
         await _releaseCamera();
@@ -304,7 +305,7 @@ class _BillCapturePageState extends State<BillCapturePage>
 
           if (captured != null) {
             final bytes = await captured.readAsBytes();
-            _addPhoto(captured, bytes);
+            await _addPhoto(captured, bytes);
           } else {
             _simulateCaptureIfDesired();
           }
@@ -401,7 +402,7 @@ class _BillCapturePageState extends State<BillCapturePage>
       dummyBytes,
       name: 'bill_receipt_${_photos.length + 1}.png',
     );
-    _addPhoto(dummyFile, dummyBytes);
+    unawaited(_addPhoto(dummyFile, dummyBytes));
   }
 
   Future<void> _handlePickFromGallery() async {
@@ -424,7 +425,7 @@ class _BillCapturePageState extends State<BillCapturePage>
         final filesToAdd = pickedFiles.take(remainingSlots).toList();
         for (final file in filesToAdd) {
           final bytes = await file.readAsBytes();
-          _addPhoto(file, bytes);
+          await _addPhoto(file, bytes);
         }
         if (mounted && pickedFiles.length > remainingSlots) {
           showErrorSnackBar(
@@ -446,8 +447,11 @@ class _BillCapturePageState extends State<BillCapturePage>
     }
   }
 
-  bool _addPhoto(XFile file, Uint8List bytes) {
+  Future<bool> _addPhoto(XFile file, Uint8List rawBytes) async {
     if (_photos.length >= _maxPhotos) return false;
+
+    // Compress and downscale if image exceeds 2MB (offloaded to background isolate)
+    final bytes = await ImageCompressor.compress(rawBytes);
 
     final validationError = ImageValidator.validateImage(
       bytes: bytes,
@@ -469,10 +473,12 @@ class _BillCapturePageState extends State<BillCapturePage>
       capturedAt: DateTime.now(),
     );
 
-    setState(() {
-      _photos.add(newPhoto);
-    });
-    unawaited(HapticFeedback.selectionClick());
+    if (mounted) {
+      setState(() {
+        _photos.add(newPhoto);
+      });
+      unawaited(HapticFeedback.selectionClick());
+    }
     return true;
   }
 

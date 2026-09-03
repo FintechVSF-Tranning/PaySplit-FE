@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/utils/image_compressor.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
 import '../models/bill_list_page_model.dart';
@@ -147,11 +148,12 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     for (int i = 0; i < photos.length; i++) {
       final p = photos[i];
       if (p.hasBytes) {
+        final uploadBytes = await ImageCompressor.compress(p.bytes!);
         formData.files.add(
           MapEntry(
             'images',
             MultipartFile.fromBytes(
-              p.bytes!,
+              uploadBytes,
               filename: 'receipt_$i.jpg',
             ),
           ),
