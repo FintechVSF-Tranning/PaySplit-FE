@@ -4,8 +4,14 @@ import 'dart:math';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/config/env_config.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/realtime/realtime_interest.dart';
+import '../../../../core/realtime/register_realtime_interest.dart';
+import '../../../../core/realtime/user_realtime_owner.dart';
 import '../../../../di/injection.dart';
+import '../../data/models/group_sync_mapper.dart';
+import '../../data/models/group_sync_models.dart';
 import '../../domain/entities/group_member_entity.dart';
 import '../../domain/entities/group_sync_entity.dart';
 import '../../domain/usecases/get_group_detail_usecase.dart';
@@ -88,8 +94,12 @@ class GroupRosterState {
       callerRole: callerRole ?? this.callerRole,
       callerMembershipId: callerMembershipId ?? this.callerMembershipId,
       groupName: groupName ?? this.groupName,
-      billSubmissionLocked: clearBillSubmissionLock ? false : (billSubmissionLocked ?? this.billSubmissionLocked),
-      billSubmissionLockedAtText: clearBillSubmissionLock ? null : (billSubmissionLockedAtText ?? this.billSubmissionLockedAtText),
+      billSubmissionLocked: clearBillSubmissionLock
+          ? false
+          : (billSubmissionLocked ?? this.billSubmissionLocked),
+      billSubmissionLockedAtText: clearBillSubmissionLock
+          ? null
+          : (billSubmissionLockedAtText ?? this.billSubmissionLockedAtText),
       activeBillFinalizeBatchId:
           activeBillFinalizeBatchId ?? this.activeBillFinalizeBatchId,
       latestBillFinalizeBatchId:
@@ -115,12 +125,14 @@ class GroupRosterState {
 /// làm tăng độ trễ.
 class GroupRosterNotifier extends StateNotifier<GroupRosterState>
     with WidgetsBindingObserver {
-  GroupRosterNotifier(this.groupId) : super(const GroupRosterState()) {
+  GroupRosterNotifier(this.groupId, {required this.useLegacySse})
+    : super(const GroupRosterState()) {
     WidgetsBinding.instance.addObserver(this);
     _bootstrap();
   }
 
   final String groupId;
+  final bool useLegacySse;
 
   StreamSubscription<GroupSyncEvent>? _subscription;
   Timer? _reconnectTimer;
@@ -134,10 +146,36 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState>
   static final Random _random = Random();
 
   Future<void> _bootstrap() async {
+    await reloadSnapshot();
+    if (_closed) return;
+    if (state.failure == null) {
+      if (useLegacySse) {
+        _connect();
+      } else {
+        state = state.copyWith(isLive: true);
+      }
+    }
+  }
+
+  /// Đọc lại toàn bộ ảnh chụp nhóm qua `GET /groups/{id}`.
+  ///
+  /// Đây là đường duy nhất cập nhật số dư và trạng thái khóa hóa đơn: cả hai đổi
+  /// theo hóa đơn và thanh toán chứ không theo `roster_version`, nên `/sync` —
+  /// vốn chỉ chở delta roster — không bao giờ chạm tới chúng. Thành viên,
+  /// version, số dư và khóa cùng đến từ một lần đọc nên chúng luôn nhất quán
+  /// với nhau.
+  ///
+  /// [rethrowFailure] để lớp realtime biết lượt làm mới hỏng và giữ interest ở
+  /// trạng thái bẩn để thử lại, thay vì im lặng nuốt mất một invalidation.
+  Future<void> reloadSnapshot({bool rethrowFailure = false}) async {
     final result = await getIt<GetGroupDetailUseCase>().call(groupId);
     if (_closed) return;
+    Failure? failed;
     result.fold(
-      (failure) => state = state.copyWith(isLoading: false, failure: failure),
+      (failure) {
+        failed = failure;
+        state = state.copyWith(isLoading: false, failure: failure);
+      },
       (detail) => state = state.copyWith(
         members: detail.members,
         balances: detail.balances,
@@ -147,13 +185,32 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState>
         groupName: detail.group.name,
         billSubmissionLocked: detail.group.billSubmissionLocked,
         billSubmissionLockedAtText: detail.group.closedAtText,
+        // Mở khóa từ xa phải xóa cả nhãn thời điểm khóa: `copyWith` giữ nguyên
+        // giá trị cũ khi nhận `null`, nên nếu không nói rõ thì màn hình vẫn hiện
+        // "đã khóa lúc ..." trên một nhóm đang mở.
+        clearBillSubmissionLock: !detail.group.billSubmissionLocked,
         activeBillFinalizeBatchId: detail.activeBillFinalizeBatchId,
         latestBillFinalizeBatchId: detail.latestBillFinalizeBatchId,
         isLoading: false,
         clearFailure: true,
       ),
     );
-    if (state.failure == null) _connect();
+    final failure = failed;
+    if (failure != null && rethrowFailure) {
+      throw failure;
+    }
+  }
+
+  void applyUserRoster(Map<String, dynamic> frame) {
+    final version = (frame['version'] as num?)?.toInt() ?? 0;
+    final type = frame['type'] as String? ?? '';
+    final rawData = frame['data'];
+    final data = rawData is Map<String, dynamic>
+        ? rawData
+        : <String, dynamic>{};
+    _apply(
+      GroupSyncEventModel(version: version, type: type, data: data).toEntity(),
+    );
   }
 
   /// Mở stream từ version hiện tại. Luôn gửi `since` nên không có sự kiện nào
@@ -223,18 +280,20 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState>
 
   void applyLocalBillUnlock() {
     if (_closed) return;
-    state = state.copyWith(
-      clearBillSubmissionLock: true,
-    );
+    state = state.copyWith(clearBillSubmissionLock: true);
   }
 
-  Future<void> resync() async {
+  Future<void> resync({bool rethrowFailure = false}) async {
     if (_closed) return;
+    Failure? failed;
     final result = await getIt<SyncGroupUseCase>().call(
       SyncGroupParams(groupId: groupId, since: state.version),
     );
     if (_closed) return;
-    result.fold((failure) => state = state.copyWith(failure: failure), (sync) {
+    result.fold((failure) {
+      failed = failure;
+      state = state.copyWith(failure: failure);
+    }, (sync) {
       final snapshot = sync.snapshot;
       if (snapshot != null) {
         state = state.copyWith(
@@ -255,6 +314,10 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState>
         clearFailure: true,
       );
     });
+    final failure = failed;
+    if (failure != null && rethrowFailure) {
+      throw failure;
+    }
   }
 
   /// Áp một sự kiện. Đây là toàn bộ phần "version fencing" ở phía client.
@@ -404,5 +467,24 @@ class GroupRosterNotifier extends StateNotifier<GroupRosterState>
 final groupRosterProvider = StateNotifierProvider.autoDispose
     .family<GroupRosterNotifier, GroupRosterState, String>((ref, groupId) {
       ref.watch(sessionRevisionProvider);
-      return GroupRosterNotifier(groupId);
+      final useLegacy =
+          EnvConfig.realtimeMode == 'legacy' ||
+          ref.watch(userRealtimeOwnerProvider.select((s) => s.legacyFallback));
+      final notifier = GroupRosterNotifier(groupId, useLegacySse: useLegacy);
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.groupRoster(groupId),
+        refresh: () => notifier.resync(rethrowFailure: true),
+        applyRoster: notifier.applyUserRoster,
+      );
+      // `group.detail` là đích của mọi invalidation làm đổi số dư hoặc trạng
+      // thái khóa: chốt hóa đơn, hủy hóa đơn, xóa hóa đơn, đổi công nợ, khóa
+      // nhận hóa đơn. Không có đăng ký này thì các sự kiện đó rơi vào hư không
+      // và màn chi tiết giữ nguyên số dư cũ dù đã nhận được thông báo.
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.groupDetail(groupId),
+        refresh: () => notifier.reloadSnapshot(rethrowFailure: true),
+      );
+      return notifier;
     });

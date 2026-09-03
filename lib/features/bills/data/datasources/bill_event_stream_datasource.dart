@@ -1,85 +1,46 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/network/session_refresher.dart';
+import '../../../../core/network/token_storage.dart';
+import '../../../../core/realtime/sse_frame.dart';
+import '../../../../core/realtime/sse_transport.dart';
 
-/// Represents an SSE frame parsed from `text/event-stream`.
-class BillSseFrame {
-  const BillSseFrame({required this.event, required this.data});
+/// Một frame SSE của bill. Giữ tên riêng vì tầng bill đã dùng nó ở nhiều nơi;
+/// nội dung là [SseFrame] của core.
+typedef BillSseFrame = SseFrame;
 
-  final String event;
-  final Map<String, dynamic> data;
-}
-
-/// SSE client for `GET /bills/{id}/events`.
+/// Client SSE cho `GET /bills/{id}/events` (đường legacy).
 ///
-/// Uses Dio to automatically inherit AuthInterceptor (Bearer token injection
-/// and token refresh).
+/// Dùng chung [SseTransport] với stream người dùng, xem ghi chú ở
+/// `GroupEventStreamDataSource` về lý do không dùng `ResponseType.stream`.
 @lazySingleton
 class BillEventStreamDataSource {
-  const BillEventStreamDataSource(this._dio);
+  BillEventStreamDataSource(
+    Dio dio,
+    TokenStorage tokens,
+    SessionRefresher refresher,
+  ) : _transport = SseTransport(dio, tokens, refresher);
 
-  final Dio _dio;
+  final SseTransport _transport;
 
-  /// Subscribes to real-time events for a bill (e.g. OCR job status, snapshots).
+  /// Theo dõi sự kiện realtime của một hóa đơn (trạng thái job OCR, snapshot).
   Stream<BillSseFrame> stream(
     String billId, {
     required String groupId,
     CancelToken? cancelToken,
-  }) async* {
-    final response = await _dio.get<ResponseBody>(
+  }) {
+    return _transport.open(
       ApiEndpoints.billEvents(billId),
       queryParameters: {'group_id': groupId},
       cancelToken: cancelToken,
-      options: Options(
-        responseType: ResponseType.stream,
-        headers: {'Accept': 'text/event-stream'},
-        receiveTimeout: Duration.zero,
-      ),
-    );
-
-    yield* parseBillSseLines(
-      utf8.decoder
-          .bind(response.data!.stream.map((chunk) => chunk.toList()))
-          .transform(const LineSplitter()),
     );
   }
 }
 
-/// Parses raw lines from `text/event-stream` into [BillSseFrame] objects.
-Stream<BillSseFrame> parseBillSseLines(Stream<String> lines) async* {
-  var eventName = 'message';
-  final data = StringBuffer();
-
-  await for (final line in lines) {
-    if (line.isEmpty) {
-      if (data.isNotEmpty) {
-        try {
-          final decoded = jsonDecode(data.toString());
-          if (decoded is Map<String, dynamic>) {
-            yield BillSseFrame(event: eventName, data: decoded);
-          }
-        } catch (_) {
-          // Ignore non-JSON or malformed frames
-        }
-      }
-      eventName = 'message';
-      data.clear();
-      continue;
-    }
-    if (line.startsWith(':')) continue; // Heartbeat/comment frame
-    final separator = line.indexOf(':');
-    if (separator < 0) continue;
-    final field = line.substring(0, separator);
-    final value = line.substring(separator + 1).trimLeft();
-    switch (field) {
-      case 'event':
-        eventName = value;
-      case 'data':
-        data.write(value);
-    }
-  }
-}
+/// Giữ tên cũ cho các test/parse đã dùng: parser nay nằm ở core.
+Stream<BillSseFrame> parseBillSseLines(Stream<String> lines) =>
+    parseSseLines(lines);

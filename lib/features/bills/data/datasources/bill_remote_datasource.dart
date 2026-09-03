@@ -3,6 +3,9 @@ import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/realtime/realtime_frame_bus.dart';
+import '../../../../core/realtime/realtime_transport_mode.dart';
+import '../../../../core/realtime/sse_frame.dart';
 import '../../../../core/utils/image_compressor.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
@@ -84,13 +87,12 @@ abstract class BillRemoteDataSource {
 @LazySingleton(as: BillRemoteDataSource)
 class BillRemoteDataSourceImpl implements BillRemoteDataSource {
   final Dio _dio;
-  final BillEventStreamDataSource _eventStreamDataSource;
 
-  BillRemoteDataSourceImpl(
-    this._dio, [
-    BillEventStreamDataSource? eventStreamDataSource,
-  ]) : _eventStreamDataSource =
-           eventStreamDataSource ?? BillEventStreamDataSource(_dio);
+  /// Chỉ dùng ở chế độ legacy. Nullable để test dựng data source mà không phải
+  /// kéo theo cả TokenStorage và SessionRefresher.
+  final BillEventStreamDataSource? _eventStreamDataSource;
+
+  BillRemoteDataSourceImpl(this._dio, [this._eventStreamDataSource]);
 
   Map<String, dynamic> _extractData(dynamic responseData) {
     if (responseData is Map<String, dynamic>) {
@@ -174,83 +176,13 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
         return initialBill;
       }
 
-      // Listen to SSE stream on GET /api/v1/bills/{id}/events?group_id={groupId} for real-time OCR results
       if (initialBill.id.isNotEmpty) {
-        final cancelToken = CancelToken();
-        try {
-          await for (final frame
-              in _eventStreamDataSource
-                  .stream(
-                    initialBill.id,
-                    groupId: groupId,
-                    cancelToken: cancelToken,
-                  )
-                  .timeout(const Duration(seconds: 60))) {
-            // Initial snapshot check on connection
-            if (frame.event == 'snapshot') {
-              final ocrJob = frame.data['ocr_job'];
-              if (ocrJob is Map<String, dynamic>) {
-                final status = ocrJob['status'];
-                if (status == 'succeeded') {
-                  cancelToken.cancel();
-                  break;
-                } else if (status == 'failed') {
-                  cancelToken.cancel();
-                  return initialBill;
-                }
-              }
-            }
-
-            // Real-time OCR event emitted by Backend worker
-            if (frame.event == 'ocr.updated') {
-              final status = frame.data['status'];
-              if (status == 'succeeded') {
-                cancelToken.cancel();
-                break;
-              } else if (status == 'failed') {
-                cancelToken.cancel();
-                return initialBill;
-              }
-            }
-          }
-        } catch (_) {
-          // SSE stream finished, timed out, or connection closed
-        } finally {
-          cancelToken.cancel();
-        }
-
-        // Fetch finalized bill detail once via GET /bills/{id}
-        try {
-          final detailResponse = await _dio.get(
-            '${ApiEndpoints.bills}/${initialBill.id}',
-            queryParameters: {'group_id': groupId},
-          );
-          final detailRaw = detailResponse.data;
-          if (detailRaw is Map<String, dynamic>) {
-            final detailData = _extractData(detailRaw);
-            final detailBillJson =
-                detailData['bill'] as Map<String, dynamic>? ?? detailData;
-            final billWithContext = Map<String, dynamic>.from(detailBillJson);
-            if (detailData['ocr_job'] != null) {
-              billWithContext['ocr_job'] = detailData['ocr_job'];
-              if (detailData['ocr_job'] is Map<String, dynamic>) {
-                final jobMap = detailData['ocr_job'] as Map<String, dynamic>;
-                if (jobMap['candidate'] != null) {
-                  billWithContext['candidate'] = jobMap['candidate'];
-                }
-              }
-            }
-            if (detailData['candidate'] != null) {
-              billWithContext['candidate'] = detailData['candidate'];
-            }
-            final updatedBill = BillDetailEntity.fromJson(
-              billWithContext,
-            ).copyWith(photos: photos);
-            return updatedBill;
-          }
-        } catch (_) {
-          // Fallback to initialBill if detail fetch fails
-        }
+        final settled = await _awaitOcrSettled(
+          billId: initialBill.id,
+          groupId: groupId,
+          photos: photos,
+        );
+        if (settled != null) return settled;
       }
 
       return initialBill;
@@ -259,6 +191,120 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       requestOptions: response.requestOptions,
       message: 'Phản hồi tạo hóa đơn không hợp lệ',
     );
+  }
+
+
+  /// Chờ OCR của một hóa đơn vừa tạo xong, rồi trả về chi tiết đã đọc lại.
+  ///
+  /// Ba đường lấy trạng thái, theo đúng thứ tự quan trọng:
+  ///   1. Một GET **trước khi** chờ. OCR có thể xong ngay giữa POST và lúc đăng
+  ///      ký, và tại thời điểm này provider chi tiết chưa kịp đăng ký interest
+  ///      của mình — không có bước này thì trạng thái đã commit chỉ lộ ra sau
+  ///      trọn 60 giây.
+  ///   2. Một GET sau **mỗi** `ready`: mỗi lần kết nối lại là một khoảng trống
+  ///      sự kiện, và `ready` là lúc rẻ nhất để hàn nó.
+  ///   3. Một GET khi hết 60 giây, để không bao giờ kẹt vô hạn.
+  ///
+  /// Nguồn sự kiện chọn theo chế độ **hiệu lực** chứ không theo biến môi trường:
+  /// một owner `auto` đã rơi về legacy thì bus người dùng không còn frame nào.
+  Future<BillDetailEntity?> _awaitOcrSettled({
+    required String billId,
+    required String groupId,
+    required List<CapturedBillPhoto> photos,
+  }) async {
+    final early = await _readBillWithOcr(
+      billId: billId,
+      groupId: groupId,
+      photos: photos,
+    );
+    if (early != null && early.settled) return early.bill;
+
+    final cancelToken = CancelToken();
+    try {
+      final legacySource = RealtimeTransportMode.instance.useLegacy
+          ? _eventStreamDataSource
+          : null;
+      final Stream<SseFrame> frames = legacySource != null
+          ? legacySource.stream(
+              billId,
+              groupId: groupId,
+              cancelToken: cancelToken,
+            )
+          : RealtimeFrameBus.instance.frames.where(
+              (frame) =>
+                  frame.event == 'ready' ||
+                  (frame.event == 'ocr.updated' &&
+                      frame.data['bill_id'] == billId),
+            );
+
+      await for (final frame in frames.timeout(const Duration(seconds: 60))) {
+        final shouldRead =
+            frame.event == 'ready' ||
+            frame.event == 'snapshot' ||
+            frame.event == 'ocr.updated';
+        if (!shouldRead) continue;
+
+        final read = await _readBillWithOcr(
+          billId: billId,
+          groupId: groupId,
+          photos: photos,
+        );
+        if (read != null && read.settled) {
+          cancelToken.cancel();
+          return read.bill;
+        }
+      }
+    } catch (_) {
+      // Stream đóng, hết giờ, hoặc mất kết nối: đường GET cuối vẫn còn.
+    } finally {
+      cancelToken.cancel();
+    }
+
+    final last = await _readBillWithOcr(
+      billId: billId,
+      groupId: groupId,
+      photos: photos,
+    );
+    return last?.bill;
+  }
+
+  Future<_BillOcrRead?> _readBillWithOcr({
+    required String billId,
+    required String groupId,
+    required List<CapturedBillPhoto> photos,
+  }) async {
+    try {
+      final detailResponse = await _dio.get(
+        '${ApiEndpoints.bills}/$billId',
+        queryParameters: {'group_id': groupId},
+      );
+      final detailRaw = detailResponse.data;
+      if (detailRaw is! Map<String, dynamic>) return null;
+      final detailData = _extractData(detailRaw);
+      final detailBillJson =
+          detailData['bill'] as Map<String, dynamic>? ?? detailData;
+      final billWithContext = Map<String, dynamic>.from(detailBillJson);
+      String? ocrStatus;
+      final ocrJob = detailData['ocr_job'];
+      if (ocrJob != null) {
+        billWithContext['ocr_job'] = ocrJob;
+        if (ocrJob is Map<String, dynamic>) {
+          ocrStatus = ocrJob['status'] as String?;
+          if (ocrJob['candidate'] != null) {
+            billWithContext['candidate'] = ocrJob['candidate'];
+          }
+        }
+      }
+      if (detailData['candidate'] != null) {
+        billWithContext['candidate'] = detailData['candidate'];
+      }
+      final bill = BillDetailEntity.fromJson(
+        billWithContext,
+      ).copyWith(photos: photos);
+      return _BillOcrRead(bill: bill, status: ocrStatus);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -531,4 +577,17 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     }
     return [];
   }
+}
+
+/// Kết quả một lần đọc `GET /bills/{id}`: hóa đơn cộng trạng thái job OCR.
+class _BillOcrRead {
+  const _BillOcrRead({required this.bill, required this.status});
+
+  final BillDetailEntity bill;
+  final String? status;
+
+  /// OCR đã dừng hẳn — thành công hoặc thất bại. Cả hai đều là lý do hợp lệ để
+  /// thôi chờ; chờ tiếp một job đã `failed` chỉ tốn đúng 60 giây của người dùng.
+  bool get settled =>
+      status == 'succeeded' || status == 'failed' || bill.items.isNotEmpty;
 }

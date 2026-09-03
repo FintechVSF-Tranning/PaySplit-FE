@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/session/session_scope.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/realtime/realtime_interest.dart';
+import '../../../../core/realtime/register_realtime_interest.dart';
 import '../../../../di/injection.dart';
 import '../../../bills/domain/usecases/get_bills_usecase.dart';
 import '../../data/models/group_bill_mapper.dart';
@@ -11,7 +13,10 @@ import '../../domain/entities/group_bill_entity.dart';
 /// Khóa của [groupBillsProvider]: một nhóm + một bộ lọc trạng thái. Backend lọc
 /// theo `?status=`, nên mỗi chip là một danh sách riêng có cursor riêng.
 class GroupBillsKey extends Equatable {
-  const GroupBillsKey({required this.groupId, this.filter = GroupBillFilter.all});
+  const GroupBillsKey({
+    required this.groupId,
+    this.filter = GroupBillFilter.all,
+  });
 
   final String groupId;
   final GroupBillFilter filter;
@@ -85,7 +90,8 @@ class GroupBillsState extends Equatable {
 /// Danh sách hóa đơn của một nhóm cho tab "Hóa đơn" của màn chi tiết nhóm,
 /// phân trang theo cursor của backend.
 class GroupBillsNotifier extends StateNotifier<GroupBillsState> {
-  GroupBillsNotifier(this._key) : super(const GroupBillsState(isLoading: true)) {
+  GroupBillsNotifier(this._key)
+    : super(const GroupBillsState(isLoading: true)) {
     load();
   }
 
@@ -134,7 +140,10 @@ class GroupBillsNotifier extends StateNotifier<GroupBillsState> {
         // lần gọi; lọc theo id để danh sách không hiện đôi.
         final seen = append ? {for (final b in state.bills) b.id} : <String>{};
         final merged = append
-            ? [...state.bills, ...mapped.bills.where((b) => !seen.contains(b.id))]
+            ? [
+                ...state.bills,
+                ...mapped.bills.where((b) => !seen.contains(b.id)),
+              ]
             : mapped.bills;
 
         state = GroupBillsState(
@@ -151,9 +160,14 @@ class GroupBillsNotifier extends StateNotifier<GroupBillsState> {
 /// `autoDispose` có chủ đích: mỗi chip lọc là một provider riêng, giữ cả 5 sống
 /// mãi vừa tốn bộ nhớ vừa khiến chip mở lại hiện dữ liệu cũ. Khi màn hình còn
 /// mở thì provider vẫn được `watch` nên trang đã tải thêm không bị mất.
-final groupBillsProvider =
-    StateNotifierProvider.autoDispose
-        .family<GroupBillsNotifier, GroupBillsState, GroupBillsKey>((ref, key) {
-          ref.watch(sessionRevisionProvider);
-          return GroupBillsNotifier(key);
-        });
+final groupBillsProvider = StateNotifierProvider.autoDispose
+    .family<GroupBillsNotifier, GroupBillsState, GroupBillsKey>((ref, key) {
+      ref.watch(sessionRevisionProvider);
+      final notifier = GroupBillsNotifier(key);
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.groupBills(key.groupId, key),
+        refresh: () => notifier.load(),
+      );
+      return notifier;
+    });

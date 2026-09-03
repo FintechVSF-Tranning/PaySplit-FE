@@ -144,6 +144,10 @@ class GroupDetailResponseModel with _$GroupDetailResponseModel {
     /// [members] mà không phải suy từ vai trò (nhiều thành viên cùng vai trò).
     @JsonKey(name: 'caller_membership_id') @Default('') String callerMembershipId,
 
+    /// Hóa đơn chưa chốt, cùng định nghĩa với trường cùng tên trong danh sách
+    /// nhóm. Có ở đây để client làm mới đúng một thẻ nhóm tại chỗ.
+    @JsonKey(name: 'pending_bill_count') @Default(0) int pendingBillCount,
+
     /// roster_version của nhóm tại thời điểm đọc — điểm xuất phát cho stream
     /// và cho mọi lần catch-up. Danh sách [members] ở trên là trạng thái tại
     /// đúng version này (backend đọc cả hai trong một ảnh chụp).

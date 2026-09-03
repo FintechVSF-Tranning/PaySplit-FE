@@ -32,7 +32,9 @@ class AuthController extends _$AuthController {
     // nhập để router tự chuyển ra màn chào, thay vì để người dùng kẹt lại trong
     // màn hình cũ với mọi API trả 401.
     final subscription = getIt<SessionEvents>().onExpired.listen((_) {
-      state = const AsyncData(null);
+      if (state.hasValue && state.valueOrNull != null) {
+        state = const AsyncData(null);
+      }
     });
     ref.onDispose(subscription.cancel);
 

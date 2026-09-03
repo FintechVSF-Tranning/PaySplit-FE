@@ -3,6 +3,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../app/session/session_scope.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/realtime/realtime_interest.dart';
+import '../../../../core/realtime/register_realtime_interest.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
@@ -1439,5 +1441,25 @@ final billDetailNotifierProvider =
     >((ref, initialBill) {
       ref.watch(sessionRevisionProvider);
       final repository = getIt<BillRepository>();
-      return BillDetailNotifier(repository, initialBill);
+      final notifier = BillDetailNotifier(repository, initialBill);
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.billDetail(
+          initialBill.groupId,
+          initialBill.id,
+        ),
+        refresh: () => notifier.loadBillDetail(
+          billId: initialBill.id,
+          groupId: initialBill.groupId,
+        ),
+      );
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.ocrWaiter(initialBill.groupId, initialBill.id),
+        refresh: () => notifier.loadBillDetail(
+          billId: initialBill.id,
+          groupId: initialBill.groupId,
+        ),
+      );
+      return notifier;
     });
