@@ -7,6 +7,7 @@ import '../../../../core/utils/image_compressor.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
 import '../models/bill_list_page_model.dart';
+import 'bill_event_stream_datasource.dart';
 
 abstract class BillRemoteDataSource {
   Future<BillListPageModel> getBills({
@@ -84,8 +85,13 @@ abstract class BillRemoteDataSource {
 @LazySingleton(as: BillRemoteDataSource)
 class BillRemoteDataSourceImpl implements BillRemoteDataSource {
   final Dio _dio;
+  final BillEventStreamDataSource _eventStreamDataSource;
 
-  BillRemoteDataSourceImpl(this._dio);
+  BillRemoteDataSourceImpl(
+    this._dio, [
+    BillEventStreamDataSource? eventStreamDataSource,
+  ]) : _eventStreamDataSource =
+            eventStreamDataSource ?? BillEventStreamDataSource(_dio);
 
   Map<String, dynamic> _extractData(dynamic responseData) {
     if (responseData is Map<String, dynamic>) {
@@ -175,56 +181,80 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
         return initialBill;
       }
 
-      // Polling GET /api/v1/bills/{id}?group_id={groupId} for OCR results
+      // Listen to SSE stream on GET /api/v1/bills/{id}/events?group_id={groupId} for real-time OCR results
       if (initialBill.id.isNotEmpty) {
-        const pollInterval = Duration(milliseconds: 1500);
-        const maxAttempts = 40; // ~60s
-        for (int attempt = 0; attempt < maxAttempts; attempt++) {
-          await Future.delayed(pollInterval);
-          try {
-            final detailResponse = await _dio.get(
-              '${ApiEndpoints.bills}/${initialBill.id}',
-              queryParameters: {'group_id': groupId},
-            );
-            final detailRaw = detailResponse.data;
-            if (detailRaw is Map<String, dynamic>) {
-              final detailData = _extractData(detailRaw);
-              final detailBillJson = detailData['bill'] as Map<String, dynamic>? ?? detailData;
-              final billWithContext = Map<String, dynamic>.from(detailBillJson);
-              if (detailData['ocr_job'] != null) {
-                billWithContext['ocr_job'] = detailData['ocr_job'];
-                if (detailData['ocr_job'] is Map<String, dynamic>) {
-                  final jobMap = detailData['ocr_job'] as Map<String, dynamic>;
-                  if (jobMap['candidate'] != null) {
-                    billWithContext['candidate'] = jobMap['candidate'];
-                  }
-                }
-              }
-              if (detailData['candidate'] != null) {
-                billWithContext['candidate'] = detailData['candidate'];
-              }
-              final updatedBill = BillDetailEntity.fromJson(billWithContext).copyWith(photos: photos);
-              if (updatedBill.items.isNotEmpty) {
-                return updatedBill;
-              }
-
-              final ocrJob = detailData['ocr_job'];
-              if (ocrJob is Map) {
-                if (ocrJob['status'] == 'failed') {
+        final cancelToken = CancelToken();
+        try {
+          await for (final frame in _eventStreamDataSource
+              .stream(
+                initialBill.id,
+                groupId: groupId,
+                cancelToken: cancelToken,
+              )
+              .timeout(const Duration(seconds: 60))) {
+            // Initial snapshot check on connection
+            if (frame.event == 'snapshot') {
+              final ocrJob = frame.data['ocr_job'];
+              if (ocrJob is Map<String, dynamic>) {
+                final status = ocrJob['status'];
+                if (status == 'succeeded') {
+                  cancelToken.cancel();
                   break;
-                }
-              }
-
-              if (detailBillJson['ocr_jobs'] is List) {
-                final jobs = detailBillJson['ocr_jobs'] as List;
-                if (jobs.isNotEmpty && jobs.every((j) => j is Map && j['status'] == 'failed')) {
-                  break;
+                } else if (status == 'failed') {
+                  cancelToken.cancel();
+                  return initialBill;
                 }
               }
             }
-          } catch (_) {
-            // ignore temporary polling errors
+
+            // Real-time OCR event emitted by Backend worker
+            if (frame.event == 'ocr.updated') {
+              final status = frame.data['status'];
+              if (status == 'succeeded') {
+                cancelToken.cancel();
+                break;
+              } else if (status == 'failed') {
+                cancelToken.cancel();
+                return initialBill;
+              }
+            }
           }
+        } catch (_) {
+          // SSE stream finished, timed out, or connection closed
+        } finally {
+          cancelToken.cancel();
+        }
+
+        // Fetch finalized bill detail once via GET /bills/{id}
+        try {
+          final detailResponse = await _dio.get(
+            '${ApiEndpoints.bills}/${initialBill.id}',
+            queryParameters: {'group_id': groupId},
+          );
+          final detailRaw = detailResponse.data;
+          if (detailRaw is Map<String, dynamic>) {
+            final detailData = _extractData(detailRaw);
+            final detailBillJson =
+                detailData['bill'] as Map<String, dynamic>? ?? detailData;
+            final billWithContext = Map<String, dynamic>.from(detailBillJson);
+            if (detailData['ocr_job'] != null) {
+              billWithContext['ocr_job'] = detailData['ocr_job'];
+              if (detailData['ocr_job'] is Map<String, dynamic>) {
+                final jobMap = detailData['ocr_job'] as Map<String, dynamic>;
+                if (jobMap['candidate'] != null) {
+                  billWithContext['candidate'] = jobMap['candidate'];
+                }
+              }
+            }
+            if (detailData['candidate'] != null) {
+              billWithContext['candidate'] = detailData['candidate'];
+            }
+            final updatedBill = BillDetailEntity.fromJson(billWithContext)
+                .copyWith(photos: photos);
+            return updatedBill;
+          }
+        } catch (_) {
+          // Fallback to initialBill if detail fetch fails
         }
       }
 

@@ -17,6 +17,7 @@ abstract class ApiEndpoints {
 
   static const String bills = '/bills';
   static String billById(String id) => '/bills/$id';
+  static String billEvents(String id) => '/bills/$id/events';
   static const String calculateBill = '/bills/calculate';
   static String calculateBillById(String id) => '/bills/$id/calculate';
   static const String scanReceipt = '/bills/scan';
