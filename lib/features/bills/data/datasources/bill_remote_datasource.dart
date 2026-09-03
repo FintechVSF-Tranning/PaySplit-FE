@@ -57,6 +57,7 @@ abstract class BillRemoteDataSource {
     required String billId,
     required String groupId,
     required int version,
+    String? idempotencyKey,
   });
 
   Future<BillDetailEntity> voidBill({
@@ -72,9 +73,7 @@ abstract class BillRemoteDataSource {
     required Map<String, dynamic> payload,
   });
 
-  Future<List<BillMemberEntity>> getGroupMembers({
-    required String groupId,
-  });
+  Future<List<BillMemberEntity>> getGroupMembers({required String groupId});
 
   Future<void> deleteDraftBill({
     required String billId,
@@ -91,11 +90,12 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     this._dio, [
     BillEventStreamDataSource? eventStreamDataSource,
   ]) : _eventStreamDataSource =
-            eventStreamDataSource ?? BillEventStreamDataSource(_dio);
+           eventStreamDataSource ?? BillEventStreamDataSource(_dio);
 
   Map<String, dynamic> _extractData(dynamic responseData) {
     if (responseData is Map<String, dynamic>) {
-      if (responseData.containsKey('data') && responseData['data'] is Map<String, dynamic>) {
+      if (responseData.containsKey('data') &&
+          responseData['data'] is Map<String, dynamic>) {
         return responseData['data'] as Map<String, dynamic>;
       }
       return responseData;
@@ -110,10 +110,7 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     String? cursor,
     List<String> statuses = const [],
   }) async {
-    final queryParams = <String, dynamic>{
-      'group_id': groupId,
-      'limit': limit,
-    };
+    final queryParams = <String, dynamic>{'group_id': groupId, 'limit': limit};
     if (cursor != null) {
       queryParams['cursor'] = cursor;
     }
@@ -158,25 +155,21 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
         formData.files.add(
           MapEntry(
             'images',
-            MultipartFile.fromBytes(
-              uploadBytes,
-              filename: 'receipt_$i.jpg',
-            ),
+            MultipartFile.fromBytes(uploadBytes, filename: 'receipt_$i.jpg'),
           ),
         );
       }
     }
 
-    final response = await _dio.post(
-      ApiEndpoints.bills,
-      data: formData,
-    );
+    final response = await _dio.post(ApiEndpoints.bills, data: formData);
 
     final rawData = response.data;
     if (rawData is Map<String, dynamic>) {
       final data = _extractData(rawData);
       final billJson = data['bill'] as Map<String, dynamic>? ?? data;
-      final initialBill = BillDetailEntity.fromJson(billJson).copyWith(photos: photos);
+      final initialBill = BillDetailEntity.fromJson(
+        billJson,
+      ).copyWith(photos: photos);
       if (initialBill.items.isNotEmpty) {
         return initialBill;
       }
@@ -185,13 +178,14 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       if (initialBill.id.isNotEmpty) {
         final cancelToken = CancelToken();
         try {
-          await for (final frame in _eventStreamDataSource
-              .stream(
-                initialBill.id,
-                groupId: groupId,
-                cancelToken: cancelToken,
-              )
-              .timeout(const Duration(seconds: 60))) {
+          await for (final frame
+              in _eventStreamDataSource
+                  .stream(
+                    initialBill.id,
+                    groupId: groupId,
+                    cancelToken: cancelToken,
+                  )
+                  .timeout(const Duration(seconds: 60))) {
             // Initial snapshot check on connection
             if (frame.event == 'snapshot') {
               final ocrJob = frame.data['ocr_job'];
@@ -249,8 +243,9 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
             if (detailData['candidate'] != null) {
               billWithContext['candidate'] = detailData['candidate'];
             }
-            final updatedBill = BillDetailEntity.fromJson(billWithContext)
-                .copyWith(photos: photos);
+            final updatedBill = BillDetailEntity.fromJson(
+              billWithContext,
+            ).copyWith(photos: photos);
             return updatedBill;
           }
         } catch (_) {
@@ -418,11 +413,16 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     required String billId,
     required String groupId,
     required int version,
+    String? idempotencyKey,
   }) async {
+    final key = (idempotencyKey != null && idempotencyKey.isNotEmpty)
+        ? idempotencyKey
+        : const Uuid().v4();
     await _dio.post(
       '${ApiEndpoints.bills}/$billId/finalize',
       queryParameters: {'group_id': groupId},
       data: {'version': version},
+      options: Options(headers: {'Idempotency-Key': key}),
     );
   }
 
@@ -436,10 +436,7 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     final response = await _dio.post(
       '${ApiEndpoints.bills}/$billId/void',
       queryParameters: {'group_id': groupId},
-      data: {
-        'version': version,
-        'reason': reason,
-      },
+      data: {'version': version, 'reason': reason},
     );
     final rawData = response.data;
     final data = _extractData(rawData);
@@ -469,12 +466,15 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     final rawData = response.data;
     if (rawData is Map<String, dynamic>) {
       final data = _extractData(rawData);
-      final breakdownList = data['breakdown'] as List? ??
+      final breakdownList =
+          data['breakdown'] as List? ??
           rawData['breakdown'] as List? ??
           const [];
 
       return breakdownList
-          .map((b) => BillShareBreakdownEntity.fromJson(b as Map<String, dynamic>))
+          .map(
+            (b) => BillShareBreakdownEntity.fromJson(b as Map<String, dynamic>),
+          )
           .toList();
     }
     return const [];
@@ -512,14 +512,18 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       }
     } catch (_) {
       try {
-        final response = await _dio.get('${ApiEndpoints.groups}/$groupId/members');
+        final response = await _dio.get(
+          '${ApiEndpoints.groups}/$groupId/members',
+        );
         final data = response.data;
         if (data is Map<String, dynamic>) {
           final payload = _extractData(data);
           final dynamic membersList = payload['members'] ?? data['members'];
           if (membersList is List) {
             return membersList
-                .map((m) => BillMemberEntity.fromJson(m as Map<String, dynamic>))
+                .map(
+                  (m) => BillMemberEntity.fromJson(m as Map<String, dynamic>),
+                )
                 .toList();
           }
         }
