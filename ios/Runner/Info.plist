@@ -26,6 +26,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>PaySplit cần camera để chụp và quét hóa đơn.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>PaySplit cần thư viện ảnh để bạn chọn ảnh hóa đơn.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

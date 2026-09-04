@@ -42,6 +42,23 @@ dependencies:
   logger: ^2.5.0
   intl: ^0.20.2
   cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  hugeicons: ^0.0.8
+  flutter_animate: ^4.5.2
+  pinput: ^5.0.1
+  uuid: ^4.5.1
+  package_info_plus: ^8.3.0
+  image_picker: ^1.2.3
+  qr_flutter: ^4.1.0
+  zxing2: ^0.2.4
+  image: ^4.9.2
+
+  # Firebase Push Notifications
+  firebase_core: ^3.13.0
+  firebase_messaging: ^15.2.6
+  camera: ^0.12.0+2
+  mobile_scanner: ^7.4.0
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -58,6 +75,7 @@ dev_dependencies:
 
   # Testing
   mocktail: ^1.0.4
+  qr: ^3.0.2
 
 flutter:
   uses-material-design: true

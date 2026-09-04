@@ -1,44 +1,73 @@
 import 'package:equatable/equatable.dart';
 
 /// Base class for all domain-level failures returned via `Either<Failure, T>`.
-///
-/// Data sources throw [Exception]s; repositories catch them and map to a
-/// [Failure] so the domain/presentation layers never depend on Dio or any
-/// other data-layer type.
 abstract class Failure extends Equatable {
-  const Failure(this.message);
+  const Failure(this.message, {this.code});
 
   final String message;
+  final String? code;
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, code];
 }
 
 class ServerFailure extends Failure {
-  const ServerFailure(super.message, {this.statusCode});
+  const ServerFailure(
+    super.message, {
+    super.code,
+    this.statusCode,
+    this.details,
+  });
 
   final int? statusCode;
 
+  /// Structured error details from the API `error.details` object.
+  /// Used to carry contextual data (e.g. `active_batch_id` for
+  /// `BULK_FINALIZE_IN_PROGRESS`) without exposing raw JSON.
+  final Map<String, String>? details;
+
   @override
-  List<Object?> get props => [message, statusCode];
+  List<Object?> get props => [message, code, statusCode, details];
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure([super.message = 'No internet connection']);
+  const NetworkFailure([super.message = 'Không có kết nối mạng', String? code])
+    : super(code: code ?? 'NETWORK_ERROR');
 }
 
 class CacheFailure extends Failure {
-  const CacheFailure([super.message = 'Local cache error']);
+  const CacheFailure([super.message = 'Lỗi bộ nhớ đệm', String? code])
+    : super(code: code ?? 'CACHE_ERROR');
 }
 
 class UnauthorizedFailure extends Failure {
-  const UnauthorizedFailure([super.message = 'Unauthorized']);
+  const UnauthorizedFailure([
+    super.message = 'Phiên đăng nhập hết hạn',
+    String? code,
+  ]) : super(code: code ?? 'UNAUTHORIZED');
 }
 
 class ValidationFailure extends Failure {
-  const ValidationFailure(super.message);
+  const ValidationFailure(super.message, {super.code, this.fields});
+
+  final Map<String, String>? fields;
+
+  @override
+  List<Object?> get props => [message, code, fields];
 }
 
 class UnexpectedFailure extends Failure {
-  const UnexpectedFailure([super.message = 'Unexpected error occurred']);
+  const UnexpectedFailure([
+    super.message = 'Đã có lỗi xảy ra, vui lòng thử lại',
+    String? code,
+  ]) : super(code: code ?? 'UNEXPECTED_ERROR');
 }
+
+/// Body 2xx nhưng sai shape so với hợp đồng API: `ApiResponse.requireData` ném
+/// [StateError] khi `data` null, hoặc ép kiểu `data` ném [TypeError]. Cả hai
+/// đều không phải `DioException` nên repository phải bắt riêng, nếu không
+/// exception sẽ thoát ra ngoài thay vì trở thành [Failure].
+const Failure invalidResponseFailure = UnexpectedFailure(
+  'Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.',
+  'INVALID_RESPONSE',
+);

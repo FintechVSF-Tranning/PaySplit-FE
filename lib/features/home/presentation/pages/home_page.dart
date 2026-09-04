@@ -1,38 +1,497 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 
+import '../../../../app/router/app_routes.dart';
+import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/time_formatter.dart';
+import '../../../../core/utils/ui_feedback.dart';
+import '../../../../core/widgets/header_wave_painter.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
-import '../widgets/home_header.dart';
-import '../widgets/paysplit_section.dart';
-import '../widgets/quick_actions.dart';
-import '../widgets/recent_transactions.dart';
+import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
+import '../../../groups/presentation/widgets/create_group_bottom_sheet.dart';
+import '../../../notifications/presentation/providers/notifications_notifier.dart';
+import '../../../settlement/domain/entities/settlement_entities.dart';
+import '../../../settlement/presentation/providers/settlement_controller.dart';
+import '../../../settlement/presentation/widgets/dynamic_vietqr_sheet.dart';
+import '../../../settlement/presentation/widgets/proof_review_sheet.dart';
+import '../../../settlement/presentation/widgets/reject_proof_dialog.dart';
+import '../../../settlement/presentation/widgets/select_debt_batch_sheet.dart';
+import '../../../groups/presentation/providers/groups_provider.dart';
+import '../providers/home_activities_provider.dart';
+import '../providers/home_groups_provider.dart';
+import '../widgets/actionable_debts_section.dart';
+import '../widgets/my_groups_carousel.dart';
+import '../widgets/net_balance_hero_card.dart';
+import '../widgets/recent_activity_timeline.dart';
 
-/// Bank dashboard. Reads top-to-bottom as balance → the bank's own actions →
-/// PaySplit (our feature) → recent activity, which is the layout users
-/// already expect from a banking app.
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authControllerProvider).valueOrNull;
+    final unreadNotifs = ref.watch(unreadNotificationCountProvider);
+    final settlementState = ref.watch(settlementControllerProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final displayName = (user?.name != null && user!.name.isNotEmpty)
+        ? user.name
+        : (user?.email != null && user!.email.isNotEmpty
+              ? user.email.split('@').first
+              : 'Bạn');
+
+    final overview = settlementState.overview;
+
+    final totalPayable = overview?.totalPayable ?? 0;
+    final totalReceivable = overview?.totalReceivable ?? 0;
+    final netAmount = overview?.netBalance ?? (totalReceivable - totalPayable);
+    final isBalanced = totalPayable == 0 && totalReceivable == 0;
+    final isPositive = netAmount >= 0;
+
+    final String netAmountFormatted;
+    if (isBalanced) {
+      netAmountFormatted = '0 đ';
+    } else if (netAmount > 0) {
+      netAmountFormatted = '+${CurrencyFormatter.vnd(netAmount)}';
+    } else {
+      netAmountFormatted = '-${CurrencyFormatter.vnd(netAmount.abs())}';
+    }
+
+    final String receivableFormatted = totalReceivable > 0
+        ? '+${CurrencyFormatter.vnd(totalReceivable)}'
+        : '0 đ';
+    final String payableFormatted = totalPayable > 0
+        ? '-${CurrencyFormatter.vnd(totalPayable)}'
+        : '0 đ';
+
+    final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
+    final statusBarHeight = MediaQuery.paddingOf(context).top;
 
     return Scaffold(
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
-        children: [
-          HomeHeader(
-            userName: user?.name ?? 'bạn',
-            onLogout: () => ref.read(authControllerProvider.notifier).logout(),
+      backgroundColor: bg,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Future.wait([
+            ref.refresh(homeGroupsProvider.future),
+            ref.refresh(homeActivitiesProvider.future),
+            ref.read(groupsProvider.notifier).refresh(),
+            ref.read(settlementControllerProvider.notifier).loadData(),
+            ref.read(notificationsProvider.notifier).refresh(),
+          ]);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Stack(
+            children: [
+              // 1. Organic Curved Top Wave Header Background (cuộn cùng nội dung)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: CustomPaint(
+                  size: Size(double.infinity, 210 + statusBarHeight),
+                  painter: HeaderWavePainter(isDark: isDark),
+                ),
+              ),
+
+              // 2. Scrollable Body
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, 12 + statusBarHeight, 16, 96),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Header Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // User Avatar & Greeting
+                        Row(
+                          children: [
+                            InkWell(
+                              onTap: () => context.go(AppRoutes.profile),
+                              borderRadius: BorderRadius.circular(50),
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF14B8A6),
+                                      Color(0xFF0D9488),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child:
+                                      (user?.avatarUrl != null &&
+                                          user!.avatarUrl!.isNotEmpty)
+                                      ? Image.network(
+                                          user.avatarUrl!,
+                                          width: 44,
+                                          height: 44,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (ctx, _, _) => Center(
+                                            child: Text(
+                                              _getInitials(displayName),
+                                              style:
+                                                  GoogleFonts.plusJakartaSans(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.white,
+                                                  ),
+                                            ),
+                                          ),
+                                        )
+                                      : Center(
+                                          child: Text(
+                                            _getInitials(displayName),
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Xin chào,',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                  ),
+                                ),
+                                Text(
+                                  displayName,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+
+                        // Notification Bell Button
+                        InkWell(
+                          onTap: () {
+                            ref.read(notificationsProvider.notifier).refresh();
+                            context.push(AppRoutes.notifications);
+                          },
+                          borderRadius: BorderRadius.circular(50),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.15),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                const Icon(
+                                  HugeIcons.strokeRoundedNotification01,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                if (unreadNotifs > 0) ...[
+                                  Positioned(
+                                    top: 9,
+                                    right: 9,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEF4444),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: const Color(0xFF0F766E),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 1. Hero Net Balance Card (Dữ liệu thật từ API)
+                    NetBalanceHeroCard(
+                      netAmount: netAmountFormatted,
+                      receivableAmount: receivableFormatted,
+                      payableAmount: payableFormatted,
+                      isPositive: isPositive,
+                      isBalanced: isBalanced,
+                      onPayVietQr: _openBatchPaySheet,
+                      onScanBill: () async {
+                        final selected = await GroupPickerBottomSheet.show(
+                          context,
+                          currentGroupId: 'g-1',
+                        );
+                        if (selected != null && context.mounted) {
+                          await context.push(
+                            AppRoutes.scanBill,
+                            extra: {
+                              'groupId': selected.id,
+                              'groupName': selected.name,
+                            },
+                          );
+                        }
+                      },
+                      onCreateGroup: _createGroup,
+                    ),
+                    const SizedBox(height: 22),
+
+                    // 2. Actionable Debts Section (Dữ liệu thật từ API)
+                    ActionableDebtsSection(
+                      payableDebts: settlementState.payableDebts,
+                      receivableDebts: settlementState.receivableDebts,
+                      pendingProofs: settlementState.pendingProofs,
+                      remindedCooldowns: settlementState.remindedCooldowns,
+                      isLoading: settlementState.isLoading && settlementState.overview == null,
+                      onViewAll: (tab) => context.go(
+                        AppRoutes.settlement,
+                        extra: tab == 0
+                            ? SettlementTab.payable
+                            : SettlementTab.receivable,
+                      ),
+                      onPayQr: _openSinglePayQr,
+                      onReviewProof: (proof) => _openProofReviewModal(proof),
+                      onRemind: _handleRemindDebt,
+                    ),
+                    const SizedBox(height: 22),
+
+                    // 3. My Groups Carousel
+                    MyGroupsCarousel(
+                      onViewAll: () => context.go(AppRoutes.groups),
+                      onTapGroupItem: (group) {
+                        if (group.id.isNotEmpty) {
+                          context.push('${AppRoutes.groups}/${group.id}');
+                        } else {
+                          context.go(AppRoutes.groups);
+                        }
+                      },
+                      onCreateGroup: _createGroup,
+                    ),
+                    const SizedBox(height: 22),
+
+                    // 4. Recent Activity Timeline
+                    const RecentActivityTimeline(),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          const QuickActions(),
-          const SizedBox(height: 28),
-          const PaySplitSection(),
-          const SizedBox(height: 28),
-          const RecentTransactions(),
-        ],
+        ),
       ),
     );
+  }
+
+  Future<void> _openBatchPaySheet() async {
+    final selection = await showModalBottomSheet<BatchPaymentSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const SelectDebtBatchSheet(),
+    );
+
+    if (!mounted || selection == null) return;
+    await _generateAndOpenQr(
+      groupId: selection.groupId,
+      creditorId: selection.creditorId,
+      creditorName: selection.creditorName,
+      debtIds: selection.debtIds,
+    );
+  }
+
+  Future<void> _openSinglePayQr(DebtItemEntity debt) {
+    return _generateAndOpenQr(
+      groupId: debt.groupId,
+      creditorId: debt.creditorId,
+      creditorName: debt.creditorName,
+      debtIds: [debt.id],
+    );
+  }
+
+  Future<void> _generateAndOpenQr({
+    required String groupId,
+    required String creditorId,
+    required String creditorName,
+    required List<String> debtIds,
+  }) async {
+    try {
+      final controller = ref.read(settlementControllerProvider.notifier);
+      final payment = await controller.generatePaymentQr(
+        groupId: groupId,
+        creditorId: creditorId,
+        debtIds: debtIds,
+      );
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => DynamicVietQrSheet(
+          payment: payment,
+          creditorName: creditorName,
+          onSubmitProof: (image, note) async {
+            await controller.submitProof(
+              groupId: groupId,
+              paymentId: payment.id,
+              image: image,
+              note: note,
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackBar(
+        context,
+        'Không thể tạo mã VietQR thanh toán: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _handleRemindDebt(DebtItemEntity debt) async {
+    final cooldown = ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ?? 0;
+    if (cooldown > 0) {
+      final timeStr = TimeFormatter.formatRemainingCooldown(cooldown);
+      showErrorSnackBar(
+        context,
+        'Khoản nợ này vừa được gửi lời nhắc. Vui lòng đợi thêm $timeStr nữa.',
+      );
+      return;
+    }
+    try {
+      await ref.read(settlementControllerProvider.notifier).remindDebt(
+            groupId: debt.groupId,
+            debtId: debt.id,
+          );
+      if (!mounted) return;
+      showSuccessSnackBar(
+        context,
+        'Đã gửi nhắc nợ tới ${debt.debtorName}',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      final err = ref.read(settlementControllerProvider).errorMessage;
+      showErrorSnackBar(
+        context,
+        err ?? 'Không thể gửi nhắc nợ',
+      );
+    }
+  }
+
+  Future<void> _openProofReviewModal(ProofDetailEntity proof) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ProofReviewSheet(
+        proof: proof,
+        onConfirm: () async {
+          await ref
+              .read(settlementControllerProvider.notifier)
+              .confirmPendingPayment(
+                groupId: proof.groupId,
+                paymentId: proof.paymentId,
+              );
+          if (!mounted) return;
+          await HapticFeedback.mediumImpact();
+          if (!mounted) return;
+          showSuccessSnackBar(
+            context,
+            'Đã xác nhận thanh toán từ ${proof.debtorName}! Số dư đã được cập nhật.',
+          );
+        },
+        onReject: () {
+          if (!mounted) return;
+          showDialog<void>(
+            context: context,
+            builder: (_) => RejectProofDialog(
+              onRejectSubmitted: (reason) async {
+                await ref
+                    .read(settlementControllerProvider.notifier)
+                    .rejectPendingPayment(
+                      groupId: proof.groupId,
+                      paymentId: proof.paymentId,
+                      reason: reason,
+                    );
+                if (!mounted) return;
+                showErrorSnackBar(
+                  context,
+                  'Đã từ chối minh chứng. Khoản nợ đã được chuyển về trạng thái chờ thanh toán.',
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Mở sheet tạo nhóm ngay tại Tổng quan (thay vì chỉ nhảy sang tab Nhóm),
+  /// sau đó đi tiếp sang màn thêm thành viên và làm mới carousel "Nhóm của tôi".
+  Future<void> _createGroup() async {
+    final group = await CreateGroupBottomSheet.show(context);
+    if (group == null || !mounted) return;
+
+    ref.invalidate(homeGroupsProvider);
+    await context.push<void>(AppRoutes.addMembers(group.id), extra: group);
+  }
+
+  static String _getInitials(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'PS';
+    if (parts.length == 1) return parts.first.characters.first.toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first)
+        .toUpperCase();
   }
 }

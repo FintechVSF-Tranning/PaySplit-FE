@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -13,10 +14,10 @@ class PaySplitSection extends StatelessWidget {
 
   /// `route` is null for entries whose screen does not exist yet.
   static const List<({IconData icon, String label, String? route})> _entries = [
-    (icon: Icons.receipt_long, label: 'Hoá đơn\ncủa tôi', route: AppRoutes.bills),
-    (icon: Icons.groups_outlined, label: 'Nhóm\nchi tiêu', route: null),
-    (icon: Icons.notifications_active_outlined, label: 'Nhắc\nthanh toán', route: null),
-    (icon: Icons.history, label: 'Lịch sử\nchia', route: null),
+    (icon: HugeIcons.strokeRoundedInvoice01, label: 'Hoá đơn\ncủa tôi', route: AppRoutes.bills),
+    (icon: HugeIcons.strokeRoundedUserGroup, label: 'Nhóm\nchi tiêu', route: null),
+    (icon: HugeIcons.strokeRoundedNotification03, label: 'Nhắc\nthanh toán', route: null),
+    (icon: HugeIcons.strokeRoundedTime04, label: 'Lịch sử\nchia', route: null),
   ];
 
   @override
@@ -60,7 +61,7 @@ class PaySplitSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _SplitBillBanner(onTap: () => context.push(AppRoutes.bills)),
+          _SplitBillBanner(onTap: () => context.go(AppRoutes.bills)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -72,7 +73,7 @@ class PaySplitSection extends StatelessWidget {
                     onTap: () {
                       final route = entry.route;
                       if (route != null) {
-                        context.push(route);
+                        context.go(route);
                       } else {
                         showComingSoonSnackBar(context, entry.label.replaceAll('\n', ' '));
                       }
@@ -116,7 +117,7 @@ class _SplitBillBanner extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.call_split, color: Colors.white),
+                child: const Icon(HugeIcons.strokeRoundedReceiptDollar, color: Colors.white),
               ),
               const SizedBox(width: 14),
               const Expanded(
@@ -139,7 +140,7 @@ class _SplitBillBanner extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.white),
+              const Icon(HugeIcons.strokeRoundedArrowRight01, color: Colors.white),
             ],
           ),
         ),
