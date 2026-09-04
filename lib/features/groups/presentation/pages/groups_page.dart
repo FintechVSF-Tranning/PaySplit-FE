@@ -8,6 +8,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
+import '../../../../core/utils/vietnamese_utils.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/header_wave_painter.dart';
 import '../../domain/entities/group_entity.dart';
@@ -28,18 +29,71 @@ class GroupsPage extends ConsumerStatefulWidget {
 class _GroupsPageState extends ConsumerState<GroupsPage> {
   /// Tách nhóm đang dùng khỏi nhóm đã khóa hóa đơn để danh sách chính không bị loãng.
   GroupStatus _lifecycle = GroupStatus.active;
+  bool _isSearching = false;
+  String _searchQuery = '';
+  late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  int _compareByCreatedAt(GroupEntity a, GroupEntity b) {
+    final aCreated = a.createdAt;
+    final bCreated = b.createdAt;
+    if (aCreated == null && bCreated == null) return 0;
+    if (aCreated == null) return 1;
+    if (bCreated == null) return -1;
+    return bCreated.compareTo(aCreated); // Mới nhất lên trước
+  }
+
+  List<GroupEntity> _filterGroups(List<GroupEntity> source, String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return source;
+    return source.where((g) {
+      final matchesName = VietnameseUtils.matchesSearch(g.name, trimmed);
+      final matchesInvite = g.inviteCode != null &&
+          VietnameseUtils.matchesSearch(g.inviteCode!, trimmed);
+      return matchesName || matchesInvite;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(groupTabSearchResetProvider, (previous, next) {
+      if (_isSearching || _searchQuery.isNotEmpty) {
+        _searchController.clear();
+        _searchFocusNode.unfocus();
+        setState(() {
+          _isSearching = false;
+          _searchQuery = '';
+        });
+      }
+    });
+
     final groupsState = ref.watch(groupsProvider);
-    final groups = groupsState.groups;
+    final groups = [...groupsState.groups]..sort(_compareByCreatedAt);
     final recentGroups = ref.watch(recentGroupsProvider);
 
     final activeGroups = groups.where((g) => !g.isClosed).toList();
     final closedGroups = groups.where((g) => g.isClosed).toList();
+
+    final filteredActiveGroups = _filterGroups(activeGroups, _searchQuery);
+    final filteredClosedGroups = _filterGroups(closedGroups, _searchQuery);
+
     final visibleGroups = _lifecycle == GroupStatus.active
-        ? activeGroups
-        : closedGroups;
+        ? filteredActiveGroups
+        : filteredClosedGroups;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
@@ -76,75 +130,107 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _Header(groupCount: groups.length),
+                        _Header(
+                          groupCount: groups.length,
+                          isSearching: _isSearching,
+                          searchController: _searchController,
+                          searchFocusNode: _searchFocusNode,
+                          onStartSearch: () {
+                            setState(() => _isSearching = true);
+                            _searchFocusNode.requestFocus();
+                          },
+                          onCloseSearch: () {
+                            _searchController.clear();
+                            _searchFocusNode.unfocus();
+                            setState(() {
+                              _isSearching = false;
+                              _searchQuery = '';
+                            });
+                          },
+                          onQueryChanged: (val) {
+                            setState(() => _searchQuery = val.trim());
+                          },
+                          onClearQuery: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        ),
                         const SizedBox(height: 18),
 
-                        // Hàng ngang 2 nút tham gia nhóm
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _JoinActionTile(
-                                icon: HugeIcons.strokeRoundedLink01,
-                                label: 'Nhập link vào nhóm',
-                                onTap: () => _joinByLink(context, ref),
+                        if (!_isSearching) ...[
+                          // Hàng ngang 2 nút tham gia nhóm
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _JoinActionTile(
+                                  icon: HugeIcons.strokeRoundedLink01,
+                                  label: 'Nhập link vào nhóm',
+                                  onTap: () => _joinByLink(context, ref),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _JoinActionTile(
-                                icon: HugeIcons.strokeRoundedQrCode,
-                                label: 'Quét QR vào nhóm',
-                                onTap: () => _joinByQr(context, ref),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _JoinActionTile(
+                                  icon: HugeIcons.strokeRoundedQrCode,
+                                  label: 'Quét QR vào nhóm',
+                                  onTap: () => _joinByQr(context, ref),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-
-                        AppButton(
-                          label: 'Tạo nhóm chi tiêu mới',
-                          variant: AppButtonVariant.gradient,
-                          icon: const Icon(
-                            HugeIcons.strokeRoundedAdd01,
-                            size: 18,
-                            color: Colors.white,
+                            ],
                           ),
-                          onPressed: () => _createGroup(context, ref),
-                        ),
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 14),
 
-                        if (recentGroups.isNotEmpty) ...[
-                          _SectionTitle(
-                            title: 'Nhóm gần đây',
-                            trailing: 'Lịch sử truy cập',
-                          ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            height: 44,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: recentGroups.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 10),
-                              itemBuilder: (context, index) => _RecentGroupChip(
-                                group: recentGroups[index],
-                                onTap: () =>
-                                    _openDetail(context, recentGroups[index]),
-                              ),
+                          AppButton(
+                            label: 'Tạo nhóm chi tiêu mới',
+                            variant: AppButtonVariant.gradient,
+                            icon: const Icon(
+                              HugeIcons.strokeRoundedAdd01,
+                              size: 18,
+                              color: Colors.white,
                             ),
+                            onPressed: () => _createGroup(context, ref),
                           ),
                           const SizedBox(height: 24),
+
+                          if (recentGroups.isNotEmpty) ...[
+                            _SectionTitle(
+                              title: 'Nhóm gần đây',
+                              trailing: 'Lịch sử truy cập',
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              height: 44,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: recentGroups.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 10),
+                                itemBuilder: (context, index) => _RecentGroupChip(
+                                  group: recentGroups[index],
+                                  onTap: () =>
+                                      _openDetail(context, recentGroups[index]),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         ],
 
                         _SectionTitle(
-                          title: 'Nhóm của tôi',
+                          title: _isSearching && _searchQuery.isNotEmpty
+                              ? 'Kết quả tìm kiếm'
+                              : 'Nhóm của tôi',
                           trailing: '${visibleGroups.length} nhóm',
                         ),
                         const SizedBox(height: 10),
                         _LifecycleTabs(
                           current: _lifecycle,
-                          activeCount: activeGroups.length,
-                          closedCount: closedGroups.length,
+                          activeCount: _isSearching && _searchQuery.isNotEmpty
+                              ? filteredActiveGroups.length
+                              : activeGroups.length,
+                          closedCount: _isSearching && _searchQuery.isNotEmpty
+                              ? filteredClosedGroups.length
+                              : closedGroups.length,
                           onChanged: (value) {
                             HapticFeedback.selectionClick();
                             setState(() => _lifecycle = value);
@@ -179,7 +265,17 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                 ),
               )
             else if (visibleGroups.isEmpty)
-              const SliverToBoxAdapter(child: _EmptyClosedState())
+              SliverToBoxAdapter(
+                child: _isSearching && _searchQuery.isNotEmpty
+                    ? _EmptySearchResultState(
+                        query: _searchQuery,
+                        onClear: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : const _EmptyClosedState(),
+              )
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -233,6 +329,7 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
         ),
       ),
     );
+
   }
 
   void _openDetail(BuildContext context, GroupEntity group) {
@@ -281,12 +378,124 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.groupCount});
+  const _Header({
+    required this.groupCount,
+    required this.isSearching,
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.onStartSearch,
+    required this.onCloseSearch,
+    required this.onQueryChanged,
+    required this.onClearQuery,
+  });
 
   final int groupCount;
+  final bool isSearching;
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final VoidCallback onStartSearch;
+  final VoidCallback onCloseSearch;
+  final ValueChanged<String> onQueryChanged;
+  final VoidCallback onClearQuery;
 
   @override
   Widget build(BuildContext context) {
+    if (isSearching) {
+      return Row(
+        children: [
+          // Nút đóng tìm kiếm
+          InkWell(
+            onTap: onCloseSearch,
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.15),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              ),
+              child: const Icon(
+                HugeIcons.strokeRoundedArrowLeft01,
+                size: 20,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    HugeIcons.strokeRoundedSearch01,
+                    size: 18,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: searchController,
+                      focusNode: searchFocusNode,
+                      autofocus: true,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                      cursorColor: Colors.white,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        filled: false,
+                        fillColor: Colors.transparent,
+                        hintText: 'Tìm theo tên nhóm',
+                        hintStyle: GoogleFonts.plusJakartaSans(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white.withValues(alpha: 0.65),
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      onChanged: onQueryChanged,
+                    ),
+                  ),
+                  if (searchController.text.isNotEmpty)
+                    GestureDetector(
+                      onTap: onClearQuery,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                        child: const Icon(
+                          HugeIcons.strokeRoundedCancel01,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
         // Nút quay lại — đồng bộ với header của tab Cài đặt và Hóa đơn.
@@ -341,7 +550,7 @@ class _Header extends StatelessWidget {
           ),
         ),
         InkWell(
-          onTap: () => showComingSoonSnackBar(context, 'Tìm kiếm nhóm'),
+          onTap: onStartSearch,
           borderRadius: BorderRadius.circular(999),
           child: Container(
             width: 40,
@@ -362,6 +571,7 @@ class _Header extends StatelessWidget {
     );
   }
 }
+
 
 /// Ô hành động tham gia nhóm — nền trắng/slate nổi trên dải sóng Teal.
 class _JoinActionTile extends StatelessWidget {
@@ -437,18 +647,25 @@ class _JoinActionTile extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, required this.trailing});
+  const _SectionTitle({
+    required this.title,
+    required this.trailing,
+    this.lightColor = true,
+  });
 
   final String title;
   final String trailing;
+  final bool lightColor;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark
-        ? const Color(0xFF94A3B8)
-        : const Color(0xFF64748B);
+    final textMain = lightColor
+        ? Colors.white
+        : (isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A));
+    final textMuted = lightColor
+        ? Colors.white.withValues(alpha: 0.82)
+        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B));
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -864,3 +1081,107 @@ class _GroupsErrorState extends StatelessWidget {
     );
   }
 }
+
+/// Trạng thái rỗng khi tìm kiếm nhóm không có kết quả phù hợp.
+class _EmptySearchResultState extends StatelessWidget {
+  const _EmptySearchResultState({
+    required this.query,
+    required this.onClear,
+  });
+
+  final String query;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
+    final iconBg = isDark
+        ? const Color(0xFF0F766E).withValues(alpha: 0.25)
+        : AppColors.primarySubtle;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                HugeIcons.strokeRoundedSearch01,
+                size: 26,
+                color: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Không tìm thấy nhóm phù hợp',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: textMain,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Không có nhóm nào khớp với từ khóa "$query".\nHãy thử kiểm tra lại chính tả hoặc tìm theo từ khóa khác.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: textMuted,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: onClear,
+              icon: const Icon(HugeIcons.strokeRoundedCancel01, size: 16),
+              label: Text(
+                'Xóa tìm kiếm',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
+                side: BorderSide(
+                  color: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

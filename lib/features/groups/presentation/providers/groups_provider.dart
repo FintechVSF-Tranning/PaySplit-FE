@@ -435,3 +435,7 @@ final recentGroupsProvider = Provider<List<GroupEntity>>((ref) {
         });
   return groups.take(3).toList();
 });
+
+/// Bộ đếm kích hoạt reset trạng thái tìm kiếm nhóm khi người dùng chuyển tab hoặc bấm lại tab Nhóm.
+final groupTabSearchResetProvider = StateProvider<int>((ref) => 0);
+

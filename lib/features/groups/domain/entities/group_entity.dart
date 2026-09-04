@@ -95,7 +95,14 @@ class GroupEntity extends Equatable {
     memberCount,
     myBalance,
     inviteCode,
+    isCaptain,
+    lastActivity,
+    lastActivityAt,
+    pendingBillCount,
     status,
     billSubmissionLocked,
+    closedAtText,
+    createdAt,
   ];
 }
+
