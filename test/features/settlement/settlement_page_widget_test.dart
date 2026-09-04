@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:paysplit/app/theme/app_theme.dart';
 import 'package:paysplit/features/settlement/data/mock/mock_settlement_repository.dart';
 import 'package:paysplit/features/settlement/domain/entities/settlement_entities.dart';
@@ -69,7 +70,7 @@ void main() {
         expect(find.text('Cần trả (3)'), findsOneWidget);
         expect(find.text('Cần thu (3)'), findsOneWidget);
         expect(find.text('Hóa đơn (3)'), findsOneWidget);
-        expect(find.text('Lịch sử'), findsOneWidget);
+        expect(find.text('Lịch sử (3)'), findsOneWidget);
 
         // 4. Default Tab: PayableDebtsTab
         expect(find.byType(PayableDebtsTab), findsOneWidget);
@@ -115,8 +116,8 @@ void main() {
           findsOneWidget,
         );
 
-        // Tap on "Lịch sử"
-        await tester.tap(find.text('Lịch sử'));
+        // Tap on "Lịch sử (3)"
+        await tester.tap(find.text('Lịch sử (3)'));
         await tester.pumpAndSettle();
 
         expect(find.byType(SettledHistoryTab), findsOneWidget);
@@ -382,7 +383,7 @@ void main() {
       },
     );
 
-    testWidgets('Search button opens dialog and filters bills tab', (
+    testWidgets('Header search button opens inline search and filters bills tab', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1080, 2400);
@@ -400,30 +401,25 @@ void main() {
       expect(find.text('Lẩu gà lá é Tao Ngộ'), findsOneWidget);
       expect(find.text('Vé xe Limousine Đà Lạt'), findsOneWidget);
 
-      // Open search dialog
-      await tester.tap(find.byTooltip('Tìm kiếm hóa đơn'));
+      // Open header search
+      await tester.tap(find.byTooltip('Tìm kiếm công nợ, hóa đơn'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Tìm kiếm hóa đơn'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
       await tester.enterText(find.byType(TextField), 'Lẩu gà');
-      await tester.tap(find.text('Tìm'));
       await tester.pumpAndSettle();
 
       // Only matching bill should remain
       expect(find.text('Lẩu gà lá é Tao Ngộ'), findsOneWidget);
       expect(find.text('Vé xe Limousine Đà Lạt'), findsNothing);
 
-      // Search banner should appear with "Xóa lọc"
-      expect(find.text('Xóa lọc'), findsOneWidget);
-
-      // Tap "Xóa lọc" button to clear search filter
-      await tester.tap(find.text('Xóa lọc'));
+      // Back button in search header clears search
+      await tester.tap(find.byIcon(HugeIcons.strokeRoundedArrowLeft01));
       await tester.pumpAndSettle();
 
       // All bills should be restored
       expect(find.text('Lẩu gà lá é Tao Ngộ'), findsOneWidget);
       expect(find.text('Vé xe Limousine Đà Lạt'), findsOneWidget);
-      expect(find.text('Xóa lọc'), findsNothing);
     });
 
     testWidgets(

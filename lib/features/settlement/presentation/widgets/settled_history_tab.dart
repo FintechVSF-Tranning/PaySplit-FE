@@ -56,9 +56,9 @@ class SettledHistoryTab extends StatelessWidget {
         Text(
           'Lịch sử các giao dịch công nợ đã hoàn tất gần đây (Bấm để xem minh chứng):',
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w500,
-            color: textMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: textMain,
           ),
         ),
         const SizedBox(height: 10),

@@ -8,17 +8,20 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../di/injection.dart';
+import '../../../groups/domain/entities/group_entity.dart';
 import '../../../groups/domain/usecases/list_groups_usecase.dart';
+import '../../../groups/presentation/widgets/group_avatar.dart';
 
 class GroupItemData {
   const GroupItemData({
     required this.id,
     required this.name,
-    required this.emoji,
+    this.emoji = '👥',
     required this.memberCount,
     required this.balanceText,
     this.isPositive = true,
     this.billSubmissionLocked = false,
+    this.group,
   });
 
   final String id;
@@ -28,6 +31,18 @@ class GroupItemData {
   final String balanceText;
   final bool isPositive;
   final bool billSubmissionLocked;
+  final GroupEntity? group;
+
+  GroupEntity get effectiveGroup =>
+      group ??
+      GroupEntity(
+        id: id,
+        name: name,
+        memberCount: memberCount,
+        myBalance: 0,
+        isCaptain: false,
+        billSubmissionLocked: billSubmissionLocked,
+      );
 }
 
 class GroupPickerBottomSheet extends StatelessWidget {
@@ -71,11 +86,11 @@ class GroupPickerBottomSheet extends StatelessWidget {
           GroupItemData(
             id: group.id,
             name: group.name,
-            emoji: '👥',
             memberCount: group.memberCount,
             balanceText: CurrencyFormatter.vnd(group.myBalance),
             isPositive: group.myBalance >= 0,
             billSubmissionLocked: group.billSubmissionLocked,
+            group: group,
           ),
       ],
     );
@@ -271,27 +286,11 @@ class GroupPickerBottomSheet extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        // Emoji Box
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF1E293B)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isDark
-                                  ? const Color(0xFF334155)
-                                  : const Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              group.emoji,
-                              style: const TextStyle(fontSize: 20),
-                            ),
-                          ),
+                        // Group Avatar
+                        GroupAvatar(
+                          group: group.effectiveGroup,
+                          size: 42,
+                          muted: group.billSubmissionLocked,
                         ),
                         const SizedBox(width: 12),
 

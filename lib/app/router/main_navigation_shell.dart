@@ -87,6 +87,7 @@ class MainNavigationShell extends ConsumerWidget {
       bottomNavigationBar: AppBottomNavBar(
         currentIndex: navigationShell.currentIndex,
         onTap: (index) {
+          ref.read(groupTabSearchResetProvider.notifier).state++;
           _refreshBranch(context, ref, index);
           // Luôn quay về route gốc của branch khi bấm tab: tránh trường hợp
           // rời tab Nhóm khi đang ở màn chi tiết rồi quay lại vẫn thấy chi tiết.

@@ -8,8 +8,10 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/ui_feedback.dart';
+import '../../../../core/utils/vietnamese_utils.dart';
 import '../../../../core/widgets/header_wave_painter.dart';
 import '../../../bills/presentation/widgets/group_picker_bottom_sheet.dart';
+import '../../../groups/presentation/providers/groups_provider.dart';
 import '../../domain/entities/settlement_entities.dart';
 import '../providers/settlement_controller.dart';
 import '../widgets/all_bills_tab.dart';
@@ -32,15 +34,27 @@ class SettlementPage extends ConsumerStatefulWidget {
 }
 
 class _SettlementPageState extends ConsumerState<SettlementPage> {
-  String _billQuery = '';
+  bool _isSearching = false;
+  String _searchQuery = '';
+  late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(settlementControllerProvider.notifier).setTab(widget.initialTab);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
   }
 
   @override
@@ -80,16 +94,6 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
       creditorName: debt.creditorName,
       debtIds: [debt.id],
     );
-  }
-
-  Future<void> _searchBills() async {
-    final query = await showDialog<String>(
-      context: context,
-      builder: (_) => _BillSearchDialog(initialQuery: _billQuery),
-    );
-    if (!mounted || query == null) return;
-    setState(() => _billQuery = query.trim());
-    ref.read(settlementControllerProvider.notifier).setTab(SettlementTab.bills);
   }
 
   Future<void> _scanBill() async {
@@ -295,24 +299,85 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(groupTabSearchResetProvider, (previous, next) {
+      if (_isSearching || _searchQuery.isNotEmpty) {
+        _searchController.clear();
+        _searchFocusNode.unfocus();
+        setState(() {
+          _isSearching = false;
+          _searchQuery = '';
+        });
+      }
+    });
+
     final state = ref.watch(settlementControllerProvider);
     final controller = ref.read(settlementControllerProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppColors.darkPaper : const Color(0xFFF8FAF9);
-    final textMain = isDark ? AppColors.darkTextMain : AppColors.textMain;
     final statusBarHeight = MediaQuery.paddingOf(context).top;
 
-    final payableCount = state.payableDebts
+    final filteredPayable = _searchQuery.isEmpty
+        ? state.payableDebts
+        : state.payableDebts
+            .where((d) =>
+                VietnameseUtils.matchesSearch(d.creditorName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(d.debtorName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(d.groupName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(d.billTitle, _searchQuery))
+            .toList();
+
+    final filteredReceivable = _searchQuery.isEmpty
+        ? state.receivableDebts
+        : state.receivableDebts
+            .where((d) =>
+                VietnameseUtils.matchesSearch(d.debtorName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(d.creditorName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(d.groupName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(d.billTitle, _searchQuery))
+            .toList();
+
+    final filteredProofs = _searchQuery.isEmpty
+        ? state.pendingProofs
+        : state.pendingProofs
+            .where((p) =>
+                VietnameseUtils.matchesSearch(p.debtorName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(p.creditorName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(p.groupName, _searchQuery) ||
+                (p.note != null &&
+                    VietnameseUtils.matchesSearch(p.note!, _searchQuery)))
+            .toList();
+
+    final filteredBills = _searchQuery.isEmpty
+        ? state.bills
+        : state.bills
+            .where((b) =>
+                VietnameseUtils.matchesSearch(b.title, _searchQuery) ||
+                VietnameseUtils.matchesSearch(b.groupName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(b.payerDisplayName, _searchQuery))
+            .toList();
+
+    final filteredHistory = _searchQuery.isEmpty
+        ? state.settledHistory
+        : state.settledHistory
+            .where((h) =>
+                VietnameseUtils.matchesSearch(h.proof.debtorName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(h.proof.creditorName, _searchQuery) ||
+                VietnameseUtils.matchesSearch(h.proof.groupName, _searchQuery) ||
+                (h.proof.note != null &&
+                    VietnameseUtils.matchesSearch(h.proof.note!, _searchQuery)))
+            .toList();
+
+    final payableCount = filteredPayable
         .where((d) => d.status.name == 'awaiting')
         .length;
     final receivableCount =
-        state.receivableDebts.where((d) => d.status.name == 'awaiting').length +
-        state.pendingProofs.where((proof) => !proof.isSettled).length;
+        filteredReceivable.where((d) => d.status.name == 'awaiting').length +
+        filteredProofs.where((proof) => !proof.isSettled).length;
+    final billsCount = filteredBills.length;
+    final historyCount = filteredHistory.length;
 
     return Scaffold(
       backgroundColor: bg,
-      // Đồng bộ background với Trang chủ: dải sóng Teal nằm trong nội dung
-      // cuộn và di chuyển theo nội dung thay vì đứng yên.
       body: SingleChildScrollView(
         child: Stack(
           children: [
@@ -321,7 +386,10 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
               left: 0,
               right: 0,
               child: CustomPaint(
-                size: Size(double.infinity, 210 + statusBarHeight),
+                size: Size(
+                  double.infinity,
+                  (_isSearching ? 80 : 210) + statusBarHeight,
+                ),
                 painter: HeaderWavePainter(isDark: isDark),
               ),
             ),
@@ -330,88 +398,214 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Top Header Bar (đồng bộ style Header Trang chủ)
-                  Row(
-                    children: [
-                      InkWell(
-                        onTap: () {
-                          if (context.canPop()) {
-                            context.pop();
-                          } else {
-                            context.go(AppRoutes.home);
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(50),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withValues(alpha: 0.15),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.2),
+                  // 1. Top Header Bar
+                  if (_isSearching)
+                    Row(
+                      children: [
+                        // Nút đóng tìm kiếm
+                        InkWell(
+                          onTap: () {
+                            _searchController.clear();
+                            _searchFocusNode.unfocus();
+                            setState(() {
+                              _isSearching = false;
+                              _searchQuery = '';
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(50),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.15),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                              ),
                             ),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              HugeIcons.strokeRoundedArrowLeft01,
-                              size: 20,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Công nợ & Hóa đơn',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
+                            child: const Center(
+                              child: Icon(
+                                HugeIcons.strokeRoundedArrowLeft01,
+                                size: 20,
                                 color: Colors.white,
-                                letterSpacing: -0.3,
                               ),
                             ),
-                            Text(
-                              'Tổng hợp công nợ đa nhóm & đối soát minh chứng',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11.5,
-                                color: Colors.white.withValues(alpha: 0.8),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      _HeaderCircleAction(
-                        icon: HugeIcons.strokeRoundedSearch01,
-                        tooltip: 'Tìm kiếm hóa đơn',
-                        isActive: _billQuery.isNotEmpty,
-                        onPressed: _searchBills,
-                      ),
-                      const SizedBox(width: 8),
-                      _HeaderCircleAction(
-                        icon: HugeIcons.strokeRoundedBank,
-                        tooltip: 'Cài đặt STK nhận tiền VietQR',
-                        onPressed: () => context.push(AppRoutes.bankSettings),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Container(
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  HugeIcons.strokeRoundedSearch01,
+                                  size: 18,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _searchController,
+                                    focusNode: _searchFocusNode,
+                                    autofocus: true,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                    cursorColor: Colors.white,
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      filled: false,
+                                      fillColor: Colors.transparent,
+                                      hintText:
+                                          'Tìm theo tên hóa đơn, người trả...',
+                                      hintStyle: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w400,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.65,
+                                        ),
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      disabledBorder: InputBorder.none,
+                                      errorBorder: InputBorder.none,
+                                      focusedErrorBorder: InputBorder.none,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            vertical: 10,
+                                          ),
+                                    ),
+                                    onChanged: (val) {
+                                      setState(() => _searchQuery = val.trim());
+                                    },
+                                  ),
+                                ),
+                                if (_searchController.text.isNotEmpty)
+                                  GestureDetector(
+                                    onTap: () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        HugeIcons.strokeRoundedCancel01,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go(AppRoutes.home);
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(50),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.15),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                HugeIcons.strokeRoundedArrowLeft01,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Công nợ & Hóa đơn',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              Text(
+                                'Tổng hợp công nợ đa nhóm & đối soát minh chứng',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11.5,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _HeaderCircleAction(
+                          icon: HugeIcons.strokeRoundedSearch01,
+                          tooltip: 'Tìm kiếm công nợ, hóa đơn',
+                          isActive: _searchQuery.isNotEmpty,
+                          onPressed: () {
+                            setState(() => _isSearching = true);
+                            _searchFocusNode.requestFocus();
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _HeaderCircleAction(
+                          icon: HugeIcons.strokeRoundedBank,
+                          tooltip: 'Cài đặt STK nhận tiền VietQR',
+                          onPressed: () => context.push(AppRoutes.bankSettings),
+                        ),
+                      ],
+                    ),
 
-                  // 2. Hero Summary Card
-                  SettlementHeroSummaryCard(
-                    overview: state.overview,
-                    onPayDebt: _openBatchPaySheet,
-                    onTapPendingProofAlert: () {
-                      controller.setTab(SettlementTab.receivable);
-                    },
-                  ),
+                  if (!_isSearching) ...[
+                    const SizedBox(height: 16),
+                    // 2. Hero Summary Card
+                    SettlementHeroSummaryCard(
+                      overview: state.overview,
+                      onPayDebt: _openBatchPaySheet,
+                      onTapPendingProofAlert: () {
+                        controller.setTab(SettlementTab.receivable);
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 18),
 
                   // 3. Segmented Pill Navigation Tabs
@@ -448,7 +642,7 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                         ),
                         Expanded(
                           child: _buildTabButton(
-                            title: 'Hóa đơn (${state.bills.length})',
+                            title: 'Hóa đơn ($billsCount)',
                             tab: SettlementTab.bills,
                             activeTab: state.currentTab,
                             isDark: isDark,
@@ -457,7 +651,7 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                         ),
                         Expanded(
                           child: _buildTabButton(
-                            title: 'Lịch sử',
+                            title: 'Lịch sử ($historyCount)',
                             tab: SettlementTab.history,
                             activeTab: state.currentTab,
                             isDark: isDark,
@@ -469,96 +663,6 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                     ),
                   ),
                   const SizedBox(height: 14),
-
-                  // 3b. Active Search Filter Banner
-                  if (_billQuery.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F766E).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: const Color(
-                              0xFF0F766E,
-                            ).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              HugeIcons.strokeRoundedSearch01,
-                              size: 16,
-                              color: Color(0xFF0F766E),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text.rich(
-                                TextSpan(
-                                  text: 'Đang tìm: ',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: textMain,
-                                  ),
-                                  children: [
-                                    TextSpan(
-                                      text: '"$_billQuery"',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFF0F766E),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            InkWell(
-                              onTap: () {
-                                setState(() => _billQuery = '');
-                              },
-                              borderRadius: BorderRadius.circular(6),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      HugeIcons.strokeRoundedCancel01,
-                                      size: 12,
-                                      color: Colors.red,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Xóa lọc',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.red,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
 
                   // 4. Tab Content View
                   if (state.errorMessage != null) ...[
@@ -575,8 +679,8 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                           Expanded(
                             child: Text(
                               state.errorMessage!,
-                              key: Key('settlement-error-message'),
-                              style: TextStyle(color: Color(0xFFB91C1C)),
+                              key: const Key('settlement-error-message'),
+                              style: const TextStyle(color: Color(0xFFB91C1C)),
                             ),
                           ),
                           TextButton(
@@ -601,44 +705,59 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                     ),
                   ] else ...[
                     if (state.currentTab == SettlementTab.payable) ...[
-                      PayableDebtsTab(
-                        debts: state.payableDebts,
-                        onPaySingleDebt: _openSinglePayQr,
-                      ),
+                      if (filteredPayable.isEmpty && _searchQuery.isNotEmpty)
+                        _EmptySettlementSearchState(
+                          query: _searchQuery,
+                          onClear: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      else
+                        PayableDebtsTab(
+                          debts: filteredPayable,
+                          onPaySingleDebt: _openSinglePayQr,
+                        ),
                     ] else if (state.currentTab ==
                         SettlementTab.receivable) ...[
-                      ReceivableProofsTab(
-                        pendingProofs: state.pendingProofs,
-                        receivableDebts: state.receivableDebts,
-                        remindedCooldowns: state.remindedCooldowns,
-                        onOpenProofReview: _refreshAndOpenProof,
-                        onConfirmProof: state.isMutating
-                            ? null
-                            : _refreshAndOpenProof,
-                        onRejectProof: state.isMutating ? null : _rejectProof,
-                        onRemindDebt: state.isMutating
-                            ? null
-                            : (debtId, _) {
-                                final debt = state.receivableDebts.firstWhere(
-                                  (item) => item.id == debtId,
-                                );
-                                _remindDebt(debt);
-                              },
-                      ),
+                      if (filteredReceivable.isEmpty &&
+                          filteredProofs.isEmpty &&
+                          _searchQuery.isNotEmpty)
+                        _EmptySettlementSearchState(
+                          query: _searchQuery,
+                          onClear: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      else
+                        ReceivableProofsTab(
+                          pendingProofs: filteredProofs,
+                          receivableDebts: filteredReceivable,
+                          remindedCooldowns: state.remindedCooldowns,
+                          onOpenProofReview: _refreshAndOpenProof,
+                          onConfirmProof: state.isMutating
+                              ? null
+                              : _refreshAndOpenProof,
+                          onRejectProof: state.isMutating ? null : _rejectProof,
+                          onRemindDebt: state.isMutating
+                              ? null
+                              : (debtId, _) {
+                                  final debt = state.receivableDebts.firstWhere(
+                                    (item) => item.id == debtId,
+                                  );
+                                  _remindDebt(debt);
+                                },
+                        ),
                     ] else if (state.currentTab == SettlementTab.bills) ...[
                       AllBillsTab(
-                        bills: state.bills.where((bill) {
-                          final query = _billQuery.toLowerCase();
-                          return query.isEmpty ||
-                              bill.title.toLowerCase().contains(query) ||
-                              bill.groupName.toLowerCase().contains(query) ||
-                              bill.payerDisplayName.toLowerCase().contains(
-                                query,
-                              );
-                        }).toList(),
-                        searchQuery: _billQuery,
-                        onClearSearch: _billQuery.isNotEmpty
-                            ? () => setState(() => _billQuery = '')
+                        bills: filteredBills,
+                        searchQuery: _searchQuery,
+                        onClearSearch: _searchQuery.isNotEmpty
+                            ? () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              }
                             : null,
                         onTapBill: (bill) {
                           context.push(
@@ -654,12 +773,21 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                         onScanBill: _scanBill,
                       ),
                     ] else if (state.currentTab == SettlementTab.history) ...[
-                      SettledHistoryTab(
-                        history: state.settledHistory,
-                        onTapHistoryItem: (item) {
-                          _refreshAndOpenProof(item.proof);
-                        },
-                      ),
+                      if (filteredHistory.isEmpty && _searchQuery.isNotEmpty)
+                        _EmptySettlementSearchState(
+                          query: _searchQuery,
+                          onClear: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      else
+                        SettledHistoryTab(
+                          history: filteredHistory,
+                          onTapHistoryItem: (item) {
+                            _refreshAndOpenProof(item.proof);
+                          },
+                        ),
                     ],
                   ],
                 ],
@@ -779,62 +907,110 @@ class _HeaderCircleAction extends StatelessWidget {
   }
 }
 
-class _BillSearchDialog extends StatefulWidget {
-  const _BillSearchDialog({required this.initialQuery});
-  final String initialQuery;
+/// Trạng thái rỗng khi tìm kiếm không có kết quả phù hợp.
+class _EmptySettlementSearchState extends StatelessWidget {
+  const _EmptySettlementSearchState({
+    required this.query,
+    required this.onClear,
+  });
 
-  @override
-  State<_BillSearchDialog> createState() => _BillSearchDialogState();
-}
-
-class _BillSearchDialogState extends State<_BillSearchDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialQuery);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final String query;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Tìm kiếm hóa đơn'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        textInputAction: TextInputAction.search,
-        decoration: InputDecoration(
-          hintText: 'Tên hóa đơn, người trả, tên nhóm...',
-          prefixIcon: const Icon(HugeIcons.strokeRoundedSearch01, size: 18),
-          suffixIcon: IconButton(
-            icon: const Icon(HugeIcons.strokeRoundedCancel01, size: 16),
-            onPressed: () => _controller.clear(),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
+    final iconBg = isDark
+        ? const Color(0xFF0F766E).withValues(alpha: 0.25)
+        : AppColors.primarySubtle;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+      child: Center(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  HugeIcons.strokeRoundedSearch01,
+                  size: 26,
+                  color: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Không tìm thấy kết quả phù hợp',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: textMain,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Không có mục nào khớp với từ khóa "$query".\nHãy thử kiểm tra lại chính tả hoặc tìm theo từ khóa khác.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: textMuted,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 18),
+              OutlinedButton.icon(
+                onPressed: onClear,
+                icon: const Icon(HugeIcons.strokeRoundedCancel01, size: 16),
+                label: Text(
+                  'Xóa tìm kiếm',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
+                  side: BorderSide(
+                    color: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        onSubmitted: (value) => Navigator.of(context).pop(value),
       ),
-      actions: [
-        if (widget.initialQuery.isNotEmpty)
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(''),
-            child: const Text('Xóa lọc'),
-          ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Hủy'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: const Text('Tìm'),
-        ),
-      ],
     );
   }
 }
+
