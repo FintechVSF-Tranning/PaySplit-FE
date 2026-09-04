@@ -650,22 +650,15 @@ class _SectionTitle extends StatelessWidget {
   const _SectionTitle({
     required this.title,
     required this.trailing,
-    this.lightColor = true,
   });
 
   final String title;
   final String trailing;
-  final bool lightColor;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textMain = lightColor
-        ? Colors.white
-        : (isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A));
-    final textMuted = lightColor
-        ? Colors.white.withValues(alpha: 0.82)
-        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B));
+    const textMain = Colors.white;
+    final textMuted = Colors.white.withValues(alpha: 0.82);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

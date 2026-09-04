@@ -40,35 +40,38 @@ class AllBillsTab extends StatelessWidget {
               child: Text(
                 'Tất cả hóa đơn chi tiêu đa nhóm:',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: textMuted,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
               ),
             ),
             InkWell(
               onTap: onScanBill,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFF0F766E)),
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.35),
+                  ),
                 ),
                 child: const Row(
                   children: [
                     Icon(
                       HugeIcons.strokeRoundedCamera01,
-                      size: 12,
-                      color: Color(0xFF0F766E),
+                      size: 13,
+                      color: Colors.white,
                     ),
-                    SizedBox(width: 4),
+                    SizedBox(width: 5),
                     Text(
                       '+ Quét bill',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F766E),
+                        color: Colors.white,
                       ),
                     ),
                   ],
