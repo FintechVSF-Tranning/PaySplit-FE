@@ -7,6 +7,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/bill_detail_entity.dart';
+import 'amount_unit_switch.dart';
 
 class EditItemDialog extends StatefulWidget {
   final BillItemEntity? item; // null if adding new item
@@ -63,6 +64,8 @@ class _EditItemDialogState extends State<EditItemDialog> {
   late TextEditingController _qtyController;
   late TextEditingController _priceController;
   late TextEditingController _discountController;
+  late int _unitDiscountVnd;
+  AmountInputUnit _discountInputMode = AmountInputUnit.vnd;
 
   final Set<String> _selectedMemberIds = {};
   String? _nameError;
@@ -89,7 +92,9 @@ class _EditItemDialogState extends State<EditItemDialog> {
     super.initState();
     final item = widget.item;
     _nameController = TextEditingController(text: item?.name ?? '');
-    _qtyController = TextEditingController(text: _cleanQuantity(item?.quantity));
+    _qtyController = TextEditingController(
+      text: _cleanQuantity(item?.quantity),
+    );
 
     int initialUnitPrice = 0;
     if (item != null) {
@@ -97,23 +102,31 @@ class _EditItemDialogState extends State<EditItemDialog> {
         initialUnitPrice = item.unitPrice;
       } else {
         final q = _parseQuantityToDouble(item.quantity);
-        initialUnitPrice = q > 0 ? (item.lineTotal / q).round() : item.lineTotal;
+        initialUnitPrice = q > 0
+            ? (item.lineTotal / q).round()
+            : item.lineTotal;
       }
     }
 
     int initialUnitDiscount = 0;
     if (item != null && item.discountAmount > 0) {
       final q = _parseQuantityToDouble(item.quantity);
-      initialUnitDiscount = q > 0 ? (item.discountAmount / q).round() : item.discountAmount;
+      initialUnitDiscount = q > 0
+          ? (item.discountAmount / q).round()
+          : item.discountAmount;
     }
 
+    final price = initialUnitPrice > 0
+        ? initialUnitPrice
+        : (item != null && item.lineTotal > 0 ? item.lineTotal : 0);
     _priceController = TextEditingController(
-      text: initialUnitPrice > 0
-          ? initialUnitPrice.toString()
-          : (item != null && item.lineTotal > 0 ? item.lineTotal.toString() : ''),
+      text: price > 0 ? CurrencyFormatter.formatInput(price) : '',
     );
+    _unitDiscountVnd = initialUnitDiscount;
     _discountController = TextEditingController(
-      text: initialUnitDiscount > 0 ? initialUnitDiscount.toString() : '',
+      text: initialUnitDiscount > 0
+          ? CurrencyFormatter.formatInput(initialUnitDiscount)
+          : '',
     );
 
     if (item != null && item.assignments.isNotEmpty) {
@@ -130,13 +143,46 @@ class _EditItemDialogState extends State<EditItemDialog> {
     super.dispose();
   }
 
-  int get _parsedPrice => int.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+  int get _parsedPrice => CurrencyFormatter.parseInput(_priceController.text);
   double get _parsedQty => _parseQuantityToDouble(_qtyController.text);
-  int get _parsedUnitDiscount => int.tryParse(_discountController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+  int get _parsedUnitDiscount => _unitDiscountVnd;
 
   int get _lineTotal => (_parsedPrice * _parsedQty).round();
   int get _totalDiscount => (_parsedUnitDiscount * _parsedQty).round();
   int get _finalPrice => (_lineTotal - _totalDiscount).clamp(0, _lineTotal);
+
+  void _handlePriceChanged(String _) {
+    if (_discountInputMode == AmountInputUnit.percent) {
+      _unitDiscountVnd = CurrencyFormatter.percentToVnd(
+        _discountController.text,
+        _parsedPrice,
+      );
+    }
+    setState(() {});
+  }
+
+  void _handleDiscountChanged(String value) {
+    setState(() {
+      _unitDiscountVnd = _discountInputMode == AmountInputUnit.vnd
+          ? CurrencyFormatter.parseInput(value)
+          : CurrencyFormatter.percentToVnd(value, _parsedPrice);
+    });
+  }
+
+  void _setDiscountInputMode(AmountInputUnit mode) {
+    if (mode == _discountInputMode) return;
+    setState(() {
+      _discountInputMode = mode;
+      _discountController.text = mode == AmountInputUnit.vnd
+          ? (_unitDiscountVnd > 0
+                ? CurrencyFormatter.formatInput(_unitDiscountVnd)
+                : '')
+          : CurrencyFormatter.vndToPercent(_unitDiscountVnd, _parsedPrice);
+      _discountController.selection = TextSelection.collapsed(
+        offset: _discountController.text.length,
+      );
+    });
+  }
 
   void _toggleAllMembers() {
     setState(() {
@@ -165,20 +211,28 @@ class _EditItemDialogState extends State<EditItemDialog> {
               userId: m.userId,
               displayName: m.displayName,
               avatarUrl: m.avatarUrl,
-              weight: widget.members.isNotEmpty ? (1.0 / widget.members.length) : 1.0,
+              weight: widget.members.isNotEmpty
+                  ? (1.0 / widget.members.length)
+                  : 1.0,
             );
           }).toList()
         : _selectedMemberIds.map((mId) {
             final m = widget.members.firstWhere(
               (mem) => mem.memberId == mId,
-              orElse: () => BillMemberEntity(memberId: mId, userId: '', displayName: 'Thành viên'),
+              orElse: () => BillMemberEntity(
+                memberId: mId,
+                userId: '',
+                displayName: 'Thành viên',
+              ),
             );
             return BillItemAssignmentEntity(
               memberId: mId,
               userId: m.userId,
               displayName: m.displayName,
               avatarUrl: m.avatarUrl,
-              weight: _selectedMemberIds.isNotEmpty ? (1.0 / _selectedMemberIds.length) : 1.0,
+              weight: _selectedMemberIds.isNotEmpty
+                  ? (1.0 / _selectedMemberIds.length)
+                  : 1.0,
             );
           }).toList();
 
@@ -215,9 +269,16 @@ class _EditItemDialogState extends State<EditItemDialog> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(color: border),
       ),
-      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
       child: SingleChildScrollView(
-        child: widget.isEditable ? _buildEditableForm(context) : _buildReadOnlyPresentation(context),
+        child: widget.isEditable
+            ? _buildEditableForm(context)
+            : _buildReadOnlyPresentation(context),
       ),
     );
   }
@@ -226,7 +287,9 @@ class _EditItemDialogState extends State<EditItemDialog> {
   Widget _buildReadOnlyPresentation(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
     final cardBg = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
 
@@ -239,16 +302,20 @@ class _EditItemDialogState extends State<EditItemDialog> {
     final effectiveUnitPrice = item.unitPrice > 0
         ? item.unitPrice
         : (_parseQuantityToDouble(item.quantity) > 0
-            ? (item.lineTotal / _parseQuantityToDouble(item.quantity)).round()
-            : item.lineTotal);
+              ? (item.lineTotal / _parseQuantityToDouble(item.quantity)).round()
+              : item.lineTotal);
 
     // Xác định danh sách người tham gia
     final assignedIds = item.assignments.map((a) => a.memberId).toSet();
     final effectiveMembers = widget.isEvenSplit
         ? (assignedIds.isNotEmpty
-            ? widget.members.where((m) => assignedIds.contains(m.memberId)).toList()
-            : widget.members)
-        : widget.members.where((m) => assignedIds.contains(m.memberId)).toList();
+              ? widget.members
+                    .where((m) => assignedIds.contains(m.memberId))
+                    .toList()
+              : widget.members)
+        : widget.members
+              .where((m) => assignedIds.contains(m.memberId))
+              .toList();
     final costPerPerson = effectiveMembers.isNotEmpty
         ? (item.finalPrice ~/ effectiveMembers.length)
         : item.finalPrice;
@@ -284,7 +351,11 @@ class _EditItemDialogState extends State<EditItemDialog> {
             ),
             child: Row(
               children: [
-                Icon(HugeIcons.strokeRoundedInformationCircle, size: 15, color: textMuted),
+                Icon(
+                  HugeIcons.strokeRoundedInformationCircle,
+                  size: 15,
+                  color: textMuted,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -367,7 +438,10 @@ class _EditItemDialogState extends State<EditItemDialog> {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primarySubtle,
                       borderRadius: BorderRadius.circular(12),
@@ -388,9 +462,19 @@ class _EditItemDialogState extends State<EditItemDialog> {
               const SizedBox(height: 12),
 
               // Bảng tóm tắt giá
-              _buildSummaryRow('Đơn giá', CurrencyFormatter.formatVND(effectiveUnitPrice.toDouble()), textMuted, textMain),
+              _buildSummaryRow(
+                'Đơn giá',
+                CurrencyFormatter.formatVND(effectiveUnitPrice.toDouble()),
+                textMuted,
+                textMain,
+              ),
               const SizedBox(height: 8),
-              _buildSummaryRow('Số lượng', '${item.quantity} phần', textMuted, textMain),
+              _buildSummaryRow(
+                'Số lượng',
+                '${item.quantity} phần',
+                textMuted,
+                textMain,
+              ),
               const SizedBox(height: 8),
               _buildSummaryRow(
                 'Thành tiền',
@@ -448,7 +532,11 @@ class _EditItemDialogState extends State<EditItemDialog> {
             ),
             child: Row(
               children: [
-                const Icon(HugeIcons.strokeRoundedAlertCircle, size: 16, color: Color(0xFFDC2626)),
+                const Icon(
+                  HugeIcons.strokeRoundedAlertCircle,
+                  size: 16,
+                  color: Color(0xFFDC2626),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Chưa phân bổ cho thành viên nào',
@@ -476,11 +564,19 @@ class _EditItemDialogState extends State<EditItemDialog> {
               itemBuilder: (context, index) {
                 final member = effectiveMembers[index];
                 final initials = member.displayName.isNotEmpty
-                    ? member.displayName.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join()
+                    ? member.displayName
+                          .trim()
+                          .split(' ')
+                          .map((e) => e.isNotEmpty ? e[0] : '')
+                          .take(2)
+                          .join()
                     : 'TV';
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
                       CircleAvatar(
@@ -533,7 +629,15 @@ class _EditItemDialogState extends State<EditItemDialog> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, Color labelColor, Color valueColor, {bool isBold = false, bool isLarge = false, bool isLineThrough = false}) {
+  Widget _buildSummaryRow(
+    String label,
+    String value,
+    Color labelColor,
+    Color valueColor, {
+    bool isBold = false,
+    bool isLarge = false,
+    bool isLineThrough = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -563,10 +667,14 @@ class _EditItemDialogState extends State<EditItemDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
     final isEditing = widget.item != null;
 
-    final costPerSelected = _selectedMemberIds.isNotEmpty ? (_finalPrice ~/ _selectedMemberIds.length) : 0;
+    final costPerSelected = _selectedMemberIds.isNotEmpty
+        ? (_finalPrice ~/ _selectedMemberIds.length)
+        : 0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -621,7 +729,13 @@ class _EditItemDialogState extends State<EditItemDialog> {
           controller: _nameController,
           autofocus: !isEditing,
           maxLength: 80,
-          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+          buildCounter:
+              (
+                context, {
+                required currentLength,
+                required isFocused,
+                maxLength,
+              }) => null,
           textCapitalization: TextCapitalization.sentences,
           onChanged: (val) {
             if (_nameError != null && val.trim().isNotEmpty) {
@@ -638,8 +752,13 @@ class _EditItemDialogState extends State<EditItemDialog> {
               color: const Color(0xFFEF4444),
             ),
             filled: true,
-            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            fillColor: isDark
+                ? const Color(0xFF0F172A)
+                : const Color(0xFFF8FAF9),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: border),
@@ -650,7 +769,10 @@ class _EditItemDialogState extends State<EditItemDialog> {
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFFEF4444),
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -676,18 +798,28 @@ class _EditItemDialogState extends State<EditItemDialog> {
                   const SizedBox(height: 6),
                   TextField(
                     controller: _qtyController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                       LengthLimitingTextInputFormatter(4),
                     ],
                     onChanged: (_) => setState(() {}),
-                    style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textMain),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      color: textMain,
+                    ),
                     decoration: InputDecoration(
                       hintText: '1',
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      fillColor: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAF9),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: border),
@@ -714,20 +846,26 @@ class _EditItemDialogState extends State<EditItemDialog> {
                   ),
                   const SizedBox(height: 6),
                   TextField(
+                    key: const Key('item-price-field'),
                     controller: _priceController,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(11),
-                    ],
-                    onChanged: (_) => setState(() {}),
-                    style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textMain),
+                    inputFormatters: const [VndTextInputFormatter()],
+                    onChanged: _handlePriceChanged,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      color: textMain,
+                    ),
                     decoration: InputDecoration(
                       hintText: '100.000',
                       suffixText: 'đ',
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      fillColor: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAF9),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: border),
@@ -743,7 +881,7 @@ class _EditItemDialogState extends State<EditItemDialog> {
 
         // Giảm giá trên 1 phần món
         Text(
-          'Giảm giá trên 1 phần / món (VND)',
+          'Giảm giá trên 1 phần / món',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -752,20 +890,37 @@ class _EditItemDialogState extends State<EditItemDialog> {
         ),
         const SizedBox(height: 6),
         TextField(
+          key: const Key('item-discount-field'),
           controller: _discountController,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(11),
-          ],
-          onChanged: (_) => setState(() {}),
+          keyboardType: TextInputType.numberWithOptions(
+            decimal: _discountInputMode == AmountInputUnit.percent,
+          ),
+          inputFormatters: _discountInputMode == AmountInputUnit.vnd
+              ? const [VndTextInputFormatter()]
+              : const [PercentTextInputFormatter()],
+          onChanged: _handleDiscountChanged,
           style: GoogleFonts.plusJakartaSans(fontSize: 14, color: textMain),
           decoration: InputDecoration(
-            hintText: '0 (Số tiền giảm cho 1 phần)',
-            suffixText: 'đ/phần',
+            hintText: _discountInputMode == AmountInputUnit.vnd
+                ? '0 (Số tiền giảm cho 1 phần)'
+                : '0 (Phần trăm giảm)',
+            suffixIcon: AmountUnitSwitch(
+              key: const Key('item-discount-unit-toggle'),
+              value: _discountInputMode,
+              onChanged: _setDiscountInputMode,
+            ),
+            suffixIconConstraints: const BoxConstraints(
+              minWidth: 112,
+              minHeight: 48,
+            ),
             filled: true,
-            fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            fillColor: isDark
+                ? const Color(0xFF0F172A)
+                : const Color(0xFFF8FAF9),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: border),
@@ -784,20 +939,23 @@ class _EditItemDialogState extends State<EditItemDialog> {
               color: isDark ? const Color(0xFF334155) : const Color(0xFFDCFCE7),
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final label = Text(
                 'Giá thực tế sau giảm:',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: textMain,
                 ),
-              ),
-              Row(
+              );
+              final prices = Wrap(
+                spacing: 8,
+                runSpacing: 2,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  if (_totalDiscount > 0) ...[
+                  if (_totalDiscount > 0)
                     Text(
                       CurrencyFormatter.formatVND(_lineTotal.toDouble()),
                       style: GoogleFonts.jetBrainsMono(
@@ -807,8 +965,6 @@ class _EditItemDialogState extends State<EditItemDialog> {
                         decoration: TextDecoration.lineThrough,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                  ],
                   Text(
                     CurrencyFormatter.formatVND(_finalPrice.toDouble()),
                     style: GoogleFonts.jetBrainsMono(
@@ -818,8 +974,25 @@ class _EditItemDialogState extends State<EditItemDialog> {
                     ),
                   ),
                 ],
-              ),
-            ],
+              );
+              if (constraints.maxWidth < 360) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    label,
+                    const SizedBox(height: 4),
+                    Align(alignment: Alignment.centerRight, child: prices),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  label,
+                  const SizedBox(width: 8),
+                  Expanded(child: prices),
+                ],
+              );
+            },
           ),
         ),
         if (!widget.isEvenSplit) ...[
@@ -844,7 +1017,9 @@ class _EditItemDialogState extends State<EditItemDialog> {
                   foregroundColor: AppColors.primary,
                 ),
                 child: Text(
-                  _selectedMemberIds.length == widget.members.length ? 'Bỏ chọn' : 'Chọn tất cả',
+                  _selectedMemberIds.length == widget.members.length
+                      ? 'Bỏ chọn'
+                      : 'Chọn tất cả',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -883,12 +1058,17 @@ class _EditItemDialogState extends State<EditItemDialog> {
                     });
                   },
                   activeColor: AppColors.primary,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 2,
+                  ),
                   title: Text(
                     member.displayName,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13.5,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: textMain,
                     ),
                   ),
@@ -921,7 +1101,11 @@ class _EditItemDialogState extends State<EditItemDialog> {
           AppButton(
             label: 'Xoá món này khỏi hoá đơn',
             variant: AppButtonVariant.danger,
-            icon: const Icon(HugeIcons.strokeRoundedDelete02, size: 18, color: Colors.white),
+            icon: const Icon(
+              HugeIcons.strokeRoundedDelete02,
+              size: 18,
+              color: Colors.white,
+            ),
             onPressed: () {
               Navigator.of(context).pop();
               widget.onDelete!();

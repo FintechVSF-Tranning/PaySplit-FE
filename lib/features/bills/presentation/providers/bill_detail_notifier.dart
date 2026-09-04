@@ -828,20 +828,27 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     state = state.copyWith(bill: updatedBill, isDirty: true);
   }
 
-  /// Cập nhật Thuế, Phí, Khuyến mãi chung và Tổng cộng
-  void setAdjustments({
-    int? serviceCharge,
-    int? vat,
-    int? generalDiscount,
-    int? total,
-  }) {
+  /// Cập nhật Thuế, Phí và Khuyến mãi chung.
+  ///
+  /// Tổng thanh toán luôn được suy ra từ các giá trị này, người dùng không nhập
+  /// tổng bằng tay trong modal adjustments.
+  void setAdjustments({int? serviceCharge, int? vat, int? generalDiscount}) {
+    final safeServiceCharge = (serviceCharge ?? state.bill.serviceCharge)
+        .clamp(0, 99999999999)
+        .toInt();
+    final safeVat = (vat ?? state.bill.vat).clamp(0, 99999999999).toInt();
+    final maxDiscount =
+        state.computedNetItemsTotal + safeServiceCharge + safeVat;
+    final safeGeneralDiscount = (generalDiscount ?? state.bill.generalDiscount)
+        .clamp(0, maxDiscount)
+        .toInt();
+
     final updatedBill = _syncBillWithItems(
       state.bill,
       state.bill.items,
-      serviceCharge: serviceCharge,
-      vat: vat,
-      generalDiscount: generalDiscount,
-      total: total,
+      serviceCharge: safeServiceCharge,
+      vat: safeVat,
+      generalDiscount: safeGeneralDiscount,
     );
 
     state = state.copyWith(bill: updatedBill, isDirty: true);
@@ -864,19 +871,16 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     );
   }
 
-  /// Thêm phụ thu bù phần thiếu
-  void addAdjustmentItem(int amount, {String name = 'Phụ thu / Điều chỉnh'}) {
-    final newItem = BillItemEntity(
-      id: 'adj-${DateTime.now().microsecondsSinceEpoch}',
-      name: name,
-      unitPrice: amount,
-      lineTotal: amount,
-      finalPrice: amount,
-      assignments: state.bill.splitMethod == 'even'
-          ? _buildEvenAssignments(state.bill.members)
-          : const [],
-    );
-    addItem(newItem);
+  /// Cộng phần thiếu vào phụ thu để giữ đúng cơ chế phân bổ theo tỷ trọng.
+  void addMissingAmountToServiceCharge(int amount) {
+    if (amount <= 0) return;
+    setAdjustments(serviceCharge: state.bill.serviceCharge + amount);
+  }
+
+  /// Cộng phần dư vào voucher chung để tổng tự tính khớp hóa đơn gốc.
+  void addExcessAmountToVoucher(int amount) {
+    if (amount <= 0) return;
+    setAdjustments(generalDiscount: state.bill.generalDiscount + amount);
   }
 
   /// Thực thi lưu bản nháp lên server (hàm nội bộ dùng chung)
