@@ -21,6 +21,7 @@ import '../widgets/image_viewer_dialog.dart';
 import '../widgets/ocr_candidate_review_modal.dart';
 import '../widgets/reconciliation_warning_bar.dart';
 import '../widgets/select_even_split_members_modal.dart';
+import '../../../profile/presentation/pages/bank_settings_page.dart';
 
 class BillDetailPage extends ConsumerStatefulWidget {
   final BillDetailEntity initialBill;
@@ -270,7 +271,11 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                     Navigator.of(ctx).pop();
                     await notifier.saveDraft();
                     if (context.mounted) {
-                      await context.push(AppRoutes.bankSettings);
+                      await Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const BankSettingsPage(),
+                        ),
+                      );
                     }
                   },
                   style: ElevatedButton.styleFrom(

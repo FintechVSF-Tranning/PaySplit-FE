@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,6 +20,8 @@ import '../../features/groups/presentation/pages/groups_page.dart';
 import '../../features/groups/presentation/pages/scan_qr_join_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/profile/presentation/pages/avatar_capture_page.dart';
+import '../../features/profile/presentation/pages/avatar_crop_page.dart';
 import '../../features/profile/presentation/pages/bank_settings_page.dart';
 import '../../features/profile/presentation/pages/change_password_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
@@ -242,6 +245,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return BillCapturePage(
             groupId: extra['groupId'] as String,
             groupName: extra['groupName'] as String? ?? 'Chi tiết nhóm',
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.avatarCapture,
+        builder: (context, state) => const AvatarCapturePage(),
+      ),
+      GoRoute(
+        path: AppRoutes.avatarCrop,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return AvatarCropPage(
+            imageBytes: extra?['imageBytes'] as Uint8List? ?? Uint8List(0),
+            isFromCamera: extra?['isFromCamera'] as bool? ?? false,
           );
         },
       ),

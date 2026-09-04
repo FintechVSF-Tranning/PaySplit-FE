@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,8 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/utils/phone_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
+import 'avatar_capture_page.dart';
+import 'avatar_crop_page.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -761,6 +764,59 @@ class ProfilePage extends ConsumerWidget {
     }
   }
 
+  Future<void> _uploadAvatarBytes(
+    BuildContext context,
+    WidgetRef ref,
+    Uint8List bytes,
+  ) async {
+    try {
+      final filename = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      if (context.mounted) {
+        showSuccessSnackBar(context, 'Đang tải lên ảnh đại diện...');
+      }
+
+      await ref.read(authControllerProvider.notifier).uploadAvatar(
+            bytes: bytes,
+            filename: filename,
+          );
+
+      if (context.mounted) {
+        showSuccessSnackBar(context, 'Đã cập nhật ảnh đại diện thành công!');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        final message = e is Failure
+            ? e.message
+            : 'Tải lên ảnh thất bại. Vui lòng thử lại.';
+        showErrorSnackBar(context, message);
+      }
+    }
+  }
+
+  Future<void> _takeAndUploadAvatarWithCamera(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    try {
+      final capturedBytes = await Navigator.of(context).push<Uint8List>(
+        MaterialPageRoute(
+          builder: (_) => const AvatarCapturePage(),
+        ),
+      );
+
+      if (capturedBytes == null || !context.mounted) return;
+      await _uploadAvatarBytes(context, ref, capturedBytes);
+    } catch (e) {
+      if (context.mounted) {
+        showErrorSnackBar(
+          context,
+          'Không thể khởi động Camera. Vui lòng thử lại hoặc chọn ảnh từ thư viện.',
+        );
+      }
+    }
+  }
+
   Future<void> _pickAndUploadAvatar(
     BuildContext context,
     WidgetRef ref,
@@ -775,23 +831,22 @@ class ProfilePage extends ConsumerWidget {
         imageQuality: 85,
       );
 
-      if (pickedFile == null) return;
+      if (pickedFile == null || !context.mounted) return;
 
       final bytes = await pickedFile.readAsBytes();
-      final filename = pickedFile.name.isNotEmpty ? pickedFile.name : 'avatar.jpg';
+      if (!context.mounted) return;
 
-      if (context.mounted) {
-        showSuccessSnackBar(context, 'Đang tải lên ảnh đại diện...');
-      }
+      // Bước căn chỉnh ảnh vào ô tròn tương tự như chụp ảnh
+      final croppedBytes = await Navigator.of(context).push<Uint8List>(
+        MaterialPageRoute(
+          builder: (_) => AvatarCropPage(
+            imageBytes: bytes,
+          ),
+        ),
+      );
 
-      await ref.read(authControllerProvider.notifier).uploadAvatar(
-            bytes: bytes,
-            filename: filename,
-          );
-
-      if (context.mounted) {
-        showSuccessSnackBar(context, 'Đã cập nhật ảnh đại diện thành công!');
-      }
+      if (croppedBytes == null || !context.mounted) return;
+      await _uploadAvatarBytes(context, ref, croppedBytes);
     } catch (e) {
       if (context.mounted) {
         final message = e is Failure
@@ -875,7 +930,7 @@ class ProfilePage extends ConsumerWidget {
                 ),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  _pickAndUploadAvatar(context, ref, ImageSource.camera);
+                  _takeAndUploadAvatarWithCamera(context, ref);
                 },
               ),
               ListTile(
