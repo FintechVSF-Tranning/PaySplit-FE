@@ -19,6 +19,7 @@ import '../widgets/bill_sticky_bottom_bar.dart';
 import '../widgets/edit_item_dialog.dart';
 import '../widgets/image_viewer_dialog.dart';
 import '../widgets/ocr_candidate_review_modal.dart';
+import '../widgets/reconciliation_warning_bar.dart';
 import '../widgets/select_even_split_members_modal.dart';
 
 class BillDetailPage extends ConsumerStatefulWidget {
@@ -1242,14 +1243,28 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
                     computedTotal: state.computedTotal,
                     isEditable: canEdit,
                     onUpdateAdjustments:
-                        ({serviceCharge, vat, generalDiscount, total}) {
+                        ({serviceCharge, vat, generalDiscount}) {
                           notifier.setAdjustments(
                             serviceCharge: serviceCharge,
                             vat: vat,
                             generalDiscount: generalDiscount,
-                            total: total,
                           );
                         },
+                  ),
+                  const SizedBox(height: 12),
+                  ReconciliationWarningBar(
+                    computedTotal: state.computedTotal,
+                    reportedTotal: bill.total,
+                    deltaTotal: state.deltaTotal,
+                    unassignedItems: state.unassignedItems,
+                    isEditable: canEdit,
+                    onBalanceTotal: notifier.balanceTotalToComputed,
+                    onAddSurcharge: () =>
+                        notifier.addMissingAmountToServiceCharge(
+                          state.deltaTotal.abs(),
+                        ),
+                    onAddVoucher: () =>
+                        notifier.addExcessAmountToVoucher(state.deltaTotal),
                   ),
                   const SizedBox(height: 24),
                 ],

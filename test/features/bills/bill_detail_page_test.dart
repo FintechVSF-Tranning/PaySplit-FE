@@ -16,6 +16,7 @@ import 'package:paysplit/features/bills/presentation/providers/bill_detail_notif
 import 'package:paysplit/features/bills/presentation/widgets/bill_adjustments_section.dart';
 import 'package:paysplit/features/bills/presentation/widgets/bill_item_card.dart';
 import 'package:paysplit/features/bills/presentation/widgets/bill_sticky_bottom_bar.dart';
+import 'package:paysplit/features/bills/presentation/widgets/reconciliation_warning_bar.dart';
 
 class MockBillRepository extends Mock implements BillRepository {}
 
@@ -266,6 +267,54 @@ void main() {
         expect(notifier.state.deltaTotal, 0);
       },
     );
+
+    test('resolves a shortage by adding it to service charge', () {
+      final notifier = BillDetailNotifier(
+        mockRepository,
+        sampleBill.copyWith(total: 750000),
+      );
+
+      expect(notifier.state.deltaTotal, -50000);
+
+      notifier.addMissingAmountToServiceCharge(notifier.state.deltaTotal.abs());
+
+      expect(notifier.state.bill.items.length, sampleBill.items.length);
+      expect(notifier.state.bill.serviceCharge, 100000);
+      expect(notifier.state.computedTotal, 750000);
+      expect(notifier.state.deltaTotal, 0);
+      expect(notifier.state.isDirty, isTrue);
+    });
+
+    test('resolves an excess by adding it to the shared voucher', () {
+      final notifier = BillDetailNotifier(
+        mockRepository,
+        sampleBill.copyWith(total: 650000),
+      );
+
+      expect(notifier.state.deltaTotal, 50000);
+
+      notifier.addExcessAmountToVoucher(notifier.state.deltaTotal);
+
+      expect(notifier.state.bill.generalDiscount, 100000);
+      expect(notifier.state.computedTotal, 650000);
+      expect(notifier.state.deltaTotal, 0);
+      expect(notifier.state.isDirty, isTrue);
+    });
+
+    test('clamps adjustments so the computed total cannot be negative', () {
+      final notifier = BillDetailNotifier(mockRepository, sampleBill);
+
+      notifier.setAdjustments(
+        serviceCharge: -1,
+        vat: -1,
+        generalDiscount: 999999999,
+      );
+
+      expect(notifier.state.bill.serviceCharge, 0);
+      expect(notifier.state.bill.vat, 0);
+      expect(notifier.state.bill.generalDiscount, 650000);
+      expect(notifier.state.computedTotal, 0);
+    });
 
     test(
       'adding a new item recalculates computed total and shows mismatch against reported total',
@@ -608,6 +657,7 @@ void main() {
 
       // Check adjustments section
       expect(find.byType(BillAdjustmentsSection), findsOneWidget);
+      expect(find.byType(ReconciliationWarningBar), findsOneWidget);
 
       // Check sticky bottom bar
       expect(find.byType(BillStickyBottomBar), findsOneWidget);
