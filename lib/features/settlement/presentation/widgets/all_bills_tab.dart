@@ -40,9 +40,9 @@ class AllBillsTab extends StatelessWidget {
               child: Text(
                 'Tất cả hóa đơn chi tiêu đa nhóm:',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: textMain,
                 ),
               ),
             ),
@@ -52,26 +52,28 @@ class AllBillsTab extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
+                  color: isDark
+                      ? const Color(0xFF0F766E).withValues(alpha: 0.2)
+                      : const Color(0xFF0F766E).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.35),
+                    color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(
                       HugeIcons.strokeRoundedCamera01,
                       size: 13,
-                      color: Colors.white,
+                      color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E),
                     ),
-                    SizedBox(width: 5),
+                    const SizedBox(width: 5),
                     Text(
                       '+ Quét bill',
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E),
                       ),
                     ),
                   ],

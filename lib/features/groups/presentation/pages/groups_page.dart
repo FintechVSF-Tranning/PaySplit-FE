@@ -115,7 +115,10 @@ class _GroupsPageState extends ConsumerState<GroupsPage> {
                     left: 0,
                     right: 0,
                     child: CustomPaint(
-                      size: Size(double.infinity, 190 + statusBarHeight),
+                      size: Size(
+                        double.infinity,
+                        (_isSearching ? 80 : 190) + statusBarHeight,
+                      ),
                       painter: HeaderWavePainter(isDark: isDark),
                     ),
                   ),
@@ -657,8 +660,9 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const textMain = Colors.white;
-    final textMuted = Colors.white.withValues(alpha: 0.82);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
+    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

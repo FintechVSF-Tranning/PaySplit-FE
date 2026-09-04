@@ -386,7 +386,10 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
               left: 0,
               right: 0,
               child: CustomPaint(
-                size: Size(double.infinity, 210 + statusBarHeight),
+                size: Size(
+                  double.infinity,
+                  (_isSearching ? 80 : 210) + statusBarHeight,
+                ),
                 painter: HeaderWavePainter(isDark: isDark),
               ),
             ),
