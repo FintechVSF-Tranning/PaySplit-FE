@@ -18,6 +18,8 @@ abstract class AppRoutes {
   static const String editProfile = '/edit-profile';
   static const String bankSettings = '/bank-settings';
   static const String changePassword = '/change-password';
+  static const String avatarCapture = '/avatar-capture';
+  static const String avatarCrop = '/avatar-crop';
 
   /// Màn hình chi tiết hóa đơn (con của [bills]).
   static String billDetailRoute(String billId) => '$bills/$billId';
