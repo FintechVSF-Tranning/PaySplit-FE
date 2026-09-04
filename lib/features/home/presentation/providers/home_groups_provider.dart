@@ -2,12 +2,23 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/realtime/realtime_interest.dart';
+import '../../../../core/realtime/register_realtime_interest.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/home_group_item_entity.dart';
 import '../../../../app/session/session_scope.dart';
 
-final homeGroupsProvider = FutureProvider.autoDispose<List<HomeGroupItemEntity>>((ref) async {
+final homeGroupsProvider = FutureProvider.autoDispose<List<HomeGroupItemEntity>>((
+  ref,
+) async {
   ref.watch(sessionRevisionProvider);
+  registerRealtimeInterest(
+    ref,
+    key: RealtimeInterestKey.homeGroups(),
+    refresh: () async {
+      ref.invalidateSelf();
+    },
+  );
   try {
     final dio = getIt<Dio>();
     final response = await dio.get(

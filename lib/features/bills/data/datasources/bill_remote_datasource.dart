@@ -3,9 +3,14 @@ import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/realtime/realtime_frame_bus.dart';
+import '../../../../core/realtime/realtime_transport_mode.dart';
+import '../../../../core/realtime/sse_frame.dart';
+import '../../../../core/utils/image_compressor.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
 import '../models/bill_list_page_model.dart';
+import 'bill_event_stream_datasource.dart';
 
 abstract class BillRemoteDataSource {
   Future<BillListPageModel> getBills({
@@ -55,6 +60,7 @@ abstract class BillRemoteDataSource {
     required String billId,
     required String groupId,
     required int version,
+    String? idempotencyKey,
   });
 
   Future<BillDetailEntity> voidBill({
@@ -70,9 +76,7 @@ abstract class BillRemoteDataSource {
     required Map<String, dynamic> payload,
   });
 
-  Future<List<BillMemberEntity>> getGroupMembers({
-    required String groupId,
-  });
+  Future<List<BillMemberEntity>> getGroupMembers({required String groupId});
 
   Future<void> deleteDraftBill({
     required String billId,
@@ -84,11 +88,16 @@ abstract class BillRemoteDataSource {
 class BillRemoteDataSourceImpl implements BillRemoteDataSource {
   final Dio _dio;
 
-  BillRemoteDataSourceImpl(this._dio);
+  /// Chỉ dùng ở chế độ legacy. Nullable để test dựng data source mà không phải
+  /// kéo theo cả TokenStorage và SessionRefresher.
+  final BillEventStreamDataSource? _eventStreamDataSource;
+
+  BillRemoteDataSourceImpl(this._dio, [this._eventStreamDataSource]);
 
   Map<String, dynamic> _extractData(dynamic responseData) {
     if (responseData is Map<String, dynamic>) {
-      if (responseData.containsKey('data') && responseData['data'] is Map<String, dynamic>) {
+      if (responseData.containsKey('data') &&
+          responseData['data'] is Map<String, dynamic>) {
         return responseData['data'] as Map<String, dynamic>;
       }
       return responseData;
@@ -103,10 +112,7 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     String? cursor,
     List<String> statuses = const [],
   }) async {
-    final queryParams = <String, dynamic>{
-      'group_id': groupId,
-      'limit': limit,
-    };
+    final queryParams = <String, dynamic>{'group_id': groupId, 'limit': limit};
     if (cursor != null) {
       queryParams['cursor'] = cursor;
     }
@@ -147,83 +153,36 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     for (int i = 0; i < photos.length; i++) {
       final p = photos[i];
       if (p.hasBytes) {
+        final uploadBytes = await ImageCompressor.compress(p.bytes!);
         formData.files.add(
           MapEntry(
             'images',
-            MultipartFile.fromBytes(
-              p.bytes!,
-              filename: 'receipt_$i.jpg',
-            ),
+            MultipartFile.fromBytes(uploadBytes, filename: 'receipt_$i.jpg'),
           ),
         );
       }
     }
 
-    final response = await _dio.post(
-      ApiEndpoints.bills,
-      data: formData,
-    );
+    final response = await _dio.post(ApiEndpoints.bills, data: formData);
 
     final rawData = response.data;
     if (rawData is Map<String, dynamic>) {
       final data = _extractData(rawData);
       final billJson = data['bill'] as Map<String, dynamic>? ?? data;
-      final initialBill = BillDetailEntity.fromJson(billJson).copyWith(photos: photos);
+      final initialBill = BillDetailEntity.fromJson(
+        billJson,
+      ).copyWith(photos: photos);
       if (initialBill.items.isNotEmpty) {
         return initialBill;
       }
 
-      // Polling GET /api/v1/bills/{id}?group_id={groupId} for OCR results
       if (initialBill.id.isNotEmpty) {
-        const pollInterval = Duration(milliseconds: 1500);
-        const maxAttempts = 40; // ~60s
-        for (int attempt = 0; attempt < maxAttempts; attempt++) {
-          await Future.delayed(pollInterval);
-          try {
-            final detailResponse = await _dio.get(
-              '${ApiEndpoints.bills}/${initialBill.id}',
-              queryParameters: {'group_id': groupId},
-            );
-            final detailRaw = detailResponse.data;
-            if (detailRaw is Map<String, dynamic>) {
-              final detailData = _extractData(detailRaw);
-              final detailBillJson = detailData['bill'] as Map<String, dynamic>? ?? detailData;
-              final billWithContext = Map<String, dynamic>.from(detailBillJson);
-              if (detailData['ocr_job'] != null) {
-                billWithContext['ocr_job'] = detailData['ocr_job'];
-                if (detailData['ocr_job'] is Map<String, dynamic>) {
-                  final jobMap = detailData['ocr_job'] as Map<String, dynamic>;
-                  if (jobMap['candidate'] != null) {
-                    billWithContext['candidate'] = jobMap['candidate'];
-                  }
-                }
-              }
-              if (detailData['candidate'] != null) {
-                billWithContext['candidate'] = detailData['candidate'];
-              }
-              final updatedBill = BillDetailEntity.fromJson(billWithContext).copyWith(photos: photos);
-              if (updatedBill.items.isNotEmpty) {
-                return updatedBill;
-              }
-
-              final ocrJob = detailData['ocr_job'];
-              if (ocrJob is Map) {
-                if (ocrJob['status'] == 'failed') {
-                  break;
-                }
-              }
-
-              if (detailBillJson['ocr_jobs'] is List) {
-                final jobs = detailBillJson['ocr_jobs'] as List;
-                if (jobs.isNotEmpty && jobs.every((j) => j is Map && j['status'] == 'failed')) {
-                  break;
-                }
-              }
-            }
-          } catch (_) {
-            // ignore temporary polling errors
-          }
-        }
+        final settled = await _awaitOcrSettled(
+          billId: initialBill.id,
+          groupId: groupId,
+          photos: photos,
+        );
+        if (settled != null) return settled;
       }
 
       return initialBill;
@@ -232,6 +191,120 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       requestOptions: response.requestOptions,
       message: 'Phản hồi tạo hóa đơn không hợp lệ',
     );
+  }
+
+
+  /// Chờ OCR của một hóa đơn vừa tạo xong, rồi trả về chi tiết đã đọc lại.
+  ///
+  /// Ba đường lấy trạng thái, theo đúng thứ tự quan trọng:
+  ///   1. Một GET **trước khi** chờ. OCR có thể xong ngay giữa POST và lúc đăng
+  ///      ký, và tại thời điểm này provider chi tiết chưa kịp đăng ký interest
+  ///      của mình — không có bước này thì trạng thái đã commit chỉ lộ ra sau
+  ///      trọn 60 giây.
+  ///   2. Một GET sau **mỗi** `ready`: mỗi lần kết nối lại là một khoảng trống
+  ///      sự kiện, và `ready` là lúc rẻ nhất để hàn nó.
+  ///   3. Một GET khi hết 60 giây, để không bao giờ kẹt vô hạn.
+  ///
+  /// Nguồn sự kiện chọn theo chế độ **hiệu lực** chứ không theo biến môi trường:
+  /// một owner `auto` đã rơi về legacy thì bus người dùng không còn frame nào.
+  Future<BillDetailEntity?> _awaitOcrSettled({
+    required String billId,
+    required String groupId,
+    required List<CapturedBillPhoto> photos,
+  }) async {
+    final early = await _readBillWithOcr(
+      billId: billId,
+      groupId: groupId,
+      photos: photos,
+    );
+    if (early != null && early.settled) return early.bill;
+
+    final cancelToken = CancelToken();
+    try {
+      final legacySource = RealtimeTransportMode.instance.useLegacy
+          ? _eventStreamDataSource
+          : null;
+      final Stream<SseFrame> frames = legacySource != null
+          ? legacySource.stream(
+              billId,
+              groupId: groupId,
+              cancelToken: cancelToken,
+            )
+          : RealtimeFrameBus.instance.frames.where(
+              (frame) =>
+                  frame.event == 'ready' ||
+                  (frame.event == 'ocr.updated' &&
+                      frame.data['bill_id'] == billId),
+            );
+
+      await for (final frame in frames.timeout(const Duration(seconds: 60))) {
+        final shouldRead =
+            frame.event == 'ready' ||
+            frame.event == 'snapshot' ||
+            frame.event == 'ocr.updated';
+        if (!shouldRead) continue;
+
+        final read = await _readBillWithOcr(
+          billId: billId,
+          groupId: groupId,
+          photos: photos,
+        );
+        if (read != null && read.settled) {
+          cancelToken.cancel();
+          return read.bill;
+        }
+      }
+    } catch (_) {
+      // Stream đóng, hết giờ, hoặc mất kết nối: đường GET cuối vẫn còn.
+    } finally {
+      cancelToken.cancel();
+    }
+
+    final last = await _readBillWithOcr(
+      billId: billId,
+      groupId: groupId,
+      photos: photos,
+    );
+    return last?.bill;
+  }
+
+  Future<_BillOcrRead?> _readBillWithOcr({
+    required String billId,
+    required String groupId,
+    required List<CapturedBillPhoto> photos,
+  }) async {
+    try {
+      final detailResponse = await _dio.get(
+        '${ApiEndpoints.bills}/$billId',
+        queryParameters: {'group_id': groupId},
+      );
+      final detailRaw = detailResponse.data;
+      if (detailRaw is! Map<String, dynamic>) return null;
+      final detailData = _extractData(detailRaw);
+      final detailBillJson =
+          detailData['bill'] as Map<String, dynamic>? ?? detailData;
+      final billWithContext = Map<String, dynamic>.from(detailBillJson);
+      String? ocrStatus;
+      final ocrJob = detailData['ocr_job'];
+      if (ocrJob != null) {
+        billWithContext['ocr_job'] = ocrJob;
+        if (ocrJob is Map<String, dynamic>) {
+          ocrStatus = ocrJob['status'] as String?;
+          if (ocrJob['candidate'] != null) {
+            billWithContext['candidate'] = ocrJob['candidate'];
+          }
+        }
+      }
+      if (detailData['candidate'] != null) {
+        billWithContext['candidate'] = detailData['candidate'];
+      }
+      final bill = BillDetailEntity.fromJson(
+        billWithContext,
+      ).copyWith(photos: photos);
+      return _BillOcrRead(bill: bill, status: ocrStatus);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -386,11 +459,16 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     required String billId,
     required String groupId,
     required int version,
+    String? idempotencyKey,
   }) async {
+    final key = (idempotencyKey != null && idempotencyKey.isNotEmpty)
+        ? idempotencyKey
+        : const Uuid().v4();
     await _dio.post(
       '${ApiEndpoints.bills}/$billId/finalize',
       queryParameters: {'group_id': groupId},
       data: {'version': version},
+      options: Options(headers: {'Idempotency-Key': key}),
     );
   }
 
@@ -404,10 +482,7 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     final response = await _dio.post(
       '${ApiEndpoints.bills}/$billId/void',
       queryParameters: {'group_id': groupId},
-      data: {
-        'version': version,
-        'reason': reason,
-      },
+      data: {'version': version, 'reason': reason},
     );
     final rawData = response.data;
     final data = _extractData(rawData);
@@ -437,12 +512,15 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     final rawData = response.data;
     if (rawData is Map<String, dynamic>) {
       final data = _extractData(rawData);
-      final breakdownList = data['breakdown'] as List? ??
+      final breakdownList =
+          data['breakdown'] as List? ??
           rawData['breakdown'] as List? ??
           const [];
 
       return breakdownList
-          .map((b) => BillShareBreakdownEntity.fromJson(b as Map<String, dynamic>))
+          .map(
+            (b) => BillShareBreakdownEntity.fromJson(b as Map<String, dynamic>),
+          )
           .toList();
     }
     return const [];
@@ -480,14 +558,18 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       }
     } catch (_) {
       try {
-        final response = await _dio.get('${ApiEndpoints.groups}/$groupId/members');
+        final response = await _dio.get(
+          '${ApiEndpoints.groups}/$groupId/members',
+        );
         final data = response.data;
         if (data is Map<String, dynamic>) {
           final payload = _extractData(data);
           final dynamic membersList = payload['members'] ?? data['members'];
           if (membersList is List) {
             return membersList
-                .map((m) => BillMemberEntity.fromJson(m as Map<String, dynamic>))
+                .map(
+                  (m) => BillMemberEntity.fromJson(m as Map<String, dynamic>),
+                )
                 .toList();
           }
         }
@@ -495,4 +577,17 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     }
     return [];
   }
+}
+
+/// Kết quả một lần đọc `GET /bills/{id}`: hóa đơn cộng trạng thái job OCR.
+class _BillOcrRead {
+  const _BillOcrRead({required this.bill, required this.status});
+
+  final BillDetailEntity bill;
+  final String? status;
+
+  /// OCR đã dừng hẳn — thành công hoặc thất bại. Cả hai đều là lý do hợp lệ để
+  /// thôi chờ; chờ tiếp một job đã `failed` chỉ tốn đúng 60 giây của người dùng.
+  bool get settled =>
+      status == 'succeeded' || status == 'failed' || bill.items.isNotEmpty;
 }

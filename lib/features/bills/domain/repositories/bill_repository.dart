@@ -53,6 +53,7 @@ abstract class BillRepository {
     required String billId,
     required String groupId,
     required int version,
+    String? idempotencyKey,
   });
 
   Future<Either<Failure, BillDetailEntity>> voidBill({

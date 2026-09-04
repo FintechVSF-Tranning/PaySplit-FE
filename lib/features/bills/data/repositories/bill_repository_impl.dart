@@ -155,12 +155,14 @@ class BillRepositoryImpl implements BillRepository {
     required String billId,
     required String groupId,
     required int version,
+    String? idempotencyKey,
   }) async {
     try {
       await _remoteDataSource.finalizeBill(
         billId: billId,
         groupId: groupId,
         version: version,
+        idempotencyKey: idempotencyKey,
       );
       return const Right(null);
     } on DioException catch (e) {

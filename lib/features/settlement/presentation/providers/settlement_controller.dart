@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failures.dart';
+import '../../../../core/realtime/realtime_interest.dart';
+import '../../../../core/realtime/register_realtime_interest.dart';
 import '../../../../di/injection.dart';
 import '../../data/datasources/settlement_remote_data_source.dart';
 import '../../data/repositories/settlement_repository_impl.dart';
@@ -96,7 +98,15 @@ final settlementRepositoryProvider = Provider<SettlementRepository>((ref) {
 final settlementControllerProvider =
     StateNotifierProvider<SettlementController, SettlementState>((ref) {
       ref.watch(sessionRevisionProvider);
-      return SettlementController(ref.watch(settlementRepositoryProvider));
+      final controller = SettlementController(
+        ref.watch(settlementRepositoryProvider),
+      );
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.settlementOverview(),
+        refresh: () => controller.loadData(),
+      );
+      return controller;
     });
 
 class SettlementController extends StateNotifier<SettlementState> {

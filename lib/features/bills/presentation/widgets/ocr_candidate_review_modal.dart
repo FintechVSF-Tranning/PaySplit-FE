@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -65,9 +69,14 @@ class OcrCandidateReviewModal extends StatefulWidget {
 }
 
 class _OcrCandidateReviewModalState extends State<OcrCandidateReviewModal>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _pulseController;
+  late AnimationController _scanController;
+  late AnimationController _rainbowController;
   late Animation<double> _glowAnimation;
+  late PageController _pageController;
+  int _activePhotoIndex = 0;
+  Timer? _autoScrollTimer;
 
   @override
   void initState() {
@@ -77,14 +86,59 @@ class _OcrCandidateReviewModalState extends State<OcrCandidateReviewModal>
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
 
+    _scanController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+
+    _rainbowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3500),
+    )..repeat();
+
     _glowAnimation = Tween<double>(begin: 0.2, end: 0.55).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    _pageController = PageController();
+
+    if (widget.photos.length > 1) {
+      _startAutoScroll();
+    }
+  }
+
+  void _startAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 2600), (_) {
+      if (!mounted || widget.photos.length <= 1 || !_pageController.hasClients) return;
+      final nextIndex = (_activePhotoIndex + 1) % widget.photos.length;
+      _pageController.animateToPage(
+        nextIndex,
+        duration: const Duration(milliseconds: 650),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant OcrCandidateReviewModal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.photos.length != widget.photos.length) {
+      if (widget.photos.length > 1) {
+        _startAutoScroll();
+      } else {
+        _autoScrollTimer?.cancel();
+      }
+    }
   }
 
   @override
   void dispose() {
+    _autoScrollTimer?.cancel();
     _pulseController.dispose();
+    _scanController.dispose();
+    _rainbowController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -153,153 +207,71 @@ class _OcrCandidateReviewModalState extends State<OcrCandidateReviewModal>
     );
   }
 
-  /// ⏳ Trạng thái đang tải chỉ hiển thị Skeleton Shimmer thuần tuý, không có chữ
+  /// ✨ Trạng thái đang quét hiển thị ảnh bill với hiệu ứng phép thuật ma thuật đa sắc & laser beam
   Widget _buildScanningState(
     BuildContext context,
     bool isDark,
     Color textMain,
     Color textMuted,
   ) {
-    final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
-    final skeletonBase = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final photos = widget.photos;
 
     return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (context, child) {
-        final shimmerColor = skeletonBase.withValues(alpha: _glowAnimation.value + 0.3);
+      animation: Listenable.merge([_scanController, _rainbowController, _pulseController]),
+      builder: (context, _) {
+        final scanProgress = _scanController.value;
+        final rainbowProgress = _rainbowController.value;
+        final pulseAlpha = _glowAnimation.value;
 
         return Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Header Skeleton
+            // 1. Header with Animated Shifting Sparkles
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: shimmerColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 150,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: shimmerColor,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        width: 90,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: shimmerColor,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
+                ShaderMask(
+                  shaderCallback: (bounds) => SweepGradient(
+                    colors: const [
+                      Color(0xFF10B981),
+                      Color(0xFF06B6D4),
+                      Color(0xFF8B5CF6),
+                      Color(0xFFEC4899),
+                      Color(0xFF10B981),
                     ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      width: 45,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: shimmerColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      width: 80,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: shimmerColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // 2. Items List Skeleton
-            Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAF9),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: border),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Column(
-                children: [
-                  _buildSkeletonItemRow(shimmerColor, 120, 65),
-                  Divider(color: border, height: 16),
-                  _buildSkeletonItemRow(shimmerColor, 150, 75),
-                  Divider(color: border, height: 16),
-                  _buildSkeletonItemRow(shimmerColor, 105, 55),
-                  Divider(color: border, height: 16),
-                  _buildSkeletonItemRow(shimmerColor, 135, 70),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // 3. Pill Chips Skeleton
-            Row(
-              children: [
-                Container(
-                  width: 75,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: shimmerColor,
-                    borderRadius: BorderRadius.circular(6),
+                    transform: GradientRotation(rainbowProgress * math.pi * 2),
+                  ).createShader(bounds),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 22,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  width: 65,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: shimmerColor,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 85,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: shimmerColor,
-                    borderRadius: BorderRadius.circular(6),
+                Text(
+                  'Đang giải mã hóa đơn',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: textMain,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 18),
 
-            // 4. Action Buttons (Skeleton Apply + Manual Entry)
-            Container(
-              width: double.infinity,
-              height: 48,
-              decoration: BoxDecoration(
-                color: shimmerColor,
-                borderRadius: BorderRadius.circular(12),
+            // 2. Bill Photo Showcase with Magic Scanner
+            SizedBox(
+              height: 290,
+              child: Center(
+                child: photos.isEmpty
+                    ? _buildPlaceholderScanner(isDark, scanProgress, rainbowProgress, pulseAlpha)
+                    : _buildPhotoScanner(photos, isDark, scanProgress, rainbowProgress, pulseAlpha),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 18),
 
+            // 3. Skip & Manual Entry Button
             AppButton(
               label: 'Bỏ qua & Tự nhập tay',
               variant: AppButtonVariant.outline,
@@ -312,48 +284,240 @@ class _OcrCandidateReviewModalState extends State<OcrCandidateReviewModal>
     );
   }
 
-  Widget _buildSkeletonItemRow(Color color, double nameWidth, double priceWidth) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+  Widget _buildPhotoScanner(
+    List<CapturedBillPhoto> photos,
+    bool isDark,
+    double scanProgress,
+    double rainbowProgress,
+    double pulseAlpha,
+  ) {
+    return Container(
+      width: 220,
+      height: 290,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        // Rotating Rainbow Magic Border
+        gradient: SweepGradient(
+          transform: GradientRotation(rainbowProgress * math.pi * 2),
+          colors: const [
+            Color(0xFF10B981), // Emerald
+            Color(0xFF06B6D4), // Cyan
+            Color(0xFF8B5CF6), // Purple
+            Color(0xFFEC4899), // Pink
+            Color(0xFFF59E0B), // Amber
+            Color(0xFF10B981), // Emerald
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8B5CF6).withValues(alpha: 0.35 * pulseAlpha + 0.15),
+            blurRadius: 24,
+            spreadRadius: 2,
+            offset: const Offset(0, 6),
           ),
-          const SizedBox(width: 10),
-          Container(
-            width: nameWidth,
-            height: 14,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const Spacer(),
-          Container(
-            width: 26,
-            height: 14,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: priceWidth,
-            height: 14,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-            ),
+          BoxShadow(
+            color: const Color(0xFF06B6D4).withValues(alpha: 0.25 * pulseAlpha + 0.10),
+            blurRadius: 18,
+            spreadRadius: -2,
           ),
         ],
       ),
+      padding: const EdgeInsets.all(2.5),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(17.5),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Layer 1: Bill Photo
+            if (photos.length == 1)
+              _buildPhotoImage(photos.first)
+            else
+              PageView.builder(
+                controller: _pageController,
+                itemCount: photos.length,
+                onPageChanged: (i) => setState(() => _activePhotoIndex = i),
+                itemBuilder: (context, i) => _buildPhotoImage(photos[i]),
+              ),
+
+            // Layer 2: Shimmering Iridescent Aurora Overlay
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment(-1.5 + 3.0 * rainbowProgress, -1.0),
+                      end: Alignment(0.5 + 3.0 * rainbowProgress, 1.0),
+                      colors: [
+                        const Color(0xFF06B6D4).withValues(alpha: 0.08),
+                        const Color(0xFF8B5CF6).withValues(alpha: 0.22),
+                        const Color(0xFFEC4899).withValues(alpha: 0.18),
+                        const Color(0xFF10B981).withValues(alpha: 0.08),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Layer 3: HUD Corner Brackets
+            const IgnorePointer(child: _CornerBracketsOverlay()),
+
+            // Layer 4: Laser Scanning Line with Glow Trail
+            IgnorePointer(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final totalHeight = constraints.maxHeight;
+                  final beamY = (totalHeight - 4) * scanProgress;
+
+                  return Stack(
+                    children: [
+                      // Glow trail
+                      Positioned(
+                        top: math.max(0, beamY - 45),
+                        left: 0,
+                        right: 0,
+                        height: math.min(beamY, 45),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                                const Color(0xFF06B6D4).withValues(alpha: 0.35),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Sharp luminous laser beam
+                      Positioned(
+                        top: beamY,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: 3,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                Color(0xFF06B6D4),
+                                Colors.white,
+                                Color(0xFFEC4899),
+                                Colors.transparent,
+                              ],
+                              stops: [0.0, 0.2, 0.5, 0.8, 1.0],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF06B6D4).withValues(alpha: 0.95),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFFEC4899).withValues(alpha: 0.85),
+                                blurRadius: 14,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            // Layer 5: Multi-photo indicator chip (if > 1 photo)
+            if (photos.length > 1)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Text(
+                    '${_activePhotoIndex + 1}/${photos.length}',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderScanner(
+    bool isDark,
+    double scanProgress,
+    double rainbowProgress,
+    double pulseAlpha,
+  ) {
+    return Container(
+      width: 220,
+      height: 290,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(
+            Icons.receipt_long_rounded,
+            size: 64,
+            color: isDark ? Colors.white24 : Colors.black12,
+          ),
+          const _CornerBracketsOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhotoImage(CapturedBillPhoto photo) {
+    Widget imageWidget;
+    if (photo.hasBytes) {
+      imageWidget = Image.memory(
+        photo.bytes!,
+        fit: BoxFit.cover,
+      );
+    } else if (photo.file != null) {
+      imageWidget = Image.file(
+        File(photo.file!.path),
+        fit: BoxFit.cover,
+      );
+    } else if (photo.hasUrl) {
+      imageWidget = Image.network(
+        photo.url!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(Icons.receipt_long_rounded, color: Colors.white38, size: 48),
+        ),
+      );
+    } else {
+      imageWidget = const Center(
+        child: Icon(Icons.receipt_long_rounded, color: Colors.white38, size: 48),
+      );
+    }
+
+    return RotatedBox(
+      quarterTurns: photo.rotationQuarterTurns,
+      child: SizedBox.expand(child: imageWidget),
     );
   }
 
@@ -700,3 +864,76 @@ class _OcrCandidateReviewModalState extends State<OcrCandidateReviewModal>
     );
   }
 }
+
+class _CornerBracketsOverlay extends StatelessWidget {
+  const _CornerBracketsOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    const cornerColor = Color(0xFF06B6D4);
+    const cornerSize = 18.0;
+    const cornerThickness = 2.5;
+
+    return Stack(
+      children: [
+        Positioned(
+          top: 8,
+          left: 8,
+          child: Container(
+            width: cornerSize,
+            height: cornerSize,
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: cornerColor, width: cornerThickness),
+                left: BorderSide(color: cornerColor, width: cornerThickness),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Container(
+            width: cornerSize,
+            height: cornerSize,
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: cornerColor, width: cornerThickness),
+                right: BorderSide(color: cornerColor, width: cornerThickness),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 8,
+          left: 8,
+          child: Container(
+            width: cornerSize,
+            height: cornerSize,
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: cornerColor, width: cornerThickness),
+                left: BorderSide(color: cornerColor, width: cornerThickness),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 8,
+          right: 8,
+          child: Container(
+            width: cornerSize,
+            height: cornerSize,
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: cornerColor, width: cornerThickness),
+                right: BorderSide(color: cornerColor, width: cornerThickness),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+

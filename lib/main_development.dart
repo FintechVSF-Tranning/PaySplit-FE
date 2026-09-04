@@ -12,5 +12,9 @@ Future<void> main() async {
       'APP_NAME',
       defaultValue: 'PaySplit Dev',
     ),
+    realtimeMode: const String.fromEnvironment(
+      'REALTIME_MODE',
+      defaultValue: 'auto',
+    ),
   );
 }

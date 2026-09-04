@@ -46,48 +46,41 @@ class _CameraScannerOverlayState extends State<CameraScannerOverlay>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Tối ưu tỷ lệ khung ngắm hoá đơn: chiếm 92% chiều rộng và 88% chiều cao khả dụng
-        final boxWidth = (constraints.maxWidth * 0.92).clamp(240.0, 480.0);
-        final boxHeight = constraints.maxHeight * 0.88;
+        // Khung căn chỉnh bao trọn toàn bộ camera view với lề 10px ôm sát góc
+        const margin = 10.0;
+        final boxWidth = constraints.maxWidth - (margin * 2);
+        final boxHeight = constraints.maxHeight - (margin * 2);
 
         return Stack(
           alignment: Alignment.center,
           children: [
-            // Dark vignette mask
-            CustomPaint(
-              size: Size(constraints.maxWidth, constraints.maxHeight),
-              painter: _ScannerHoleMaskPainter(
-                holeWidth: boxWidth,
-                holeHeight: boxHeight,
-                borderRadius: 20,
-              ),
-            ),
-
-            // Viewfinder Box with Laser & Corners
-            SizedBox(
-              width: boxWidth,
-              height: boxHeight,
+            // Viewfinder Box spanning full camera
+            Positioned(
+              top: margin,
+              left: margin,
+              right: margin,
+              bottom: margin,
               child: Stack(
                 children: [
-                  // Four Corner Brackets
+                  // Four Corner Brackets embracing the camera edges
                   CustomPaint(
                     size: Size(boxWidth, boxHeight),
                     painter: _CornerBracketsPainter(
                       color: const Color(0xFF14B8A6), // Bright Teal
-                      cornerLength: 32,
+                      cornerLength: 36,
                       strokeWidth: 3.5,
-                      borderRadius: 18,
+                      borderRadius: 16,
                     ),
                   ),
 
-                  // Animated Scanning Laser Bar
+                  // Animated Scanning Laser Bar spanning full camera width
                   AnimatedBuilder(
                     animation: _laserAnimation,
                     builder: (context, child) {
                       return Positioned(
                         top: boxHeight * _laserAnimation.value,
-                        left: 10,
-                        right: 10,
+                        left: 8,
+                        right: 8,
                         child: Container(
                           height: 2.5,
                           decoration: BoxDecoration(
@@ -158,45 +151,6 @@ class _CameraScannerOverlayState extends State<CameraScannerOverlay>
         );
       },
     );
-  }
-}
-
-class _ScannerHoleMaskPainter extends CustomPainter {
-  final double holeWidth;
-  final double holeHeight;
-  final double borderRadius;
-
-  _ScannerHoleMaskPainter({
-    required this.holeWidth,
-    required this.holeHeight,
-    required this.borderRadius,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final backgroundPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.35);
-
-    final holeRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(
-        center: Offset(size.width / 2, size.height / 2),
-        width: holeWidth,
-        height: holeHeight,
-      ),
-      Radius.circular(borderRadius),
-    );
-
-    final path = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..addRRect(holeRect)
-      ..fillType = PathFillType.evenOdd;
-
-    canvas.drawPath(path, backgroundPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ScannerHoleMaskPainter oldDelegate) {
-    return oldDelegate.holeWidth != holeWidth || oldDelegate.holeHeight != holeHeight;
   }
 }
 

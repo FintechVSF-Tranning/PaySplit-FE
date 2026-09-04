@@ -1,11 +1,35 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../../../app/session/session_scope.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/realtime/realtime_interest.dart';
+import '../../../../core/realtime/register_realtime_interest.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import '../../domain/entities/captured_bill_photo.dart';
 import '../../domain/repositories/bill_repository.dart';
-import '../../../../app/session/session_scope.dart';
+
+/// Kết quả thao tác chốt sổ hoá đơn (Finalize Bill)
+enum FinalizeBillStatus { success, versionConflict, failed }
+
+class FinalizeBillResult {
+  final FinalizeBillStatus status;
+  final String? message;
+
+  const FinalizeBillResult.success()
+    : status = FinalizeBillStatus.success,
+      message = null;
+
+  const FinalizeBillResult.versionConflict([this.message])
+    : status = FinalizeBillStatus.versionConflict;
+
+  const FinalizeBillResult.failed(this.message)
+    : status = FinalizeBillStatus.failed;
+
+  bool get isSuccess => status == FinalizeBillStatus.success;
+  bool get isVersionConflict => status == FinalizeBillStatus.versionConflict;
+}
 
 class BillDetailState {
   final BillDetailEntity bill;
@@ -588,10 +612,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       final effectiveId = it.id.isNotEmpty
           ? it.id
           : 'ocr-item-${DateTime.now().microsecondsSinceEpoch}-$idx';
-      return it.copyWith(
-        id: effectiveId,
-        position: idx,
-      );
+      return it.copyWith(id: effectiveId, position: idx);
     }).toList();
 
     final evenItems = _buildEvenItems(candidateItems, effectiveMembers);
@@ -1040,9 +1061,13 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   /// Tải bảng phân bổ chính thức từ Backend khi người dùng bấm nút Phân bổ.
   /// Đối với hoá đơn đã chốt (finalized/voided), dữ liệu snapshot phân bổ đã có sẵn từ DB nên trả về ngay lập tức.
   Future<List<BillShareBreakdownEntity>> fetchOfficialBreakdown() async {
-    final isReadOnly = state.bill.status == 'finalized' || state.bill.status == 'voided';
-    if (isReadOnly && (state.breakdown.isNotEmpty || state.bill.breakdown.isNotEmpty)) {
-      return state.breakdown.isNotEmpty ? state.breakdown : state.bill.breakdown;
+    final isReadOnly =
+        state.bill.status == 'finalized' || state.bill.status == 'voided';
+    if (isReadOnly &&
+        (state.breakdown.isNotEmpty || state.bill.breakdown.isNotEmpty)) {
+      return state.breakdown.isNotEmpty
+          ? state.breakdown
+          : state.bill.breakdown;
     }
     final breakdown = await calculateBreakdown();
     return breakdown ?? state.breakdown;
@@ -1146,8 +1171,10 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   }
 
   /// Chốt sổ hoá đơn (Tự động lưu nháp nếu sửa -> Đối soát nếu chưa -> Chốt sổ Finalize)
-  Future<bool> finalizeBill() async {
-    if (state.isProcessing) return false;
+  Future<FinalizeBillResult> finalizeBill({String? idempotencyKey}) async {
+    if (state.isProcessing) {
+      return const FinalizeBillResult.failed('Đang xử lý');
+    }
     state = state.copyWith(isFinalizing: true);
 
     // 1. Chỉ lưu nháp nếu có thay đổi hoặc là hoá đơn mới tạo
@@ -1157,7 +1184,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       final saved = await _executeSaveDraft(isParentFinalizing: true);
       if (!saved) {
         state = state.copyWith(isFinalizing: false);
-        return false;
+        return const FinalizeBillResult.failed('Không thể lưu bản nháp');
       }
     }
 
@@ -1171,14 +1198,18 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         version: state.bill.version,
       );
 
-      final reviewedBill = reviewResult.match(
+      final reviewSuccess = reviewResult.match(
         (failure) {
+          final isConflict = _isVersionConflict(failure);
           state = state.copyWith(
             isFinalizing: false,
-            errorMessage:
-                'Đối soát hoá đơn không đạt: ${_friendlyBillError(failure)}',
+            errorMessage: isConflict
+                ? null
+                : 'Đối soát hoá đơn không đạt: ${_friendlyBillError(failure)}',
           );
-          return null;
+          return isConflict
+              ? const FinalizeBillResult.versionConflict()
+              : FinalizeBillResult.failed(failure.message);
         },
         (bill) {
           final existingItems = state.bill.items;
@@ -1201,36 +1232,107 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
             ),
             isDirty: false,
           );
-          return bill;
+          currentVersion = bill.version;
+          return null;
         },
       );
 
-      if (reviewedBill == null) {
-        return false;
+      if (reviewSuccess != null) {
+        return reviewSuccess;
       }
-      currentVersion = reviewedBill.version;
     }
 
-    // 3. Bước Chốt sổ (Finalize Bill) chính thức ghi nợ cho nhóm
+    // 3. Bước Chốt sổ (Finalize Bill) chính thức ghi nợ cho nhóm (Spec 3 AC-9) kèm Idempotency-Key
+    final effectiveIdempotencyKey =
+        (idempotencyKey != null && idempotencyKey.isNotEmpty)
+        ? idempotencyKey
+        : const Uuid().v4();
+
     final finalizeResult = await _repository.finalizeBill(
       billId: state.bill.id,
       groupId: state.bill.groupId,
       version: currentVersion,
+      idempotencyKey: effectiveIdempotencyKey,
     );
 
     return finalizeResult.match(
       (failure) {
+        final isConflict = _isVersionConflict(failure);
         state = state.copyWith(
           isFinalizing: false,
-          errorMessage: 'Chốt hoá đơn thất bại: ${failure.message}',
+          errorMessage: isConflict
+              ? null
+              : 'Chốt hoá đơn thất bại: ${_friendlyBillError(failure)}',
         );
-        return false;
+        if (isConflict) {
+          return const FinalizeBillResult.versionConflict();
+        }
+        return FinalizeBillResult.failed(failure.message);
       },
       (_) {
         state = state.copyWith(
           isFinalizing: false,
           bill: state.bill.copyWith(status: 'finalized'),
           successMessage: 'Chốt hoá đơn thành công',
+        );
+        return const FinalizeBillResult.success();
+      },
+    );
+  }
+
+  bool _isVersionConflict(Failure failure) {
+    if (failure.code == 'VERSION_CONFLICT' ||
+        failure.code == 'VERSION_MISMATCH') {
+      return true;
+    }
+    if (failure is ServerFailure && failure.statusCode == 409) {
+      return failure.code == 'VERSION_CONFLICT' ||
+          failure.code == 'VERSION_MISMATCH' ||
+          failure.message.toLowerCase().contains('version') ||
+          failure.message.toLowerCase().contains('cập nhật');
+    }
+    return false;
+  }
+
+  /// Tải lại chi tiết hoá đơn mới nhất từ server (dùng khi gặp xung đột phiên bản)
+  Future<bool> reloadBill() async {
+    if (state.bill.id.isEmpty) return false;
+    state = state.copyWith(isLoading: true);
+    final billResult = await _repository.getBillDetail(
+      billId: state.bill.id,
+      groupId: state.bill.groupId,
+    );
+    return billResult.match(
+      (failure) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Không thể tải lại hoá đơn: ${failure.message}',
+        );
+        return false;
+      },
+      (freshBill) {
+        final effectiveMembers = freshBill.members.isNotEmpty
+            ? freshBill.members
+            : state.bill.members;
+        final syncedBill = _syncBillWithItems(
+          freshBill.copyWith(
+            members: effectiveMembers,
+            photos: freshBill.photos.isNotEmpty
+                ? freshBill.photos
+                : state.bill.photos,
+          ),
+          freshBill.items,
+        );
+        state = state.copyWith(
+          isLoading: false,
+          bill: syncedBill,
+          breakdown: _enrichBreakdown(
+            freshBill.breakdown,
+            effectiveMembers,
+            syncedBill.creditorMemberId,
+          ),
+          isDirty: false,
+          successMessage: 'Đã tải dữ liệu mới nhất',
         );
         return true;
       },
@@ -1339,5 +1441,25 @@ final billDetailNotifierProvider =
     >((ref, initialBill) {
       ref.watch(sessionRevisionProvider);
       final repository = getIt<BillRepository>();
-      return BillDetailNotifier(repository, initialBill);
+      final notifier = BillDetailNotifier(repository, initialBill);
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.billDetail(
+          initialBill.groupId,
+          initialBill.id,
+        ),
+        refresh: () => notifier.loadBillDetail(
+          billId: initialBill.id,
+          groupId: initialBill.groupId,
+        ),
+      );
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.ocrWaiter(initialBill.groupId, initialBill.id),
+        refresh: () => notifier.loadBillDetail(
+          billId: initialBill.id,
+          groupId: initialBill.groupId,
+        ),
+      );
+      return notifier;
     });

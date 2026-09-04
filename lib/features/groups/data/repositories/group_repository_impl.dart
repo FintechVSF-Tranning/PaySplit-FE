@@ -71,15 +71,14 @@ class GroupRepositoryImpl implements GroupRepository {
           b.memberId: int.tryParse(b.netBalance) ?? 0,
       };
       final isCaptain = data.callerRole == 'captain';
-      // Số dư của chính người gọi: tìm membership của caller trong danh sách
-      // thành viên qua vai trò là không đủ (nhiều member cùng vai trò), nên
-      // dùng chênh lệch giữa balances và membership_id ở tầng gọi. Ở đây chỉ
-      // dựng nhóm với sĩ số thật; myBalance do provider điền sau khi biết
-      // membership_id của caller.
+      // Số dư của chính người gọi tra thẳng từ caller_membership_id: suy qua
+      // vai trò là không đủ vì nhiều thành viên cùng vai trò.
       return GroupDetailResult(
         group: data.group.toEntity(
           memberCount: data.members.length,
           isCaptain: isCaptain,
+          myBalance: balances[data.callerMembershipId] ?? 0,
+          pendingBillCount: data.pendingBillCount,
         ),
         members: data.members.map((m) => m.toEntity()).toList(),
         balances: balances,

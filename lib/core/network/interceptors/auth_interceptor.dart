@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 
 import '../../constants/api_endpoints.dart';
-import '../token_storage.dart';
 import '../session_events.dart';
+import '../session_refresher.dart';
+import '../token_storage.dart';
 
 /// Gắn bearer token vào mọi request và tự xoay vòng token khi gặp 401.
 ///
@@ -15,13 +16,26 @@ import '../session_events.dart';
 class AuthInterceptor extends Interceptor {
   AuthInterceptor(
     this._tokenStorage,
-    this._baseUrl, {
+    String baseUrl, {
     Dio Function(BaseOptions)? dioFactory,
     this.sessionEvents,
-  }) : _dioFactory = dioFactory ?? Dio.new;
+    SessionRefresher? refresher,
+  }) : _dioFactory = dioFactory ?? Dio.new,
+       _refresher =
+           refresher ??
+           SessionRefresher(
+             _tokenStorage,
+             sessionEvents,
+             dioFactory: dioFactory,
+             baseUrlOverride: baseUrl,
+           );
 
   final TokenStorage _tokenStorage;
-  final String _baseUrl;
+
+  /// Xoay vòng token và kết thúc phiên. Dùng chung với stream SSE: hai đường
+  /// tự làm mới độc lập sẽ cùng tiêu một refresh token và bị backend thu hồi
+  /// cả họ token vì tưởng là tái sử dụng.
+  final SessionRefresher _refresher;
 
   /// Báo lên tầng UI khi phiên mất hẳn, để app đưa người dùng về màn đăng nhập
   /// thay vì đứng yên với một loạt request 401.
@@ -30,17 +44,6 @@ class AuthInterceptor extends Interceptor {
   /// Cách dựng Dio cho lời gọi làm mới và lần thử lại. Tách ra thành tham số
   /// để test có thể tiêm adapter giả; mặc định là `Dio.new`.
   final Dio Function(BaseOptions) _dioFactory;
-
-  /// Chỉ cho phép một lần làm mới tại một thời điểm. Nhiều request 401 cùng
-  /// lúc (màn hình gọi song song vài API) sẽ cùng chờ một future, tránh việc
-  /// mỗi request tự xoay token và làm hỏng chuỗi rotation của backend — refresh
-  /// token là dùng một lần, gọi song song sẽ bị coi là tái sử dụng và thu hồi
-  /// cả phiên.
-  Future<bool>? _refreshing;
-
-  /// Đã báo "mất phiên" cho lần hỏng hiện tại hay chưa. Đặt lại sau mỗi lần
-  /// làm mới token thành công.
-  bool _sessionEndNotified = false;
 
   /// Đánh dấu request đã được thử lại sau khi làm mới token, để một request
   /// không rơi vào vòng lặp 401 → refresh → 401 vô hạn.
@@ -87,17 +90,13 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
-    final refreshed = await (_refreshing ??= _refresh());
-    _refreshing = null;
+    final refreshed = await _refresher.refresh();
 
     if (!refreshed) {
       await _endSession();
       handler.next(err);
       return;
     }
-
-    // Làm mới được nghĩa là phiên vẫn sống: lần mất phiên sau phải được báo lại.
-    _sessionEndNotified = false;
 
     try {
       handler.resolve(await _retry(request));
@@ -106,53 +105,7 @@ class AuthInterceptor extends Interceptor {
     }
   }
 
-  /// Kết thúc phiên: xóa token và báo lên UI đúng một lần.
-  ///
-  /// Nhiều request cùng chết vì một phiên hỏng (màn hình gọi song song vài API)
-  /// nên nếu không chặn, UI nhận cả loạt sự kiện cho cùng một sự việc.
-  Future<void> _endSession() async {
-    await _tokenStorage.clear();
-    if (_sessionEndNotified) return;
-    _sessionEndNotified = true;
-    sessionEvents?.notifyExpired();
-  }
-
-  /// Gọi `POST /auth/refresh` bằng một Dio riêng, không gắn interceptor này,
-  /// nếu không lỗi 401 của chính lời gọi làm mới sẽ lại kích hoạt làm mới.
-  Future<bool> _refresh() async {
-    final refreshToken = await _tokenStorage.refreshToken;
-    if (refreshToken == null || refreshToken.isEmpty) return false;
-
-    try {
-      final response =
-          await _dioFactory(
-            BaseOptions(baseUrl: _baseUrl, contentType: 'application/json'),
-          ).post<Map<String, dynamic>>(
-            ApiEndpoints.refreshToken,
-            data: {
-              'refresh_token': refreshToken,
-              'device_id': await _tokenStorage.getOrCreateDeviceId(),
-            },
-          );
-
-      final body = response.data;
-      if (body == null) return false;
-      // Backend bọc payload trong envelope `{success, data, message}`.
-      final data = body['data'] is Map<String, dynamic>
-          ? body['data'] as Map<String, dynamic>
-          : body;
-      final access = data['access_token'] as String?;
-      final refresh = data['refresh_token'] as String?;
-      if (access == null || access.isEmpty || refresh == null || refresh.isEmpty) {
-        return false;
-      }
-
-      await _tokenStorage.saveTokens(accessToken: access, refreshToken: refresh);
-      return true;
-    } on DioException {
-      return false;
-    }
-  }
+  Future<void> _endSession() => _refresher.endSession();
 
   Future<Response<dynamic>> _retry(RequestOptions request) {
     final token = _tokenStorage.accessToken;

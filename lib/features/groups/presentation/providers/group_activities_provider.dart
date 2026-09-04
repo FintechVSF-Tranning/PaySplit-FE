@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/session/session_scope.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/realtime/realtime_interest.dart';
+import '../../../../core/realtime/register_realtime_interest.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/group_activity_entity.dart';
 import '../../domain/usecases/list_activities_usecase.dart';
@@ -79,9 +81,14 @@ class GroupActivitiesNotifier extends StateNotifier<GroupActivitiesState> {
         );
       },
       (page) {
-        final seen = append ? {for (final a in state.activities) a.id} : <String>{};
+        final seen = append
+            ? {for (final a in state.activities) a.id}
+            : <String>{};
         final merged = append
-            ? [...state.activities, ...page.items.where((a) => !seen.contains(a.id))]
+            ? [
+                ...state.activities,
+                ...page.items.where((a) => !seen.contains(a.id)),
+              ]
             : page.items;
         state = GroupActivitiesState(
           activities: merged,
@@ -92,12 +99,17 @@ class GroupActivitiesNotifier extends StateNotifier<GroupActivitiesState> {
   }
 }
 
-final groupActivitiesProvider =
-    StateNotifierProvider.autoDispose
-        .family<GroupActivitiesNotifier, GroupActivitiesState, String>((
-          ref,
-          groupId,
-        ) {
-          ref.watch(sessionRevisionProvider);
-          return GroupActivitiesNotifier(groupId);
-        });
+final groupActivitiesProvider = StateNotifierProvider.autoDispose
+    .family<GroupActivitiesNotifier, GroupActivitiesState, String>((
+      ref,
+      groupId,
+    ) {
+      ref.watch(sessionRevisionProvider);
+      final notifier = GroupActivitiesNotifier(groupId);
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.groupActivities(groupId),
+        refresh: notifier.load,
+      );
+      return notifier;
+    });
