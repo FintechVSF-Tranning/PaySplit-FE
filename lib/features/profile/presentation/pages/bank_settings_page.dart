@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +7,7 @@ import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/utils/bank_holder_input_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../../core/utils/vietnamese_utils.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
@@ -29,6 +31,9 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
   BankEntity? _selectedBank;
   late TextEditingController _accountController;
   late TextEditingController _holderController;
+
+  /// Node của ô tên chủ tài khoản, để phím Next của ô số tài khoản nhảy sang.
+  final _holderFocusNode = FocusNode();
   bool _isLoading = false;
 
   @override
@@ -42,6 +47,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
 
     _accountController = TextEditingController(text: _initialAccount);
     _holderController = TextEditingController(text: _initialHolder);
+
 
     _accountController.addListener(() => setState(() {}));
     _holderController.addListener(() => setState(() {}));
@@ -66,6 +72,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
 
   @override
   void dispose() {
+    _holderFocusNode.dispose();
     _accountController.dispose();
     _holderController.dispose();
     super.dispose();
@@ -747,6 +754,17 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                         TextFormField(
                           controller: _accountController,
                           keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                          onFieldSubmitted: (_) =>
+                              _holderFocusNode.requestFocus(),
+                          // `keyboardType` chỉ là gợi ý cho bàn phím: bàn phím
+                          // vật lý và một số IME vẫn gõ được chữ vào đây, và
+                          // người dùng chỉ biết mình sai sau khi bấm Lưu. Trần
+                          // 19 ký tự khớp với ràng buộc của backend.
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(19),
+                          ],
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 15,
                             color: textMain,
@@ -775,7 +793,17 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                         ),
                         TextFormField(
                           controller: _holderController,
+                          focusNode: _holderFocusNode,
                           textCapitalization: TextCapitalization.characters,
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _onSave(),
+                          // Chuẩn hóa bằng formatter, không phải bằng cách ghi
+                          // đè controller trong onChanged — xem
+                          // [BankHolderInputFormatter].
+                          inputFormatters: [
+                            const BankHolderInputFormatter(),
+                            LengthLimitingTextInputFormatter(100),
+                          ],
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 14.5,
                             color: primaryTeal,
@@ -789,18 +817,6 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
                               (val == null || val.trim().isEmpty)
                               ? 'Vui lòng nhập tên chủ tài khoản'
                               : null,
-                          onChanged: (val) {
-                            final uppercase = val.toUpperCase();
-                            if (uppercase != val) {
-                              _holderController.value = _holderController.value
-                                  .copyWith(
-                                    text: uppercase,
-                                    selection: TextSelection.collapsed(
-                                      offset: uppercase.length,
-                                    ),
-                                  );
-                            }
-                          },
                         ),
                       ],
                     ),
