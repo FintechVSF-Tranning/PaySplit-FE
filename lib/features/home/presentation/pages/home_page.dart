@@ -19,6 +19,7 @@ import '../../../settlement/domain/entities/settlement_entities.dart';
 import '../../../settlement/presentation/providers/settlement_controller.dart';
 import '../../../settlement/presentation/widgets/dynamic_vietqr_sheet.dart';
 import '../../../settlement/presentation/widgets/proof_review_sheet.dart';
+import '../../../settlement/presentation/widgets/submitted_proof_sheet.dart';
 import '../../../settlement/presentation/widgets/reject_proof_dialog.dart';
 import '../../../settlement/presentation/widgets/select_debt_batch_sheet.dart';
 import '../../../groups/presentation/providers/groups_provider.dart';
@@ -290,7 +291,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                       receivableDebts: settlementState.receivableDebts,
                       pendingProofs: settlementState.pendingProofs,
                       remindedCooldowns: settlementState.remindedCooldowns,
-                      isLoading: settlementState.isLoading && settlementState.overview == null,
+                      isLoading:
+                          settlementState.isLoading &&
+                          settlementState.overview == null,
                       onViewAll: (tab) => context.go(
                         AppRoutes.settlement,
                         extra: tab == 0
@@ -298,6 +301,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                             : SettlementTab.receivable,
                       ),
                       onPayQr: _openSinglePayQr,
+                      onViewSubmittedProof: (debt) =>
+                          SubmittedProofSheet.show(context, debt),
                       onReviewProof: (proof) => _openProofReviewModal(proof),
                       onRemind: _handleRemindDebt,
                     ),
@@ -396,7 +401,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _handleRemindDebt(DebtItemEntity debt) async {
-    final cooldown = ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ?? 0;
+    final cooldown =
+        ref.read(settlementControllerProvider).remindedCooldowns[debt.id] ?? 0;
     if (cooldown > 0) {
       final timeStr = TimeFormatter.formatRemainingCooldown(cooldown);
       showErrorSnackBar(
@@ -406,22 +412,15 @@ class _HomePageState extends ConsumerState<HomePage> {
       return;
     }
     try {
-      await ref.read(settlementControllerProvider.notifier).remindDebt(
-            groupId: debt.groupId,
-            debtId: debt.id,
-          );
+      await ref
+          .read(settlementControllerProvider.notifier)
+          .remindDebt(groupId: debt.groupId, debtId: debt.id);
       if (!mounted) return;
-      showSuccessSnackBar(
-        context,
-        'Đã gửi nhắc nợ tới ${debt.debtorName}',
-      );
+      showSuccessSnackBar(context, 'Đã gửi nhắc nợ tới ${debt.debtorName}');
     } catch (_) {
       if (!mounted) return;
       final err = ref.read(settlementControllerProvider).errorMessage;
-      showErrorSnackBar(
-        context,
-        err ?? 'Không thể gửi nhắc nợ',
-      );
+      showErrorSnackBar(context, err ?? 'Không thể gửi nhắc nợ');
     }
   }
 

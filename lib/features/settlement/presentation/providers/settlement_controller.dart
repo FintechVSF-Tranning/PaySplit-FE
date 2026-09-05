@@ -27,6 +27,7 @@ class SettlementState {
     this.receivableDebts = const [],
     this.groupedDebts = const [],
     this.pendingProofs = const [],
+    this.submittedProofs = const [],
     this.settledHistory = const [],
     this.bills = const [],
     this.selectedDebtIds = const {},
@@ -42,6 +43,7 @@ class SettlementState {
   final List<DebtItemEntity> receivableDebts;
   final List<SingleCreditorBatchEntity> groupedDebts;
   final List<ProofDetailEntity> pendingProofs;
+  final List<ProofDetailEntity> submittedProofs;
   final List<SettledHistoryEntity> settledHistory;
   final List<SettlementBillEntity> bills;
   final Set<String> selectedDebtIds;
@@ -57,6 +59,7 @@ class SettlementState {
     List<DebtItemEntity>? receivableDebts,
     List<SingleCreditorBatchEntity>? groupedDebts,
     List<ProofDetailEntity>? pendingProofs,
+    List<ProofDetailEntity>? submittedProofs,
     List<SettledHistoryEntity>? settledHistory,
     List<SettlementBillEntity>? bills,
     Set<String>? selectedDebtIds,
@@ -72,6 +75,7 @@ class SettlementState {
       receivableDebts: receivableDebts ?? this.receivableDebts,
       groupedDebts: groupedDebts ?? this.groupedDebts,
       pendingProofs: pendingProofs ?? this.pendingProofs,
+      submittedProofs: submittedProofs ?? this.submittedProofs,
       settledHistory: settledHistory ?? this.settledHistory,
       bills: bills ?? this.bills,
       selectedDebtIds: selectedDebtIds ?? this.selectedDebtIds,
@@ -162,6 +166,7 @@ class SettlementController extends StateNotifier<SettlementState> {
         receivableDebts: data.receivableDebts,
         groupedDebts: data.groupedDebts,
         pendingProofs: data.pendingProofs,
+        submittedProofs: data.submittedProofs,
         settledHistory: data.settledHistory,
         bills: data.bills,
         selectedDebtIds: selection,
@@ -214,6 +219,15 @@ class SettlementController extends StateNotifier<SettlementState> {
     required String creditorId,
     required List<String> debtIds,
   }) {
+    final pending = state.payableDebts.any(
+      (debt) =>
+          debt.groupId == groupId &&
+          debtIds.contains(debt.id) &&
+          debt.status == DebtStatus.pendingConfirmation,
+    );
+    if (pending) {
+      return Future.error(StateError('Khoản nợ đang chờ xác nhận thanh toán.'));
+    }
     return _mutate(
       () => _repository.generatePaymentQr(
         groupId: groupId,

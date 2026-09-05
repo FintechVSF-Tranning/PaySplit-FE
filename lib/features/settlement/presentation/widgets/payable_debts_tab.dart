@@ -5,6 +5,7 @@ import 'package:hugeicons/hugeicons.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/settlement_entities.dart';
+import 'submitted_proof_sheet.dart';
 
 class PayableDebtsTab extends StatelessWidget {
   const PayableDebtsTab({
@@ -165,6 +166,11 @@ class PayableDebtsTab extends StatelessWidget {
                               color: const Color(0xFFD97706),
                             ),
                           ),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              SubmittedProofSheet.show(context, debt),
+                          child: const Text('Xem bằng chứng'),
                         ),
                       ] else ...[
                         InkWell(

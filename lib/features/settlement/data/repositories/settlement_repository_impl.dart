@@ -117,6 +117,7 @@ class SettlementRepositoryImpl implements SettlementRepository {
     );
 
     final pendingProofs = <ProofDetailEntity>[];
+    final submittedProofs = <ProofDetailEntity>[];
     final history = <SettledHistoryEntity>[];
     for (final record in paymentRecords) {
       final proof = _proofFromPayment(record);
@@ -124,6 +125,10 @@ class SettlementRepositoryImpl implements SettlementRepository {
       final callerId = record.context.group.callerMembershipId;
       final isCreditor = record.context.debt.creditorId == callerId;
 
+      if (status == PaymentStatus.pendingConfirmation &&
+          record.context.debt.debtorId == callerId) {
+        submittedProofs.add(proof);
+      }
       if (status == PaymentStatus.pendingConfirmation && isCreditor) {
         pendingProofs.add(proof);
       } else if (status == PaymentStatus.confirmed) {
@@ -174,6 +179,7 @@ class SettlementRepositoryImpl implements SettlementRepository {
       receivableDebts: receivable,
       groupedDebts: grouped,
       pendingProofs: pendingProofs,
+      submittedProofs: submittedProofs,
       settledHistory: history,
       bills: bills,
     );

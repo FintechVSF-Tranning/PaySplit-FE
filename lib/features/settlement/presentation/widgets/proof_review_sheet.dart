@@ -13,11 +13,13 @@ class ProofReviewSheet extends StatefulWidget {
   const ProofReviewSheet({
     required this.proof,
     this.onConfirm,
+    this.readOnly = false,
     this.onReject,
     super.key,
   });
 
   final ProofDetailEntity proof;
+  final bool readOnly;
   final Future<void> Function()? onConfirm;
   final VoidCallback? onReject;
 
@@ -103,7 +105,7 @@ class _ProofReviewSheetState extends State<ProofReviewSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    proof.isSettled
+                    (proof.isSettled || widget.readOnly)
                         ? 'Chi tiết thanh toán'
                         : 'Duyệt bằng chứng chuyển tiền',
                     style: GoogleFonts.plusJakartaSans(
@@ -134,6 +136,8 @@ class _ProofReviewSheetState extends State<ProofReviewSheet> {
               child: Text(
                 proof.isSettled
                     ? 'Giao dịch đã được đối soát và ghi nhận số dư.'
+                    : widget.readOnly
+                    ? 'Chờ xác nhận từ người nhận tiền. Bạn đã gửi bằng chứng thanh toán.'
                     : 'Biên lai do người trả gửi, chưa được PaySplit xác minh.',
                 style: GoogleFonts.plusJakartaSans(
                   fontWeight: FontWeight.w700,
@@ -181,11 +185,11 @@ class _ProofReviewSheetState extends State<ProofReviewSheet> {
                                 semanticLabel: 'Ảnh biên lai chuyển tiền',
                                 frameBuilder:
                                     (context, child, frame, syncLoaded) {
-                                  if (syncLoaded || frame != null) {
-                                    _markImageLoaded();
-                                  }
-                                  return child;
-                                },
+                                      if (syncLoaded || frame != null) {
+                                        _markImageLoaded();
+                                      }
+                                      return child;
+                                    },
                                 loadingBuilder: (context, child, progress) {
                                   if (progress == null) return child;
                                   return const Center(
@@ -259,7 +263,7 @@ class _ProofReviewSheetState extends State<ProofReviewSheet> {
             ),
             if (proof.note != null)
               _row('Lời nhắn', proof.note!, textMain, textMuted),
-            if (_imageFailed && !proof.isSettled) ...[
+            if (_imageFailed && !proof.isSettled && !widget.readOnly) ...[
               const SizedBox(height: 8),
               const Text(
                 'Bạn chỉ có thể xác nhận sau khi xem được ảnh biên lai.',
@@ -275,7 +279,7 @@ class _ProofReviewSheetState extends State<ProofReviewSheet> {
               ),
             ],
             const SizedBox(height: 18),
-            if (!proof.isSettled) ...[
+            if (!proof.isSettled && !widget.readOnly) ...[
               AppButton(
                 label: 'Xác nhận đã nhận tiền',
                 icon: const Icon(

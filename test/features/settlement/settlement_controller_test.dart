@@ -120,6 +120,14 @@ void main() {
       expect(debts['debt-pay-1']?.status, DebtStatus.pendingConfirmation);
       expect(debts['debt-pay-2']?.status, DebtStatus.pendingConfirmation);
       expect(debts['debt-pay-3']?.status, DebtStatus.awaiting);
+      await expectLater(
+        controller.generatePaymentQr(
+          groupId: 'group-dev',
+          creditorId: 'cred-minh',
+          debtIds: const ['debt-pay-1'],
+        ),
+        throwsStateError,
+      );
     });
 
     test('rejects a batch that crosses a group boundary', () async {

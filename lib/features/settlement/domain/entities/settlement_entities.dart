@@ -246,6 +246,7 @@ class SettlementDataEntity {
     required this.receivableDebts,
     required this.groupedDebts,
     required this.pendingProofs,
+    this.submittedProofs = const [],
     required this.settledHistory,
     required this.bills,
   });
@@ -255,6 +256,7 @@ class SettlementDataEntity {
   final List<DebtItemEntity> receivableDebts;
   final List<SingleCreditorBatchEntity> groupedDebts;
   final List<ProofDetailEntity> pendingProofs;
+  final List<ProofDetailEntity> submittedProofs;
   final List<SettledHistoryEntity> settledHistory;
   final List<SettlementBillEntity> bills;
 }

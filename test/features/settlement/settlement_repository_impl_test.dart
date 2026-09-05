@@ -16,6 +16,41 @@ void main() {
       repository = SettlementRepositoryImpl(remote);
     });
 
+    test(
+      'keeps debtor receipts separate from proofs awaiting creditor review',
+      () async {
+        when(
+          () => remote.listGroups(),
+        ).thenAnswer((_) async => [_group('group-1', 'Nhóm một', 'debtor-1')]);
+        when(() => remote.listDebts('group-1')).thenAnswer(
+          (_) async => [
+            _debt(
+              id: 'debt-proof',
+              debtorId: 'debtor-1',
+              creditorId: 'me-1',
+              amount: '300000',
+              status: 'pending_confirmation',
+              paymentId: 'payment-1',
+            ),
+          ],
+        );
+        when(() => remote.listBills('group-1')).thenAnswer((_) async => []);
+        when(
+          () => remote.getPayment('group-1', 'payment-1'),
+        ).thenAnswer((_) async => _payment());
+        final data = await repository.loadSettlement();
+        expect(data.pendingProofs, isEmpty);
+        expect(data.overview.pendingProofCount, 0);
+        expect(data.submittedProofs.single.paymentId, 'payment-1');
+        expect(
+          data.submittedProofs.single.proofImageUrl,
+          'https://cdn/proof.jpg',
+        );
+        expect(data.groupedDebts, isEmpty);
+        expect(data.payableDebts.single.paymentId, 'payment-1');
+      },
+    );
+
     test('loads real group data and keeps batches scoped to one group', () async {
       when(() => remote.listGroups()).thenAnswer(
         (_) async => [

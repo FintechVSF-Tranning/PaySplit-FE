@@ -15,6 +15,7 @@ class ActionableDebtsSection extends StatefulWidget {
     this.isLoading = false,
     this.onViewAll,
     this.onPayQr,
+    this.onViewSubmittedProof,
     this.onReviewProof,
     this.onRemind,
     super.key,
@@ -28,6 +29,7 @@ class ActionableDebtsSection extends StatefulWidget {
 
   final void Function(int selectedTab)? onViewAll;
   final void Function(DebtItemEntity debt)? onPayQr;
+  final void Function(DebtItemEntity debt)? onViewSubmittedProof;
   final void Function(ProofDetailEntity proof)? onReviewProof;
   final void Function(DebtItemEntity debt)? onRemind;
 
@@ -44,7 +46,8 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
     final primaryTeal = const Color(0xFF0F766E);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF0F172A);
 
-    final totalCount = widget.payableDebts.length + widget.receivableDebts.length;
+    final totalCount =
+        widget.payableDebts.length + widget.receivableDebts.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,10 +128,22 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
               _DebtCardItem(
                 name: widget.payableDebts[i].creditorName,
                 avatarUrl: widget.payableDebts[i].creditorAvatar,
-                contextDesc: '${widget.payableDebts[i].groupName} • ${widget.payableDebts[i].billTitle}',
-                amount: '-${CurrencyFormatter.formatVND(widget.payableDebts[i].amount)}',
+                contextDesc:
+                    '${widget.payableDebts[i].groupName} • ${widget.payableDebts[i].billTitle}',
+                amount:
+                    '-${CurrencyFormatter.formatVND(widget.payableDebts[i].amount)}',
                 isPayable: true,
-                onAction: () => widget.onPayQr?.call(widget.payableDebts[i]),
+                isPendingPayment:
+                    widget.payableDebts[i].status ==
+                    DebtStatus.pendingConfirmation,
+                onAction: () {
+                  final debt = widget.payableDebts[i];
+                  if (debt.status == DebtStatus.pendingConfirmation) {
+                    widget.onViewSubmittedProof?.call(debt);
+                  } else {
+                    widget.onPayQr?.call(debt);
+                  }
+                },
               ),
             ],
           ],
@@ -145,24 +160,27 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
               if (i > 0) const SizedBox(height: 8),
               () {
                 final debt = widget.receivableDebts[i];
-                final isPendingProof = debt.status == DebtStatus.pendingConfirmation;
+                final isPendingProof =
+                    debt.status == DebtStatus.pendingConfirmation;
                 ProofDetailEntity? matchedProof;
                 if (isPendingProof) {
                   matchedProof = widget.pendingProofs
                       .where(
                         (p) =>
                             p.paymentId == debt.paymentId ||
-                            (p.groupId == debt.groupId && p.debtorName == debt.debtorName),
+                            (p.groupId == debt.groupId &&
+                                p.debtorName == debt.debtorName),
                       )
                       .firstOrNull;
                 }
 
-                final cooldown = widget.remindedCooldowns[debt.id] ??
+                final cooldown =
+                    widget.remindedCooldowns[debt.id] ??
                     (debt.lastRemindedAt != null
                         ? ((24 * 3600) -
-                            DateTime.now()
-                                .difference(debt.lastRemindedAt!)
-                                .inSeconds)
+                              DateTime.now()
+                                  .difference(debt.lastRemindedAt!)
+                                  .inSeconds)
                         : 0);
 
                 return _DebtCardItem(
@@ -242,7 +260,9 @@ class _ActionableDebtsSectionState extends State<ActionableDebtsSection> {
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
 
     return Container(
       width: double.infinity,
@@ -346,6 +366,7 @@ class _DebtCardItem extends StatelessWidget {
     required this.amount,
     required this.isPayable,
     this.isReviewProof = false,
+    this.isPendingPayment = false,
     this.cooldownSeconds = 0,
     this.onAction,
   });
@@ -356,14 +377,20 @@ class _DebtCardItem extends StatelessWidget {
   final String amount;
   final bool isPayable;
   final bool isReviewProof;
+  final bool isPendingPayment;
   final int cooldownSeconds;
   final VoidCallback? onAction;
 
   static String _getInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
   }
 
   @override
@@ -372,7 +399,9 @@ class _DebtCardItem extends StatelessWidget {
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
     final border = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
     final textMain = isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
-    final textMuted = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final textMuted = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
 
     final emeraldGreen = const Color(0xFF10B981);
     final dangerRed = const Color(0xFFEF4444);
@@ -421,7 +450,9 @@ class _DebtCardItem extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isPayable ? const Color(0xFFB45309) : const Color(0xFF4338CA),
+                            color: isPayable
+                                ? const Color(0xFFB45309)
+                                : const Color(0xFF4338CA),
                           ),
                         ),
                       ),
@@ -431,7 +462,9 @@ class _DebtCardItem extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: isPayable ? const Color(0xFFB45309) : const Color(0xFF4338CA),
+                        color: isPayable
+                            ? const Color(0xFFB45309)
+                            : const Color(0xFF4338CA),
                       ),
                     ),
             ),
@@ -481,7 +514,30 @@ class _DebtCardItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              if (isPayable)
+              if (isPayable && isPendingPayment) ...[
+                const Text(
+                  'Chờ xác nhận',
+                  style: TextStyle(
+                    color: Color(0xFFB45309),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                InkWell(
+                  onTap: onAction,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      'Xem bằng chứng',
+                      style: TextStyle(
+                        color: Color(0xFF0F766E),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else if (isPayable)
                 Container(
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -504,11 +560,18 @@ class _DebtCardItem extends StatelessWidget {
                       onTap: onAction,
                       borderRadius: BorderRadius.circular(8),
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(HugeIcons.strokeRoundedQrCode, size: 12, color: Colors.white),
+                            Icon(
+                              HugeIcons.strokeRoundedQrCode,
+                              size: 12,
+                              color: Colors.white,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'Trả QR',
@@ -529,7 +592,10 @@ class _DebtCardItem extends StatelessWidget {
                   onTap: onAction,
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF3C7),
                       borderRadius: BorderRadius.circular(8),
@@ -538,7 +604,11 @@ class _DebtCardItem extends StatelessWidget {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(HugeIcons.strokeRoundedInvoice02, size: 12, color: Color(0xFFB45309)),
+                        Icon(
+                          HugeIcons.strokeRoundedInvoice02,
+                          size: 12,
+                          color: Color(0xFFB45309),
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'Duyệt proof',
@@ -557,11 +627,18 @@ class _DebtCardItem extends StatelessWidget {
                   onTap: onAction,
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: cooldownSeconds > 0
-                          ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
-                          : (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
+                          ? (isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0))
+                          : (isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFF1F5F9)),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: border),
                     ),
@@ -578,7 +655,9 @@ class _DebtCardItem extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           cooldownSeconds > 0
-                              ? TimeFormatter.formatRemainingCooldown(cooldownSeconds)
+                              ? TimeFormatter.formatRemainingCooldown(
+                                  cooldownSeconds,
+                                )
                               : 'Nhắc nợ',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
