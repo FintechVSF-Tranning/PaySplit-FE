@@ -141,6 +141,26 @@ void main() {
     );
 
     test(
+      'bill_review_requested -> route đến Bill Detail để trưởng nhóm chốt sổ',
+      () {
+        final route = NotificationRouteResolver.resolve(
+          type: 'bill_review_requested',
+          payload: {
+            'bill_id': 'b-review-1',
+            'group_id': 'g-review-1',
+            'total': '100000',
+          },
+        );
+
+        expect(route, isNotNull);
+        expect(route!.path, AppRoutes.billDetail);
+        final map = route.extra! as Map<String, dynamic>;
+        expect(map['billId'], 'b-review-1');
+        expect(map['groupId'], 'g-review-1');
+      },
+    );
+
+    test(
       'group_invitation có group_id -> route đến Group Detail với Tab bills',
       () {
         final route = NotificationRouteResolver.resolve(

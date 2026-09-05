@@ -30,6 +30,7 @@ class NotificationRouteResolver {
     'bill_finalized' ||
     'new_bill' ||
     'created_bill' ||
+    'bill_review_requested' ||
     'bill_updated' => _billRoute(payload),
     'group_invitation' ||
     'group_invite' ||

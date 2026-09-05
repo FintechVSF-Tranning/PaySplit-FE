@@ -690,6 +690,12 @@ class _NotificationCard extends StatelessWidget {
           color: const Color(0xFF0F766E),
           bg: const Color(0xFFF0FDFA),
         );
+      case 'bill_review_requested':
+        return (
+          icon: HugeIcons.strokeRoundedTaskDaily01,
+          color: const Color(0xFFD97706),
+          bg: const Color(0xFFFEF3C7),
+        );
       case 'bill_bulk_finalize_completed':
         return (
           icon: HugeIcons.strokeRoundedReceiptDollar,
