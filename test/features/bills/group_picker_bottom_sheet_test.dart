@@ -10,7 +10,6 @@ void main() {
     const locked = GroupItemData(
       id: 'locked',
       name: 'Nhóm đã khóa',
-      emoji: '👥',
       memberCount: 3,
       balanceText: '0 ₫',
       billSubmissionLocked: true,
@@ -18,7 +17,6 @@ void main() {
     const open = GroupItemData(
       id: 'open',
       name: 'Nhóm đang mở',
-      emoji: '👥',
       memberCount: 2,
       balanceText: '0 ₫',
     );

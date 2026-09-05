@@ -267,7 +267,7 @@ class ReceivableProofsTab extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Ngân hàng nhận:',
@@ -276,19 +276,23 @@ class ReceivableProofsTab extends StatelessWidget {
                                   color: textMuted,
                                 ),
                               ),
-                              Text(
-                                pendingProof.targetBank,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: textMain,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  pendingProof.targetBank,
+                                  textAlign: TextAlign.right,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: textMain,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 'Nội dung chuyển:',
@@ -297,12 +301,16 @@ class ReceivableProofsTab extends StatelessWidget {
                                   color: textMuted,
                                 ),
                               ),
-                              Text(
-                                pendingProof.referenceCode,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF0F766E),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  pendingProof.referenceCode,
+                                  textAlign: TextAlign.right,
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF0F766E),
+                                  ),
                                 ),
                               ),
                             ],
@@ -403,12 +411,13 @@ class ReceivableProofsTab extends StatelessWidget {
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final debt = awaitingDebts[index];
-              final cooldown = remindedCooldowns[debt.id] ??
+              final cooldown =
+                  remindedCooldowns[debt.id] ??
                   (debt.lastRemindedAt != null
                       ? ((24 * 3600) -
-                          DateTime.now()
-                              .difference(debt.lastRemindedAt!)
-                              .inSeconds)
+                            DateTime.now()
+                                .difference(debt.lastRemindedAt!)
+                                .inSeconds)
                       : 0);
               final isCooldownActive = cooldown > 0;
 
