@@ -48,9 +48,9 @@ class _ReceiptRepository extends MockSettlementRepository {
   bool fail = true;
 
   @override
-  Future<SettlementDataEntity> loadSettlement() async {
+  Future<SettlementDataEntity> loadSettlement({String? onlyGroupId}) async {
     if (fail) throw StateError('offline');
-    final data = await super.loadSettlement();
+    final data = await super.loadSettlement(onlyGroupId: onlyGroupId);
     return SettlementDataEntity(
       overview: data.overview,
       payableDebts: data.payableDebts,

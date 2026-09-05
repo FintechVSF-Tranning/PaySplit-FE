@@ -291,11 +291,6 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
       final billId = frame.data['bill_id'] as String?;
       return [
         ...registry.matching(
-          surface: 'ocr.waiter',
-          groupId: groupId,
-          billId: billId,
-        ),
-        ...registry.matching(
           surface: 'bill.detail',
           groupId: groupId,
           billId: billId,
@@ -330,6 +325,10 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
         return [
           ...billDetails,
           ...registry.matching(surface: 'group.bills', groupId: groupId),
+          // Tab "Hóa đơn" là SettlementPage, và nó chỉ đăng ký đúng một surface
+          // là settlement.overview. Bỏ surface này ra thì hóa đơn vừa tạo hoặc
+          // vừa sửa không xuất hiện ở tab đó cho tới khi người dùng tự kéo.
+          ...registry.matching(surface: 'settlement.overview'),
           ..._groupSummaryLists(registry),
           ...registry.matching(surface: 'home.activities'),
         ];

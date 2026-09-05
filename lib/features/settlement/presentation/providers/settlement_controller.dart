@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failures.dart';
@@ -17,10 +18,11 @@ enum SettlementTab { payable, receivable, bills, history }
 
 const _unsetError = Object();
 
-class SettlementState {
+class SettlementState extends Equatable {
   const SettlementState({
     this.currentTab = SettlementTab.payable,
     this.isLoading = false,
+    this.isRefreshing = false,
     this.isMutating = false,
     this.overview,
     this.payableDebts = const [],
@@ -37,6 +39,11 @@ class SettlementState {
 
   final SettlementTab currentTab;
   final bool isLoading;
+
+  /// Đang nạp lại ngầm (realtime). Khác [isLoading] ở chỗ màn hình vẫn giữ
+  /// nguyên nội dung cũ thay vì sập thành spinner.
+  final bool isRefreshing;
+
   final bool isMutating;
   final SettlementOverviewEntity? overview;
   final List<DebtItemEntity> payableDebts;
@@ -53,6 +60,7 @@ class SettlementState {
   SettlementState copyWith({
     SettlementTab? currentTab,
     bool? isLoading,
+    bool? isRefreshing,
     bool? isMutating,
     SettlementOverviewEntity? overview,
     List<DebtItemEntity>? payableDebts,
@@ -69,6 +77,7 @@ class SettlementState {
     return SettlementState(
       currentTab: currentTab ?? this.currentTab,
       isLoading: isLoading ?? this.isLoading,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
       isMutating: isMutating ?? this.isMutating,
       overview: overview ?? this.overview,
       payableDebts: payableDebts ?? this.payableDebts,
@@ -85,6 +94,25 @@ class SettlementState {
           : errorMessage as String?,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    currentTab,
+    isLoading,
+    isRefreshing,
+    isMutating,
+    overview,
+    payableDebts,
+    receivableDebts,
+    groupedDebts,
+    pendingProofs,
+    submittedProofs,
+    settledHistory,
+    bills,
+    selectedDebtIds,
+    remindedCooldowns,
+    errorMessage,
+  ];
 }
 
 final settlementRemoteDataSourceProvider = Provider<SettlementRemoteDataSource>(
@@ -94,6 +122,9 @@ final settlementRemoteDataSourceProvider = Provider<SettlementRemoteDataSource>(
 );
 
 final settlementRepositoryProvider = Provider<SettlementRepository>((ref) {
+  // Repository giữ cache dữ liệu nhóm giữa các lượt nạp. Không gắn vào phiên
+  // thì cache của người dùng cũ còn nằm trong bộ nhớ sau khi đăng xuất.
+  ref.watch(sessionRevisionProvider);
   return SettlementRepositoryImpl(
     ref.watch(settlementRemoteDataSourceProvider),
   );
@@ -108,7 +139,11 @@ final settlementControllerProvider =
       registerRealtimeInterest(
         ref,
         key: RealtimeInterestKey.settlementOverview(),
-        refresh: () => controller.loadData(),
+        refresh: () => controller.loadData(background: true),
+        // Sự kiện realtime luôn kèm `group_id`. Có patchGroup thì owner gom
+        // đích theo từng nhóm và chỉ nạp lại nhóm đó, thay vì quét lại cả N
+        // nhóm cho một khoản nợ vừa đổi ở đúng một nhóm.
+        patchGroup: controller.patchGroupData,
       );
       return controller;
     });
@@ -127,13 +162,30 @@ class SettlementController extends StateNotifier<SettlementState> {
   final Duration countdownInterval;
   Timer? _countdownTimer;
 
-  Future<void> loadData({bool rethrowOnError = false}) async {
+  /// Nạp lại toàn bộ dữ liệu đối soát.
+  ///
+  /// [background] dành cho lượt làm mới do realtime kích hoạt: giữ nguyên nội
+  /// dung đang hiển thị thay vì bật [SettlementState.isLoading], thứ mà
+  /// SettlementPage dùng để thay cả trang bằng một spinner. Không tách ra thì
+  /// mỗi lần ai đó trong nhóm xác nhận thanh toán là màn hình người khác chớp
+  /// trắng và danh sách cuộn về đầu.
+  Future<void> loadData({
+    bool rethrowOnError = false,
+    bool background = false,
+    String? onlyGroupId,
+  }) async {
     if (!mounted) return;
     final hadData = state.overview != null;
     final previousSelection = state.selectedDebtIds;
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    // Lần đầu chưa có gì để giữ thì vẫn phải hiện spinner.
+    final quiet = background && hadData;
+    state = state.copyWith(
+      isLoading: !quiet,
+      isRefreshing: quiet,
+      errorMessage: null,
+    );
     try {
-      final data = await _repository.loadSettlement();
+      final data = await _repository.loadSettlement(onlyGroupId: onlyGroupId);
       if (!mounted) return;
       final selectableIds = data.payableDebts
           .where((debt) => debt.status == DebtStatus.awaiting)
@@ -161,6 +213,7 @@ class SettlementController extends StateNotifier<SettlementState> {
 
       state = state.copyWith(
         isLoading: false,
+        isRefreshing: false,
         overview: data.overview,
         payableDebts: data.payableDebts,
         receivableDebts: data.receivableDebts,
@@ -180,12 +233,20 @@ class SettlementController extends StateNotifier<SettlementState> {
       if (mounted) {
         state = state.copyWith(
           isLoading: false,
+          isRefreshing: false,
           errorMessage: _errorMessage(error),
         );
       }
       if (rethrowOnError) rethrow;
     }
   }
+
+  /// Làm mới ngầm, chỉ nạp lại nhóm [groupId].
+  ///
+  /// Dữ liệu đối soát là tổng hợp trên mọi nhóm nên vẫn phải dựng lại toàn bộ
+  /// state; cái tiết kiệm được là các lời gọi API cho những nhóm không đổi.
+  Future<void> patchGroupData(String groupId) =>
+      loadData(background: true, onlyGroupId: groupId);
 
   void setTab(SettlementTab tab) {
     if (!mounted || state.currentTab == tab) return;
@@ -335,22 +396,59 @@ class SettlementController extends StateNotifier<SettlementState> {
     }
   }
 
+  /// Nhịp đếm ngược, chọn theo khoảng còn lại lớn nhất.
+  ///
+  /// `TimeFormatter.formatRemainingCooldown` chỉ hiện tới đơn vị giờ khi còn
+  /// trên một tiếng, và tới đơn vị phút khi còn trên một phút. Cooldown nhắc nợ
+  /// dài 24 tiếng, nên nhịp mỗi giây nghĩa là 86.400 lần phát state để dòng chữ
+  /// đổi đúng 24 lần — mỗi lần phát là một lần dựng lại cả màn Đối soát.
+  Duration _countdownTickFor(int maxRemaining) {
+    if (maxRemaining > 3600) return const Duration(minutes: 1);
+    if (maxRemaining > 60) return const Duration(seconds: 10);
+    return countdownInterval;
+  }
+
   void _startCountdown() {
-    _countdownTimer ??= Timer.periodic(countdownInterval, (timer) {
+    if (_countdownTimer != null) return;
+    _scheduleCountdownTick();
+  }
+
+  void _scheduleCountdownTick() {
+    final cooldowns = state.remindedCooldowns;
+    if (cooldowns.isEmpty) {
+      _countdownTimer?.cancel();
+      _countdownTimer = null;
+      return;
+    }
+    final maxRemaining = cooldowns.values.reduce((a, b) => a > b ? a : b);
+    final tick = _countdownTickFor(maxRemaining);
+
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(tick, (timer) {
       if (!mounted) {
         timer.cancel();
         _countdownTimer = null;
         return;
       }
 
+      // Nhịp dưới một giây (chỉ test dùng) làm `inSeconds` bằng 0, và cooldown
+      // sẽ không bao giờ giảm. Sàn ở 1 giây mỗi nhịp.
+      final elapsed = tick.inSeconds > 0 ? tick.inSeconds : 1;
       final next = <String, int>{};
       for (final entry in state.remindedCooldowns.entries) {
-        if (entry.value > 1) next[entry.key] = entry.value - 1;
+        if (entry.value > elapsed) next[entry.key] = entry.value - elapsed;
       }
       state = state.copyWith(remindedCooldowns: next);
+
       if (next.isEmpty) {
         timer.cancel();
         _countdownTimer = null;
+        return;
+      }
+      // Còn ít thời gian hơn thì chuyển sang nhịp dày hơn để giây cuối vẫn chạy.
+      final maxLeft = next.values.reduce((a, b) => a > b ? a : b);
+      if (_countdownTickFor(maxLeft) != tick) {
+        _scheduleCountdownTick();
       }
     });
   }

@@ -28,6 +28,13 @@ class SettlementRepositoryImpl implements SettlementRepository {
   final Uuid _uuid;
   final int maxConcurrentRequests;
 
+  /// Dữ liệu nhóm và payment của lượt nạp gần nhất, để lượt làm mới có phạm vi
+  /// hẹp không phải gọi lại API cho những nhóm chẳng liên quan. Chỉ được đọc
+  /// khi caller nói rõ nhóm nào vừa đổi; một lượt nạp đầy đủ luôn gọi lại tất
+  /// cả và ghi đè cache.
+  final Map<String, _GroupData> _groupCache = {};
+  final Map<String, Map<String, dynamic>> _paymentCache = {};
+
   String _idempotencyKey(String operation) =>
       _uuid.v5(_idempotencyNamespace, 'paysplit:$operation');
 
@@ -57,18 +64,30 @@ class SettlementRepositoryImpl implements SettlementRepository {
   }
 
   @override
-  Future<SettlementDataEntity> loadSettlement() => _guard(_loadSettlement);
+  Future<SettlementDataEntity> loadSettlement({String? onlyGroupId}) =>
+      _guard(() => _loadSettlement(onlyGroupId: onlyGroupId));
 
-  Future<SettlementDataEntity> _loadSettlement() async {
+  Future<SettlementDataEntity> _loadSettlement({String? onlyGroupId}) async {
+    // `listGroups` luôn được gọi lại: nó rẻ và là thứ duy nhất phát hiện nhóm
+    // vừa được thêm hoặc vừa rời khỏi.
     final groupMaps = await _remoteDataSource.listGroups();
+    final scoped = onlyGroupId != null && _groupCache.isNotEmpty;
+
     final groups = await _throttled(
-      groupMaps
-          .map(
-            (item) =>
-                () => _loadGroup(item),
-          )
-          .toList(),
+      groupMaps.map((item) {
+        final id = _string(_map(item['group'])['id']);
+        final cached = _groupCache[id];
+        // Nhóm chưa có trong cache luôn phải nạp, kể cả khi đang nạp có phạm vi.
+        if (scoped && cached != null && id != onlyGroupId) {
+          return () async => cached;
+        }
+        return () => _loadGroup(item);
+      }).toList(),
     );
+
+    _groupCache
+      ..clear()
+      ..addEntries(groups.map((group) => MapEntry(group.id, group)));
 
     // payable/receivable giữ mọi khoản còn "sống" (awaiting + pending_confirmation)
     // để tổng tiền và số lượng trên hero card luôn nói về cùng một tập. Các tab
@@ -103,18 +122,32 @@ class SettlementRepositoryImpl implements SettlementRepository {
     }
 
     final paymentRecords = await _throttled(
-      paymentContexts.values
-          .map(
-            (context) => () async {
-              final payment = await _remoteDataSource.getPayment(
-                context.group.id,
-                context.debt.paymentId!,
-              );
-              return _LoadedPayment(context: context, payment: payment);
-            },
-          )
-          .toList(),
+      paymentContexts.entries.map((entry) {
+        final context = entry.value;
+        final cached = _paymentCache[entry.key];
+        if (scoped && cached != null && context.group.id != onlyGroupId) {
+          return () async => _LoadedPayment(context: context, payment: cached);
+        }
+        return () async {
+          final payment = await _remoteDataSource.getPayment(
+            context.group.id,
+            context.debt.paymentId!,
+          );
+          return _LoadedPayment(context: context, payment: payment);
+        };
+      }).toList(),
     );
+
+    _paymentCache
+      ..clear()
+      ..addEntries(
+        paymentRecords.map(
+          (record) => MapEntry(
+            '${record.context.group.id}:${record.context.debt.paymentId}',
+            record.payment,
+          ),
+        ),
+      );
 
     final pendingProofs = <ProofDetailEntity>[];
     final submittedProofs = <ProofDetailEntity>[];

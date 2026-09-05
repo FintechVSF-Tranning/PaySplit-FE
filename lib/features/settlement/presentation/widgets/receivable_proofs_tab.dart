@@ -7,6 +7,14 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/time_formatter.dart';
 import '../../domain/entities/settlement_entities.dart';
 
+/// Trần số lần nhắc nợ trọn đời của một khoản nợ.
+///
+/// Gương của `PAYMENT_REMINDER_MAX_COUNT` bên BE, nơi cấu hình bị kẹp trong
+/// khoảng 1..3 và mặc định là 3. BE vẫn là nơi quyết định cuối cùng — hằng số
+/// này chỉ để nút không sáng lên mời người dùng bấm vào một thao tác chắc chắn
+/// thất bại.
+const int maxReminderCount = 3;
+
 class ReceivableProofsTab extends StatelessWidget {
   const ReceivableProofsTab({
     required this.pendingProofs,
@@ -419,7 +427,11 @@ class ReceivableProofsTab extends StatelessWidget {
                                 .difference(debt.lastRemindedAt!)
                                 .inSeconds)
                       : 0);
-              final isCooldownActive = cooldown > 0;
+              // BE chặn theo HAI điều kiện: cách nhau 24h VÀ tổng số lần nhắc
+              // chưa chạm trần. Chỉ kiểm tra thời gian thì sau lần nhắc thứ ba,
+              // qua 24h nút lại sáng xanh nhưng bấm là ăn RATE_LIMITED.
+              final isOutOfReminders = debt.reminderCount >= maxReminderCount;
+              final isCooldownActive = cooldown > 0 || isOutOfReminders;
 
               return Container(
                 padding: const EdgeInsets.all(14),
@@ -522,7 +534,9 @@ class ReceivableProofsTab extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  isCooldownActive
+                                  isOutOfReminders
+                                      ? 'Hết lượt nhắc'
+                                      : isCooldownActive
                                       ? TimeFormatter.formatRemainingCooldown(
                                           cooldown,
                                         )

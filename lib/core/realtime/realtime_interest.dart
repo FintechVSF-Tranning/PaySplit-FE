@@ -33,8 +33,6 @@ class RealtimeInterestKey extends Equatable {
       RealtimeInterestKey._('group.bills', groupId: groupId, extra: billsKey);
   factory RealtimeInterestKey.billDetail(String groupId, String billId) =>
       RealtimeInterestKey._('bill.detail', groupId: groupId, billId: billId);
-  factory RealtimeInterestKey.ocrWaiter(String groupId, String billId) =>
-      RealtimeInterestKey._('ocr.waiter', groupId: groupId, billId: billId);
 
   final String surface;
   final String? groupId;

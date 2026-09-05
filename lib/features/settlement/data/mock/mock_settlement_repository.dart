@@ -17,7 +17,7 @@ class MockSettlementRepository implements SettlementRepository {
   var _paymentSequence = 0;
 
   @override
-  Future<SettlementDataEntity> loadSettlement() async {
+  Future<SettlementDataEntity> loadSettlement({String? onlyGroupId}) async {
     final grouped = <String, List<DebtItemEntity>>{};
     for (final debt in _payable.where(
       (item) => item.status == DebtStatus.awaiting,

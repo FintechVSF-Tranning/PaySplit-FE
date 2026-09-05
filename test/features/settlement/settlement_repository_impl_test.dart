@@ -51,6 +51,68 @@ void main() {
       },
     );
 
+    test('làm mới có phạm vi chỉ gọi lại API của đúng nhóm vừa đổi', () async {
+      when(() => remote.listGroups()).thenAnswer(
+        (_) async => [
+          _group('group-1', 'Nhóm một', 'me-1'),
+          _group('group-2', 'Nhóm hai', 'me-2'),
+        ],
+      );
+      when(() => remote.listDebts('group-1')).thenAnswer(
+        (_) async => [
+          _debt(
+            id: 'debt-1',
+            debtorId: 'me-1',
+            creditorId: 'creditor-common',
+            amount: '100000',
+          ),
+        ],
+      );
+      when(() => remote.listDebts('group-2')).thenAnswer(
+        (_) async => [
+          _debt(
+            id: 'debt-2',
+            debtorId: 'me-2',
+            creditorId: 'creditor-common',
+            amount: '200000',
+          ),
+        ],
+      );
+      when(() => remote.listBills('group-1')).thenAnswer((_) async => []);
+      when(() => remote.listBills('group-2')).thenAnswer((_) async => []);
+
+      await repository.loadSettlement();
+      final data = await repository.loadSettlement(onlyGroupId: 'group-1');
+
+      // group-1 được nạp hai lượt, group-2 chỉ lượt đầu.
+      verify(() => remote.listDebts('group-1')).called(2);
+      verify(() => remote.listBills('group-1')).called(2);
+      verify(() => remote.listDebts('group-2')).called(1);
+      verify(() => remote.listBills('group-2')).called(1);
+      // listGroups luôn gọi lại: nó là thứ duy nhất phát hiện nhóm mới/bị rời.
+      verify(() => remote.listGroups()).called(2);
+
+      // Dữ liệu nhóm không nạp lại vẫn phải có mặt đầy đủ trong kết quả.
+      expect(
+        data.payableDebts.map((debt) => debt.id),
+        containsAll(['debt-1', 'debt-2']),
+      );
+      expect(data.overview.activeGroupsCount, 2);
+    });
+
+    test('lượt nạp đầy đủ luôn gọi lại mọi nhóm', () async {
+      when(
+        () => remote.listGroups(),
+      ).thenAnswer((_) async => [_group('group-1', 'Nhóm một', 'me-1')]);
+      when(() => remote.listDebts('group-1')).thenAnswer((_) async => []);
+      when(() => remote.listBills('group-1')).thenAnswer((_) async => []);
+
+      await repository.loadSettlement();
+      await repository.loadSettlement();
+
+      verify(() => remote.listDebts('group-1')).called(2);
+    });
+
     test('loads real group data and keeps batches scoped to one group', () async {
       when(() => remote.listGroups()).thenAnswer(
         (_) async => [

@@ -148,8 +148,11 @@ void main() {
           (_, _) {},
         );
         final registry = container.read(realtimeInterestRegistryProvider);
+        // Đúng một interest cho màn chi tiết. Trước đây có thêm một interest
+        // `ocr.waiter` dùng chung hàm refresh, khiến mỗi sự kiện OCR nạp lại
+        // hai lượt; surface đó nay đã bị gỡ hẳn.
         expect(registry.matching(surface: 'bill.detail').length, 1);
-        expect(registry.matching(surface: 'ocr.waiter'), isEmpty);
+        expect(registry.all.length, 1);
         subscription.close();
         await container.pump();
         expect(registry.matching(surface: 'bill.detail'), isEmpty);

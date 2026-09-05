@@ -24,7 +24,6 @@ RealtimeInterestRegistry _fullRegistry() {
     RealtimeInterestKey.groupActivities(_groupId),
     RealtimeInterestKey.groupBills(_groupId, 'all'),
     RealtimeInterestKey.billDetail(_groupId, _billId),
-    RealtimeInterestKey.ocrWaiter(_groupId, _billId),
     RealtimeInterestKey.notifications(),
   ]) {
     registry.register(RealtimeInterest(key: key, refresh: () async {}));
@@ -182,6 +181,23 @@ void main() {
       expect(_surfacesFor('bill.deleted'), contains('group.bills'));
     });
 
+    test('hóa đơn mới hoặc vừa sửa hiện ngay ở tab Hóa đơn', () {
+      // Tab "Hóa đơn" là SettlementPage và nó chỉ đăng ký settlement.overview.
+      // Thiếu surface này thì hóa đơn vừa tạo không xuất hiện cho tới khi người
+      // dùng tự kéo làm mới.
+      for (final type in const [
+        'bill.created',
+        'bill.content_changed',
+        'bill.reviewed',
+      ]) {
+        expect(
+          _surfacesFor(type),
+          contains('settlement.overview'),
+          reason: '$type đổi danh sách hóa đơn mà tab Hóa đơn đang hiển thị',
+        );
+      }
+    });
+
     test('ocr.updated làm mới cả tab hóa đơn của nhóm', () {
       // covers: AC-18
       // Thẻ hóa đơn trong tab nhóm hiện spinner "Đang quét..." theo `ocr_status`.
@@ -203,7 +219,6 @@ void main() {
           .toSet();
 
       expect(surfaces, contains('group.bills'));
-      expect(surfaces, contains('ocr.waiter'));
       expect(surfaces, contains('bill.detail'));
     });
 

@@ -319,53 +319,87 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
     final filteredPayable = _searchQuery.isEmpty
         ? state.payableDebts
         : state.payableDebts
-            .where((d) =>
-                VietnameseUtils.matchesSearch(d.creditorName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(d.debtorName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(d.groupName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(d.billTitle, _searchQuery))
-            .toList();
+              .where(
+                (d) =>
+                    VietnameseUtils.matchesSearch(
+                      d.creditorName,
+                      _searchQuery,
+                    ) ||
+                    VietnameseUtils.matchesSearch(d.debtorName, _searchQuery) ||
+                    VietnameseUtils.matchesSearch(d.groupName, _searchQuery) ||
+                    VietnameseUtils.matchesSearch(d.billTitle, _searchQuery),
+              )
+              .toList();
 
     final filteredReceivable = _searchQuery.isEmpty
         ? state.receivableDebts
         : state.receivableDebts
-            .where((d) =>
-                VietnameseUtils.matchesSearch(d.debtorName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(d.creditorName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(d.groupName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(d.billTitle, _searchQuery))
-            .toList();
+              .where(
+                (d) =>
+                    VietnameseUtils.matchesSearch(d.debtorName, _searchQuery) ||
+                    VietnameseUtils.matchesSearch(
+                      d.creditorName,
+                      _searchQuery,
+                    ) ||
+                    VietnameseUtils.matchesSearch(d.groupName, _searchQuery) ||
+                    VietnameseUtils.matchesSearch(d.billTitle, _searchQuery),
+              )
+              .toList();
 
     final filteredProofs = _searchQuery.isEmpty
         ? state.pendingProofs
         : state.pendingProofs
-            .where((p) =>
-                VietnameseUtils.matchesSearch(p.debtorName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(p.creditorName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(p.groupName, _searchQuery) ||
-                (p.note != null &&
-                    VietnameseUtils.matchesSearch(p.note!, _searchQuery)))
-            .toList();
+              .where(
+                (p) =>
+                    VietnameseUtils.matchesSearch(p.debtorName, _searchQuery) ||
+                    VietnameseUtils.matchesSearch(
+                      p.creditorName,
+                      _searchQuery,
+                    ) ||
+                    VietnameseUtils.matchesSearch(p.groupName, _searchQuery) ||
+                    (p.note != null &&
+                        VietnameseUtils.matchesSearch(p.note!, _searchQuery)),
+              )
+              .toList();
 
     final filteredBills = _searchQuery.isEmpty
         ? state.bills
         : state.bills
-            .where((b) =>
-                VietnameseUtils.matchesSearch(b.title, _searchQuery) ||
-                VietnameseUtils.matchesSearch(b.groupName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(b.payerDisplayName, _searchQuery))
-            .toList();
+              .where(
+                (b) =>
+                    VietnameseUtils.matchesSearch(b.title, _searchQuery) ||
+                    VietnameseUtils.matchesSearch(b.groupName, _searchQuery) ||
+                    VietnameseUtils.matchesSearch(
+                      b.payerDisplayName,
+                      _searchQuery,
+                    ),
+              )
+              .toList();
 
     final filteredHistory = _searchQuery.isEmpty
         ? state.settledHistory
         : state.settledHistory
-            .where((h) =>
-                VietnameseUtils.matchesSearch(h.proof.debtorName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(h.proof.creditorName, _searchQuery) ||
-                VietnameseUtils.matchesSearch(h.proof.groupName, _searchQuery) ||
-                (h.proof.note != null &&
-                    VietnameseUtils.matchesSearch(h.proof.note!, _searchQuery)))
-            .toList();
+              .where(
+                (h) =>
+                    VietnameseUtils.matchesSearch(
+                      h.proof.debtorName,
+                      _searchQuery,
+                    ) ||
+                    VietnameseUtils.matchesSearch(
+                      h.proof.creditorName,
+                      _searchQuery,
+                    ) ||
+                    VietnameseUtils.matchesSearch(
+                      h.proof.groupName,
+                      _searchQuery,
+                    ) ||
+                    (h.proof.note != null &&
+                        VietnameseUtils.matchesSearch(
+                          h.proof.note!,
+                          _searchQuery,
+                        )),
+              )
+              .toList();
 
     final payableCount = filteredPayable
         .where((d) => d.status.name == 'awaiting')
@@ -460,7 +494,8 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                                     // Danh sách lọc ngay theo onChanged, nên phím Search chỉ cần
                                     // thu bàn phím lại để người dùng thấy kết quả.
                                     textInputAction: TextInputAction.search,
-                                    onSubmitted: (_) => FocusScope.of(context).unfocus(),
+                                    onSubmitted: (_) =>
+                                        FocusScope.of(context).unfocus(),
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -697,6 +732,19 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                  ],
+                  // Chỉ lần nạp đầu mới thay cả trang bằng spinner. Lượt làm
+                  // mới ngầm do realtime giữ nguyên nội dung, chỉ hiện một
+                  // thanh mảnh trên đầu.
+                  if (state.isRefreshing) ...[
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: LinearProgressIndicator(
+                        minHeight: 2,
+                        color: Color(0xFF0F766E),
+                        backgroundColor: Colors.transparent,
+                      ),
+                    ),
                   ],
                   if (state.isLoading) ...[
                     const Padding(
@@ -1000,11 +1048,16 @@ class _EmptySettlementSearchState extends StatelessWidget {
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
+                  foregroundColor: isDark
+                      ? const Color(0xFF14B8A6)
+                      : AppColors.primary,
                   side: BorderSide(
                     color: isDark ? const Color(0xFF14B8A6) : AppColors.primary,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1017,4 +1070,3 @@ class _EmptySettlementSearchState extends StatelessWidget {
     );
   }
 }
-
