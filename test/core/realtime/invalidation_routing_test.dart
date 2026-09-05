@@ -25,6 +25,7 @@ RealtimeInterestRegistry _fullRegistry() {
     RealtimeInterestKey.groupBills(_groupId, 'all'),
     RealtimeInterestKey.billDetail(_groupId, _billId),
     RealtimeInterestKey.ocrWaiter(_groupId, _billId),
+    RealtimeInterestKey.notifications(),
   ]) {
     registry.register(RealtimeInterest(key: key, refresh: () async {}));
   }
@@ -75,6 +76,7 @@ const _allEventTypes = <String>[
   'settlement.payment_changed',
   'settlement.debt_reminded',
   'group.activity_changed',
+  'notification.created',
   'some.unknown.type',
 ];
 
@@ -203,6 +205,32 @@ void main() {
       expect(surfaces, contains('group.bills'));
       expect(surfaces, contains('ocr.waiter'));
       expect(surfaces, contains('bill.detail'));
+    });
+
+    test('notification.created chỉ làm mới danh sách thông báo', () {
+      final surfaces = _surfacesFor('notification.created');
+
+      expect(surfaces, contains('notifications'));
+      // Nhánh `default` làm mới danh sách nhóm. Một thông báo mới không đụng gì
+      // tới số bill mở hay số dư, nên rơi vào default là hai request thừa cho
+      // mọi người nhận thông báo.
+      expect(surfaces, isNot(contains('home.groups')));
+      expect(surfaces, isNot(contains('groups.index')));
+      expect(surfaces, hasLength(1));
+    });
+
+    test('chỉ notification.created chạm tới danh sách thông báo', () {
+      // Danh sách thông báo có sự kiện riêng với audience đúng bằng người nhận.
+      // Surface này lọt vào bất kỳ sự kiện nào khác nghĩa là những máy không
+      // nhận thông báo nào cũng phải gọi lại API danh sách.
+      for (final type in _allEventTypes) {
+        if (type == 'notification.created') continue;
+        expect(
+          _surfacesFor(type),
+          isNot(contains('notifications')),
+          reason: '$type không tạo thông báo nào nhưng vẫn làm mới danh sách',
+        );
+      }
     });
 
     test('mọi mutation hóa đơn đều làm mới danh sách hóa đơn của nhóm', () {

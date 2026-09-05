@@ -6,6 +6,8 @@ import '../../../../core/constants/api_endpoints.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../../../../app/session/session_scope.dart';
+import '../../../../core/realtime/realtime_interest.dart';
+import '../../../../core/realtime/register_realtime_interest.dart';
 
 class NotificationsState extends Equatable {
   const NotificationsState({
@@ -56,16 +58,16 @@ class NotificationsState extends Equatable {
 
   @override
   List<Object?> get props => [
-        items,
-        isLoading,
-        isLoadingMore,
-        hasMore,
-        currentPage,
-        totalPages,
-        totalItems,
-        unreadCount,
-        error,
-      ];
+    items,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    currentPage,
+    totalPages,
+    totalItems,
+    unreadCount,
+    error,
+  ];
 }
 
 class NotificationsNotifier extends StateNotifier<NotificationsState> {
@@ -104,7 +106,10 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
         final meta = data['meta'] as Map<String, dynamic>? ?? {};
 
         items = rawItems
-            .map((item) => NotificationEntity.fromJson(item as Map<String, dynamic>))
+            .map(
+              (item) =>
+                  NotificationEntity.fromJson(item as Map<String, dynamic>),
+            )
             .toList();
 
         totalPages = meta['total_pages'] as int? ?? 1;
@@ -128,10 +133,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
         unreadCount: unreadCount,
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -161,7 +163,10 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
         final meta = data['meta'] as Map<String, dynamic>? ?? {};
 
         items = rawItems
-            .map((item) => NotificationEntity.fromJson(item as Map<String, dynamic>))
+            .map(
+              (item) =>
+                  NotificationEntity.fromJson(item as Map<String, dynamic>),
+            )
             .toList();
 
         totalPages = meta['total_pages'] as int? ?? 1;
@@ -212,7 +217,10 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
         final meta = data['meta'] as Map<String, dynamic>? ?? {};
 
         final newItems = rawItems
-            .map((item) => NotificationEntity.fromJson(item as Map<String, dynamic>))
+            .map(
+              (item) =>
+                  NotificationEntity.fromJson(item as Map<String, dynamic>),
+            )
             .toList();
 
         final totalPages = meta['total_pages'] as int? ?? state.totalPages;
@@ -268,7 +276,9 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     final previousUnread = state.unreadCount;
 
     final now = DateTime.now();
-    final updatedList = state.items.map((n) => n.isRead ? n : n.copyWith(readAt: now)).toList();
+    final updatedList = state.items
+        .map((n) => n.isRead ? n : n.copyWith(readAt: now))
+        .toList();
     state = state.copyWith(items: updatedList, unreadCount: 0);
 
     try {
@@ -276,19 +286,24 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       await dio.patch(ApiEndpoints.notificationsReadAll);
     } catch (e) {
       // Rollback lại dữ liệu cũ khi API thất bại
-      state = state.copyWith(
-        items: previousItems,
-        unreadCount: previousUnread,
-      );
+      state = state.copyWith(items: previousItems, unreadCount: previousUnread);
     }
   }
 }
 
 final notificationsProvider =
     StateNotifierProvider<NotificationsNotifier, NotificationsState>((ref) {
-  ref.watch(sessionRevisionProvider);
-  return NotificationsNotifier();
-});
+      ref.watch(sessionRevisionProvider);
+      final notifier = NotificationsNotifier();
+      // `refresh` không bật cờ isLoading, nên lượt làm mới ngầm này thay dữ liệu tại
+      // chỗ chứ không xoá trắng danh sách thành spinner.
+      registerRealtimeInterest(
+        ref,
+        key: RealtimeInterestKey.notifications(),
+        refresh: notifier.refresh,
+      );
+      return notifier;
+    });
 
 final unreadNotificationCountProvider = Provider<int>((ref) {
   return ref.watch(notificationsProvider).unreadCount;

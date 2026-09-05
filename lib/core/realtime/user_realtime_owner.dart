@@ -373,6 +373,12 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
           ...registry.matching(surface: 'settlement.overview'),
           ...registry.matching(surface: 'group.debts', groupId: groupId),
         ];
+      case 'notification.created':
+        // BE chỉ gửi sự kiện này tới đúng những người vừa nhận thông báo, nên
+        // không cần lọc thêm. Không lọc theo nhóm: danh sách thông báo gộp chung
+        // mọi nhóm. Phải có nhánh riêng vì `default` sẽ làm mới danh sách nhóm —
+        // thứ mà một thông báo mới không hề đụng tới.
+        return registry.matching(surface: 'notifications');
       case 'group.activity_changed':
         return [
           ...registry.matching(surface: 'group.activities', groupId: groupId),

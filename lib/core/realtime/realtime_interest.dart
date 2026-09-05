@@ -16,6 +16,11 @@ class RealtimeInterestKey extends Equatable {
       const RealtimeInterestKey._('groups.index');
   factory RealtimeInterestKey.settlementOverview() =>
       const RealtimeInterestKey._('settlement.overview');
+
+  /// Danh sách thông báo của người dùng. Không gắn với nhóm nào: một người có
+  /// thể nhận thông báo từ nhiều nhóm vào cùng một danh sách.
+  factory RealtimeInterestKey.notifications() =>
+      const RealtimeInterestKey._('notifications');
   factory RealtimeInterestKey.groupRoster(String groupId) =>
       RealtimeInterestKey._('group.roster', groupId: groupId);
   factory RealtimeInterestKey.groupDetail(String groupId) =>
