@@ -5,14 +5,11 @@ import 'vietnamese_utils.dart';
 /// Chuẩn hóa tên chủ tài khoản ngay khi gõ: in hoa, bỏ dấu, chỉ giữ ký tự mà
 /// hệ thống ngân hàng chấp nhận (`A-Z`, `0-9`, khoảng trắng, `.`, `-`).
 ///
-/// Phải là một [TextInputFormatter] chứ không phải một nhánh trong `onChanged`.
-/// Sửa `controller.value` từ trong `onChanged` là ghi đè text ngay giữa lúc bàn
-/// phím đang có vùng composing mở, và `copyWith` thì giữ nguyên khoảng composing
-/// cũ — khoảng đó lúc này trỏ vào một chuỗi không còn tồn tại. Gboard nhận lại
-/// `setEditingState` với vùng composing lạc, rồi commit tiếp buffer của chính
-/// nó, nên mỗi phím gõ thêm lại nối cả tiền tố cũ vào: gõ "PHAM" ra
-/// "PPHPHAPHAM". Formatter chạy trước khi giá trị tới controller nên không có
-/// vòng phản hồi đó.
+/// Phải là một [TextInputFormatter] chứ không phải một nhánh trong `onChanged`,
+/// và phải đứng yên trong lúc IME còn đang soạn dở. Cả hai cách ghi đè text
+/// giữa một phiên composition đều dẫn tới cùng một chỗ: bàn phím giữ buffer
+/// riêng, không biết chuỗi vừa bị đổi, nên phím kế tiếp nó chèn lại cả buffer
+/// đó vào — gõ "PHAM" ra "PPHPHAPHAM".
 ///
 /// Không `trim()`: cắt khoảng trắng cuối ở đây thì không ai gõ nổi dấu cách
 /// giữa hai từ. Việc trim để dành cho lúc lưu.
@@ -26,6 +23,18 @@ class BankHolderInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
+    // Đang giữa một phiên composition của IME (gõ tiếng Việt telex, gợi ý từ
+    // của bàn phím, IME tiếng Trung/Nhật/Hàn...): sửa text lúc này là ghi đè
+    // ngay dưới chân bàn phím. Bàn phím vẫn giữ buffer riêng của nó và không
+    // biết chuỗi vừa bị đổi, nên phím kế tiếp nó chèn lại cả buffer đó vào —
+    // gõ "ph" ra "Pph". Trên Flutter Web nó còn làm khoảng composing của engine
+    // trỏ ra ngoài chuỗi mới và ném thẳng assertion
+    // "Range end N is out of text of length M".
+    //
+    // Để yên cho tới lúc IME commit: lượt đó `composing` rỗng và cả chuỗi được
+    // chuẩn hóa một lần.
+    if (newValue.composing.isValid) return newValue;
+
     final source = newValue.text;
     final rawCursor = newValue.selection.end;
     final cursor = rawCursor < 0 ? source.length : rawCursor;

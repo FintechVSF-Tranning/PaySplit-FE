@@ -372,8 +372,14 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
     final displayAccount = _accountController.text.trim().isNotEmpty
         ? _accountController.text.trim()
         : '•••• •••• ••••';
-    final displayHolder = _holderController.text.trim().isNotEmpty
-        ? _holderController.text.trim().toUpperCase()
+    // Dùng đúng phép chuẩn hóa của lúc lưu, không phải chỉ toUpperCase: khi bộ
+    // gõ còn soạn dở thì ô nhập vẫn giữ dấu, và thẻ xem trước phải cho thấy
+    // chuỗi sẽ thực sự được gửi sang ngân hàng.
+    final normalizedHolder = VietnameseUtils.toBankHolderFormat(
+      _holderController.text,
+    );
+    final displayHolder = normalizedHolder.isNotEmpty
+        ? normalizedHolder
         : 'CHƯA NHẬP CHỦ TÀI KHOẢN';
 
     return Scaffold(

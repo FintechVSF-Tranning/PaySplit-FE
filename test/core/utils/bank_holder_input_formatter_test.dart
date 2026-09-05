@@ -16,11 +16,11 @@ void main() {
       );
 
   group('BankHolderInputFormatter', () {
-    test('gõ từng phím với vùng composing mở không nhân đôi ký tự', () {
-      // Đây chính là lỗi đã thấy trên máy thật: gõ "PHAM" ra "PPHPHAPHAM".
-      // Bàn phím giữ vùng composing trên cả từ đang gõ; nếu formatter trả về
-      // giá trị còn mang khoảng composing cũ thì bàn phím commit lại buffer của
-      // nó và tiền tố cũ bị nối thêm sau mỗi phím.
+    test('IME còn soạn dở thì không đụng vào text', () {
+      // Đây là lỗi đã thấy trên máy thật: gõ "PHAM" ra "PPHPHAPHAM", và trên
+      // Flutter Web thì ném thẳng "Range end 4 is out of text of length 3".
+      // IBus/Unikey giữ preedit mở suốt cả từ; sửa text giữa chừng là ghi đè
+      // ngay dưới chân bộ gõ, nó không biết và phím sau chèn lại cả buffer cũ.
       var current = TextEditingValue.empty;
       for (final keystroke in ['p', 'ph', 'pha', 'pham']) {
         final next = typed(
@@ -28,11 +28,25 @@ void main() {
           composing: TextRange(start: 0, end: keystroke.length),
         );
         current = format(current, next);
+        expect(
+          current,
+          same(next),
+          reason: 'phím "$keystroke" bị formatter đụng vào giữa lúc soạn dở',
+        );
       }
+    });
 
-      expect(current.text, 'PHAM');
-      expect(current.composing, TextRange.empty);
-      expect(current.selection.baseOffset, 4);
+    test('IME commit xong thì cả chuỗi được chuẩn hóa một lần', () {
+      // Bộ gõ chốt từ (dấu cách, dấu câu, rời ô): lượt đó composing rỗng và
+      // đây mới là lúc an toàn để in hoa và bỏ dấu.
+      final committed = format(
+        typed('phạm', composing: const TextRange(start: 0, end: 4)),
+        typed('phạm'),
+      );
+
+      expect(committed.text, 'PHAM');
+      expect(committed.composing, TextRange.empty);
+      expect(committed.selection.baseOffset, 4);
     });
 
     test('bỏ dấu tiếng Việt và in hoa', () {
