@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/bill_status_display.dart';
+
 /// Trạng thái vòng đời của một hóa đơn, khớp 1-1 với `bill_status` của backend.
 enum GroupBillStatus {
   /// `draft` — vừa tạo / vừa OCR xong, còn sửa được.
@@ -19,12 +21,7 @@ extension GroupBillStatusX on GroupBillStatus {
   /// Giá trị gửi lên query param `status` của `GET /api/v1/bills`.
   String get apiValue => name;
 
-  String get label => switch (this) {
-    GroupBillStatus.draft => 'Nháp',
-    GroupBillStatus.reviewed => 'Chờ duyệt',
-    GroupBillStatus.finalized => 'Đã chốt',
-    GroupBillStatus.voided => 'Đã hủy',
-  };
+  String get label => billStatusLabel(apiValue);
 
   /// Hóa đơn còn phải xử lý (chưa chốt, chưa hủy).
   bool get isActive => this == GroupBillStatus.draft || this == GroupBillStatus.reviewed;

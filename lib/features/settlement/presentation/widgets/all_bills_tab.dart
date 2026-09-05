@@ -4,6 +4,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/bill_status_display.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/settlement_entities.dart';
 
@@ -190,7 +191,7 @@ class AllBillsTab extends StatelessWidget {
                               border: Border.all(color: colors.border),
                             ),
                             child: Text(
-                              _statusLabel(bill.status),
+                              billStatusLabel(bill.status),
                               style: TextStyle(
                                 color: colors.foreground,
                                 fontSize: 10.5,
@@ -257,16 +258,6 @@ class AllBillsTab extends StatelessWidget {
           ),
       ],
     );
-  }
-
-  String _statusLabel(String status) {
-    return switch (status) {
-      'draft' => 'Bản nháp',
-      'reviewed' => 'Đã duyệt',
-      'finalized' => 'Đã chốt sổ',
-      'voided' => 'Đã hủy',
-      _ => status,
-    };
   }
 
   _BillStatusColors _statusColors(String status) {

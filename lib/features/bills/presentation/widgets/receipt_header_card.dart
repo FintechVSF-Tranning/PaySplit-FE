@@ -4,6 +4,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/bill_status_display.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/entities/bill_detail_entity.dart';
 import 'image_viewer_dialog.dart';
@@ -278,28 +279,24 @@ class ReceiptHeaderCard extends StatelessWidget {
   Widget _buildStatusBadge(String status) {
     Color bg;
     Color fg;
-    String text;
+    final text = billStatusLabel(status);
 
     switch (status) {
       case 'finalized':
         bg = const Color(0xFFECFDF5);
         fg = const Color(0xFF059669);
-        text = 'Đã chốt sổ';
         break;
       case 'reviewed':
         bg = const Color(0xFFEFF6FF);
         fg = const Color(0xFF2563EB);
-        text = 'Đã duyệt';
         break;
       case 'voided':
         bg = const Color(0xFFFEF2F2);
         fg = const Color(0xFFDC2626);
-        text = 'Đã huỷ';
         break;
       default:
         bg = const Color(0xFFFEF3C7);
         fg = const Color(0xFFD97706);
-        text = 'Bản nháp';
     }
 
     return Container(

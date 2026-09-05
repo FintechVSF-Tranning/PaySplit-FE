@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/bill_status_display.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/ui_feedback.dart';
 import '../../../auth/presentation/providers/auth_controller.dart';
@@ -1788,14 +1789,13 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
   }
 
   Widget _buildStatusBadge(String status, {required bool isDark}) {
-    String label;
+    final label = billStatusLabel(status);
     Color bgColor;
     Color textColor;
     Color borderColor;
 
     switch (status) {
       case 'reviewed':
-        label = 'Chờ duyệt';
         bgColor = isDark
             ? const Color(0xFF1E3A8A).withValues(alpha: 0.4)
             : const Color(0xFFEFF6FF);
@@ -1805,7 +1805,6 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
             : const Color(0xFFBFDBFE);
         break;
       case 'finalized':
-        label = 'Đã chốt';
         bgColor = isDark
             ? const Color(0xFF064E3B).withValues(alpha: 0.4)
             : const Color(0xFFECFDF5);
@@ -1815,7 +1814,6 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
             : const Color(0xFFA7F3D0);
         break;
       case 'voided':
-        label = 'Đã hủy';
         bgColor = isDark
             ? const Color(0xFF7F1D1D).withValues(alpha: 0.4)
             : const Color(0xFFFEF2F2);
@@ -1826,7 +1824,6 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
         break;
       case 'draft':
       default:
-        label = 'Nháp';
         bgColor = isDark
             ? const Color(0xFF78350F).withValues(alpha: 0.4)
             : const Color(0xFFFFFBEB);
