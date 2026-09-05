@@ -1,3 +1,4 @@
+import 'bill_entity.dart' show OcrJobStatus;
 import 'captured_bill_photo.dart';
 
 /// Đại diện cho thành viên trong nhóm tham gia vào hoá đơn
@@ -316,6 +317,18 @@ class BillDetailEntity {
   final List<String> mismatchCodes;
   final List<BillShareBreakdownEntity> breakdown;
 
+  /// Trạng thái lần bóc tách OCR gần nhất của hóa đơn này.
+  ///
+  /// Không có trường này thì một job `failed` và một job `succeeded` nhưng đọc
+  /// được 0 món là hai thứ y hệt nhau ở tầng trên — cả hai đều là một bill
+  /// không có `items` — nên OCR hỏng bị hiển thị như OCR thành công rỗng.
+  final OcrJobStatus ocrStatus;
+
+  /// Mã lỗi đóng của backend khi [ocrStatus] là `failed`: `provider_timeout`,
+  /// `download_failed`, `schema_invalid`... Dùng để chọn câu thông báo tiếng
+  /// Việt; backend không bao giờ trả chuỗi lỗi thô của provider ở đây.
+  final String? ocrErrorCode;
+
   const BillDetailEntity({
     required this.id,
     required this.groupId,
@@ -339,6 +352,8 @@ class BillDetailEntity {
     this.photos = const [],
     this.mismatchCodes = const [],
     this.breakdown = const [],
+    this.ocrStatus = OcrJobStatus.none,
+    this.ocrErrorCode,
   });
 
   BillDetailEntity copyWith({
@@ -364,6 +379,8 @@ class BillDetailEntity {
     List<CapturedBillPhoto>? photos,
     List<String>? mismatchCodes,
     List<BillShareBreakdownEntity>? breakdown,
+    OcrJobStatus? ocrStatus,
+    String? ocrErrorCode,
   }) {
     return BillDetailEntity(
       id: id ?? this.id,
@@ -388,6 +405,8 @@ class BillDetailEntity {
       photos: photos ?? this.photos,
       mismatchCodes: mismatchCodes ?? this.mismatchCodes,
       breakdown: breakdown ?? this.breakdown,
+      ocrStatus: ocrStatus ?? this.ocrStatus,
+      ocrErrorCode: ocrErrorCode ?? this.ocrErrorCode,
     );
   }
 
@@ -425,6 +444,22 @@ class BillDetailEntity {
           candidateJson = job['candidate'] as Map<String, dynamic>;
           break;
         }
+      }
+    }
+
+    // Trạng thái OCR đi kèm ở `ocr_job` của cả `POST /bills` lẫn `GET /bills/{id}`.
+    var ocrStatus = OcrJobStatus.none;
+    String? ocrErrorCode;
+    if (json['ocr_job'] is Map<String, dynamic>) {
+      final ocrJob = json['ocr_job'] as Map<String, dynamic>;
+      final rawStatus = ocrJob['status']?.toString();
+      ocrStatus = OcrJobStatus.values.firstWhere(
+        (s) => s.name == rawStatus,
+        orElse: () => OcrJobStatus.none,
+      );
+      final rawError = ocrJob['error_message']?.toString();
+      if (rawError != null && rawError.isNotEmpty) {
+        ocrErrorCode = rawError;
       }
     }
 
@@ -543,6 +578,8 @@ class BillDetailEntity {
               ?.map((b) => BillShareBreakdownEntity.fromJson(b as Map<String, dynamic>))
               .toList() ??
           const [],
+      ocrStatus: ocrStatus,
+      ocrErrorCode: ocrErrorCode,
     );
   }
 }

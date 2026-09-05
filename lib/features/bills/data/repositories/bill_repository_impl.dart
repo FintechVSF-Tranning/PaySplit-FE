@@ -59,6 +59,26 @@ class BillRepositoryImpl implements BillRepository {
   }
 
   @override
+  Future<Either<Failure, BillDetailEntity>> retryOcr({
+    required String billId,
+    required String groupId,
+    List<CapturedBillPhoto> photos = const [],
+  }) async {
+    try {
+      final bill = await _remoteDataSource.retryOcr(
+        billId: billId,
+        groupId: groupId,
+        photos: photos,
+      );
+      return Right(bill);
+    } on DioException catch (e) {
+      return Left(mapDioError(e));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, BillDetailEntity>> createManualBill({
     required String groupId,
     required String merchantName,

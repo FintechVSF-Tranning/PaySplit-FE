@@ -64,12 +64,23 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
               merchantName: _initialBill.merchantName,
             );
       } else if (_initialBill.groupId.isNotEmpty) {
-        ref
-            .read(billDetailNotifierProvider(_initialBill).notifier)
+        final notifier = ref.read(
+          billDetailNotifierProvider(_initialBill).notifier,
+        );
+        notifier
             .loadBillDetail(
               billId: _initialBill.id,
               groupId: _initialBill.groupId,
-            );
+            )
+            .then((_) {
+              if (!mounted) return;
+              // Hóa đơn mở lại từ danh sách nhóm mà lần OCR gần nhất đã hỏng:
+              // báo lỗi ngay và mở sẵn đường chạy lại, thay vì để người dùng
+              // nhìn một bản nháp trống không hiểu vì sao.
+              if (notifier.surfaceLoadedOcrFailure()) {
+                _openOcrReviewModal();
+              }
+            });
       }
     });
   }
@@ -93,7 +104,11 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
             scanStep: state.ocrScanStep,
             candidate: state.ocrCandidate,
             errorMessage: state.ocrErrorMessage,
-            photos: _initialBill.photos,
+            // Hóa đơn mở lại từ danh sách không mang bytes ảnh; ảnh của nó là
+            // signed URL vừa tải về trong `state.bill`.
+            photos: _initialBill.photos.isNotEmpty
+                ? _initialBill.photos
+                : state.bill.photos,
             onApply: () {
               notifier.applyOcrCandidate();
               Navigator.of(ctx).pop();
@@ -103,6 +118,19 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
               Navigator.of(ctx).pop();
             },
             onRetry: () {
+              // Hóa đơn đã nằm trên server rồi thì chạy lại OCR trên chính nó.
+              // Gọi lại runOcrProcess ở đây sẽ upload ảnh lần nữa và tạo thêm
+              // một hóa đơn draft mới trong nhóm sau mỗi lần bấm.
+              final savedBillId = state.bill.id.isNotEmpty
+                  ? state.bill.id
+                  : _initialBill.id;
+              if (savedBillId.isNotEmpty) {
+                notifier.retryOcr(
+                  groupId: _initialBill.groupId,
+                  billId: savedBillId,
+                );
+                return;
+              }
               notifier.runOcrProcess(
                 groupId: _initialBill.groupId,
                 photos: _initialBill.photos,
@@ -117,6 +145,17 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
 
   void _showEditMerchantDialog(BuildContext context, String currentName) {
     final controller = TextEditingController(text: currentName);
+
+    void confirm(BuildContext ctx) {
+      final newName = controller.text.trim();
+      if (newName.isNotEmpty) {
+        ref
+            .read(billDetailNotifierProvider(_initialBill).notifier)
+            .setMerchantName(newName);
+      }
+      Navigator.of(ctx).pop();
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -131,6 +170,8 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
         content: TextField(
           controller: controller,
           autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => confirm(ctx),
           maxLength: 60,
           buildCounter:
               (
@@ -176,15 +217,7 @@ class _BillDetailPageState extends ConsumerState<BillDetailPage> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    final newName = controller.text.trim();
-                    if (newName.isNotEmpty) {
-                      ref
-                          .read(
-                            billDetailNotifierProvider(_initialBill).notifier,
-                          )
-                          .setMerchantName(newName);
-                    }
-                    Navigator.of(ctx).pop();
+                    confirm(ctx);
                   },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),

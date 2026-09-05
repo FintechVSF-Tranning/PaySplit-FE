@@ -66,6 +66,25 @@ const Map<String, String> _errorMessages = {
   'INVALID_CURSOR': 'Dữ liệu phân trang không hợp lệ. Hãy tải lại danh sách.',
   'REMINDER_RATE_LIMITED':
       'Khoản nợ này vừa được gửi lời nhắc. Vui lòng đợi đến lượt nhắc tiếp theo.',
+
+  // --- Bóc tách hóa đơn bằng AI (OCR) ---
+  // Nút "Thử lại" trong màn xem trước gọi thẳng POST /bills/{id}/ocr-retry, nên
+  // mọi mã lỗi của endpoint đó đều có đường lên tới người dùng.
+  'OCR_ALREADY_RUNNING':
+      'Hóa đơn này đang được AI bóc tách. Vui lòng đợi kết quả rồi hãy thử lại.',
+  'OCR_LIMIT_REACHED':
+      'Bạn đã thử bóc tách hóa đơn này quá nhiều lần trong 24 giờ. Vui lòng nhập tay.',
+  'OCR_PROVIDER_UNAVAILABLE':
+      'Dịch vụ bóc tách AI đang không khả dụng. Vui lòng thử lại sau ít phút.',
+  'OCR_TIMEOUT':
+      'AI xử lý ảnh quá lâu và đã hết thời gian chờ. Hãy thử lại hoặc chụp ảnh rõ nét hơn.',
+  'OCR_SCHEMA_INVALID':
+      'AI không đọc được cấu trúc hóa đơn trong ảnh này. Hãy chụp lại hoặc nhập tay.',
+  'OCR_JOB_NOT_FOUND': 'Không tìm thấy tiến trình bóc tách của hóa đơn này.',
+  'OCR_NOT_READY': 'Kết quả bóc tách chưa sẵn sàng. Vui lòng đợi thêm.',
+  'OCR_RESULT_STALE':
+      'Hóa đơn đã thay đổi sau khi bóc tách. Hãy tải lại rồi chạy lại AI.',
+  'IMAGES_REQUIRED': 'Hóa đơn này không có ảnh nào để bóc tách lại.',
 };
 
 Failure mapDioError(DioException error) {

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paysplit/features/bills/data/datasources/bill_remote_datasource.dart';
 import 'package:paysplit/features/bills/domain/entities/bill_detail_entity.dart';
+import 'package:paysplit/features/bills/domain/entities/bill_entity.dart';
 
 void main() {
   group('BillRemoteDataSource', () {
@@ -137,6 +138,40 @@ void main() {
 
       expect(bill.breakdown.single.memberId, 'member-1');
       expect(bill.breakdown.single.finalAmount, 60000);
+    });
+    test('OCR thất bại: bill mang ocrStatus failed kèm mã lỗi của backend', () async {
+      // Không có hai trường này thì một job 'failed' và một job 'succeeded' đọc
+      // được 0 món là hai thứ y hệt nhau ở tầng trên: cùng là bill không items.
+      dio = dioReturning({
+        'bill': {'id': 'bill-1', 'group_id': 'group-1', 'status': 'draft'},
+        'ocr_job': {'status': 'failed', 'error_message': 'provider_timeout'},
+      }, statusCode: 202);
+
+      final bill = await BillRemoteDataSourceImpl(dio).createBillWithPhotos(
+        groupId: 'group-1',
+        photos: const [],
+      );
+
+      expect(bill.ocrStatus, OcrJobStatus.failed);
+      expect(bill.ocrErrorCode, 'provider_timeout');
+    });
+
+    test('retryOcr gọi đúng endpoint ocr-retry của chính hóa đơn đó', () async {
+      // Chạy lại phải nhắm vào hóa đơn đã có; POST /bills sẽ đẻ ra một bản nháp
+      // mới trong nhóm sau mỗi lần bấm "Thử lại".
+      dio = dioReturning({
+        'bill': {'id': 'bill-1', 'group_id': 'group-1', 'status': 'draft'},
+        'ocr_job': {'status': 'succeeded'},
+      }, statusCode: 202);
+
+      final bill = await BillRemoteDataSourceImpl(
+        dio,
+      ).retryOcr(billId: 'bill-1', groupId: 'group-1');
+
+      expect(requests.first.path, '/bills/bill-1/ocr-retry');
+      expect(requests.first.method, 'POST');
+      expect(requests.first.queryParameters['group_id'], 'group-1');
+      expect(bill.ocrStatus, OcrJobStatus.succeeded);
     });
   });
 }

@@ -36,6 +36,7 @@ extension BillEntityToGroupBill on BillEntity {
         MyShareStatus.none => GroupBillShareStatus.none,
       },
       isScanningOcr: ocrStatus.isRunning,
+      ocrFailed: ocrStatus == OcrJobStatus.failed,
       paidMemberCount: paidMemberCount,
       memberCount: memberCount,
       version: version,

@@ -120,6 +120,31 @@ void main() {
       expect(_surfacesFor('bill.deleted'), contains('group.bills'));
     });
 
+    test('ocr.updated làm mới cả tab hóa đơn của nhóm', () {
+      // covers: AC-18
+      // Thẻ hóa đơn trong tab nhóm hiện spinner "Đang quét..." theo `ocr_status`.
+      // Job OCR kết thúc không đụng vào bảng `bills` nên không có mutation nào
+      // khác được phát; `ocr.updated` là sự kiện duy nhất tắt được spinner đó.
+      final surfaces = UserRealtimeOwner()
+          .targetsFor(
+            SseFrame(
+              event: 'ocr.updated',
+              data: {
+                'group_id': _groupId,
+                'bill_id': _billId,
+                'status': 'failed',
+              },
+            ),
+            registryOverride: _fullRegistry(),
+          )
+          .map((interest) => interest.key.surface)
+          .toSet();
+
+      expect(surfaces, contains('group.bills'));
+      expect(surfaces, contains('ocr.waiter'));
+      expect(surfaces, contains('bill.detail'));
+    });
+
     test('mọi mutation hóa đơn đều làm mới danh sách hóa đơn của nhóm', () {
       // covers: AC-18
       for (final type in const [

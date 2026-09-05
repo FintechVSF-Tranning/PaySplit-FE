@@ -26,6 +26,17 @@ abstract class BillRemoteDataSource {
     required List<CapturedBillPhoto> photos,
   });
 
+  /// Chạy lại OCR trên một hóa đơn đã tồn tại trên server.
+  ///
+  /// Khác [createBillWithPhotos] ở chỗ không tạo hóa đơn mới: ảnh đã nằm trên
+  /// Cloudinary rồi, và client mở lại một hóa đơn cũ thì cũng không còn bytes
+  /// ảnh trong tay để mà upload lần nữa.
+  Future<BillDetailEntity> retryOcr({
+    required String billId,
+    required String groupId,
+    List<CapturedBillPhoto> photos = const [],
+  });
+
   Future<BillDetailEntity> createManualBill({
     required String groupId,
     required String merchantName,
@@ -168,7 +179,15 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     final rawData = response.data;
     if (rawData is Map<String, dynamic>) {
       final data = _extractData(rawData);
-      final billJson = data['bill'] as Map<String, dynamic>? ?? data;
+      final billJson = Map<String, dynamic>.from(
+        data['bill'] as Map<String, dynamic>? ?? data,
+      );
+      // `ocr_job` nằm cạnh `bill` chứ không nằm trong nó. Không kéo sang đây thì
+      // hóa đơn trả về từ POST mang `ocrStatus = none`, và một OCR còn đang xếp
+      // hàng trông y hệt một OCR đã xong mà không đọc được món nào.
+      if (data['ocr_job'] != null) {
+        billJson['ocr_job'] = data['ocr_job'];
+      }
       final initialBill = BillDetailEntity.fromJson(
         billJson,
       ).copyWith(photos: photos);
@@ -193,6 +212,39 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
     );
   }
 
+
+  @override
+  Future<BillDetailEntity> retryOcr({
+    required String billId,
+    required String groupId,
+    List<CapturedBillPhoto> photos = const [],
+  }) async {
+    await _dio.post(
+      ApiEndpoints.billOcrRetry(billId),
+      queryParameters: {'group_id': groupId},
+    );
+
+    final settled = await _awaitOcrSettled(
+      billId: billId,
+      groupId: groupId,
+      photos: photos,
+    );
+    if (settled != null) return settled;
+
+    // Không đọc được kết quả nào: trả về bản đọc cuối để tầng trên còn thấy
+    // `ocrStatus` mà báo đúng "vẫn đang chạy" thay vì "xong mà rỗng".
+    final last = await _readBillWithOcr(
+      billId: billId,
+      groupId: groupId,
+      photos: photos,
+    );
+    if (last != null) return last.bill;
+
+    throw DioException(
+      requestOptions: RequestOptions(path: ApiEndpoints.billById(billId)),
+      message: 'Không đọc được hóa đơn sau khi chạy lại OCR',
+    );
+  }
 
   /// Chờ OCR của một hóa đơn vừa tạo xong, rồi trả về chi tiết đã đọc lại.
   ///

@@ -90,6 +90,7 @@ class GroupBillEntity extends Equatable {
     this.myShare,
     this.myShareStatus = GroupBillShareStatus.none,
     this.isScanningOcr = false,
+    this.ocrFailed = false,
   });
 
   final String id;
@@ -105,6 +106,11 @@ class GroupBillEntity extends Equatable {
 
   /// Ảnh hóa đơn còn đang được AI bóc tách.
   final bool isScanningOcr;
+
+  /// Lần bóc tách AI gần nhất đã thất bại. Không có cờ này thì một hóa đơn OCR
+  /// hỏng trông y hệt một bản nháp bình thường đang chờ gán món, và người tạo
+  /// nó không có lý do gì để mở vào xem.
+  final bool ocrFailed;
 
   final int paidMemberCount;
   final int memberCount;
@@ -131,6 +137,7 @@ class GroupBillEntity extends Equatable {
     myShare,
     myShareStatus,
     isScanningOcr,
+    ocrFailed,
     paidMemberCount,
   ];
 }

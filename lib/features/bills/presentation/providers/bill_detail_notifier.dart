@@ -7,6 +7,7 @@ import '../../../../core/realtime/realtime_interest.dart';
 import '../../../../core/realtime/register_realtime_interest.dart';
 import '../../../../di/injection.dart';
 import '../../domain/entities/bill_detail_entity.dart';
+import '../../domain/entities/bill_entity.dart' show OcrJobStatus;
 import '../../domain/entities/captured_bill_photo.dart';
 import '../../domain/repositories/bill_repository.dart';
 
@@ -402,6 +403,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
     // 1. Tải danh sách thành viên nhóm
     final membersResult = await _repository.getGroupMembers(groupId: groupId);
+    if (!mounted) return;
     List<BillMemberEntity> members = [];
     membersResult.match((failure) => null, (mList) => members = mList);
 
@@ -475,6 +477,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       billId: billId,
       groupId: groupId,
     );
+    if (!mounted) return;
     billResult.match(
       (failure) {
         state = state.copyWith(isLoading: false, errorMessage: failure.message);
@@ -557,6 +560,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
     // 1. Tải trước danh sách thành viên nhóm nếu chưa có
     if (state.bill.members.isEmpty) {
       final membersResult = await _repository.getGroupMembers(groupId: groupId);
+      if (!mounted) return;
       membersResult.match((failure) => null, (mList) {
         state = state.copyWith(bill: state.bill.copyWith(members: mList));
       });
@@ -572,6 +576,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
           merchantName ?? state.bill.merchantName ?? 'Hoá đơn chi tiêu',
       photos: photos,
     );
+    if (!mounted) return;
 
     result.match(
       (failure) {
@@ -589,6 +594,32 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
           photos: photos,
         );
 
+        // OCR hỏng hoặc chưa xong vẫn trả về một hóa đơn hợp lệ — chỉ là không
+        // có món nào. Đưa thẳng nó vào `ocrCandidate` thì màn hình dựng nhánh
+        // "bóc tách thành công" với tổng 0đ, và người dùng không hề biết là
+        // AI đã thất bại. Giữ lại bill (id của nó là thứ để thử lại) nhưng báo
+        // đúng bản chất.
+        final ocrFailure = _ocrFailureMessage(candidateBill);
+        if (ocrFailure != null) {
+          state = state.copyWith(
+            bill: state.bill.copyWith(
+              id: candidateBill.id.isNotEmpty
+                  ? candidateBill.id
+                  : state.bill.id,
+              version: candidateBill.version,
+              members: enrichedCandidate.members,
+              photos: photos,
+              ocrStatus: candidateBill.ocrStatus,
+              ocrErrorCode: candidateBill.ocrErrorCode,
+            ),
+            isOcrScanning: false,
+            clearOcrScanStep: true,
+            clearOcrCandidate: true,
+            ocrErrorMessage: ocrFailure,
+          );
+          return;
+        }
+
         state = state.copyWith(
           isOcrScanning: false,
           clearOcrScanStep: true,
@@ -596,6 +627,125 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         );
       },
     );
+  }
+
+  /// Đưa lỗi OCR của hóa đơn vừa tải lên bề mặt, trả về `true` khi có lỗi cần báo.
+  ///
+  /// Người tạo hóa đơn rời màn hình trước khi AI trả kết quả sẽ chỉ gặp lại nó
+  /// qua danh sách hóa đơn của nhóm. Không có bước này thì hóa đơn đó mở ra là
+  /// một bản nháp trống trơn, không dấu vết nào cho thấy OCR đã hỏng.
+  bool surfaceLoadedOcrFailure() {
+    if (state.bill.ocrStatus != OcrJobStatus.failed) return false;
+    // Đã có món (nhập tay, hoặc lần bóc tách trước đó đã apply) thì lỗi cũ
+    // không còn là chuyện đang cản trở ai.
+    if (state.bill.items.isNotEmpty) return false;
+
+    final message = _ocrFailureMessage(state.bill);
+    if (message == null) return false;
+    state = state.copyWith(ocrErrorMessage: message);
+    return true;
+  }
+
+  /// Chạy lại OCR trên hóa đơn đã lưu, thay vì tạo thêm một hóa đơn nữa.
+  ///
+  /// Bấm "Thử lại" mà gọi lại [runOcrProcess] thì mỗi lần thử đẻ ra một bill
+  /// draft mới trong nhóm; và với hóa đơn mở lại từ danh sách thì trong tay
+  /// không còn bytes ảnh nên [runOcrProcess] im lặng không làm gì cả.
+  Future<void> retryOcr({required String groupId, required String billId}) async {
+    if (state.isProcessing || billId.isEmpty) return;
+
+    state = state.copyWith(
+      isOcrScanning: true,
+      ocrScanStep: 'Đang chạy lại bóc tách AI...',
+      clearOcrCandidate: true,
+    );
+
+    final result = await _repository.retryOcr(
+      billId: billId,
+      groupId: groupId,
+      photos: state.bill.photos,
+    );
+    if (!mounted) return;
+
+    result.match(
+      (failure) {
+        state = state.copyWith(
+          isOcrScanning: false,
+          clearOcrScanStep: true,
+          ocrErrorMessage: failure.message,
+        );
+      },
+      (rescanned) {
+        final enriched = rescanned.copyWith(
+          members: rescanned.members.isNotEmpty
+              ? rescanned.members
+              : state.bill.members,
+          photos: rescanned.photos.isNotEmpty
+              ? rescanned.photos
+              : state.bill.photos,
+        );
+
+        final ocrFailure = _ocrFailureMessage(rescanned);
+        if (ocrFailure != null) {
+          state = state.copyWith(
+            bill: state.bill.copyWith(
+              version: rescanned.version,
+              members: enriched.members,
+              ocrStatus: rescanned.ocrStatus,
+              ocrErrorCode: rescanned.ocrErrorCode,
+            ),
+            isOcrScanning: false,
+            clearOcrScanStep: true,
+            clearOcrCandidate: true,
+            ocrErrorMessage: ocrFailure,
+          );
+          return;
+        }
+
+        state = state.copyWith(
+          isOcrScanning: false,
+          clearOcrScanStep: true,
+          ocrCandidate: enriched,
+        );
+      },
+    );
+  }
+
+  /// Câu thông báo khi lần bóc tách này không cho ra kết quả dùng được, hoặc
+  /// `null` khi OCR thực sự thành công.
+  ///
+  /// Một job `succeeded` mà đọc được 0 món không phải lỗi: ảnh mờ hay hóa đơn
+  /// viết tay vẫn là kết quả hợp lệ, và màn hình xem trước đã có sẵn câu
+  /// "Không tìm thấy dòng món nào trong ảnh" cho trường hợp đó.
+  String? _ocrFailureMessage(BillDetailEntity bill) {
+    switch (bill.ocrStatus) {
+      case OcrJobStatus.succeeded:
+      case OcrJobStatus.none:
+        return null;
+      case OcrJobStatus.queued:
+      case OcrJobStatus.processing:
+        return 'AI vẫn đang bóc tách hóa đơn này và chưa trả kết quả. '
+            'Bạn có thể thử lại sau ít phút hoặc tự nhập tay.';
+      case OcrJobStatus.failed:
+        return switch (bill.ocrErrorCode) {
+          'provider_timeout' =>
+            'AI xử lý ảnh quá lâu và đã hết thời gian chờ. Hãy thử lại, hoặc '
+                'chụp lại ảnh rõ nét hơn.',
+          'provider_unavailable' =>
+            'Dịch vụ bóc tách AI đang không khả dụng. Hãy thử lại sau ít phút.',
+          'schema_invalid' =>
+            'AI không đọc được cấu trúc hóa đơn trong ảnh này. Hãy chụp lại '
+                'sao cho thấy rõ toàn bộ hóa đơn, hoặc tự nhập tay.',
+          'download_failed' =>
+            'Không tải được ảnh hóa đơn đã lưu. Hãy thử lại.',
+          'no_images' => 'Hóa đơn này không có ảnh nào để bóc tách.',
+          // Mã do reaper của backend ghi: tiến trình bóc tách đứng yên quá lâu
+          // và đã bị dọn để hóa đơn này chạy lại được.
+          'stale_timeout' =>
+            'Lần bóc tách trước bị gián đoạn và đã dừng hẳn. Hãy thử lại.',
+          _ => 'Bóc tách hóa đơn bằng AI thất bại. Hãy thử lại, hoặc tự nhập tay.',
+        };
+    }
   }
 
   /// Áp dụng kết quả OCR vào hoá đơn chính và tự động lưu bản nháp xuống DB
@@ -908,6 +1058,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
             : state.bill.splitMethod,
         billDate: state.bill.billDate,
       );
+      if (!mounted) return false;
 
       return result.match(
         (failure) {
@@ -965,6 +1116,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       groupId: state.bill.groupId,
       payload: payload,
     );
+    if (!mounted) return false;
 
     return result.match(
       (failure) {
@@ -1038,6 +1190,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       groupId: state.bill.groupId,
       payload: payload,
     );
+    if (!mounted) return null;
 
     return result.match(
       (failure) {
@@ -1074,6 +1227,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
           : state.bill.breakdown;
     }
     final breakdown = await calculateBreakdown();
+    if (!mounted) return breakdown ?? const [];
     return breakdown ?? state.breakdown;
   }
 
@@ -1124,6 +1278,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         state.bill.id.isEmpty || state.bill.id.startsWith('draft-');
     if (state.isDirty || isNewBill) {
       final saved = await _executeSaveDraft();
+      if (!mounted) return false;
       if (!saved) {
         state = state.copyWith(isSaving: false);
         return false;
@@ -1136,6 +1291,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       groupId: state.bill.groupId,
       version: state.bill.version,
     );
+    if (!mounted) return false;
 
     return reviewResult.match(
       (failure) {
@@ -1186,6 +1342,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         state.bill.id.isEmpty || state.bill.id.startsWith('draft-');
     if (state.isDirty || isNewBill) {
       final saved = await _executeSaveDraft(isParentFinalizing: true);
+      if (!mounted) {
+        return const FinalizeBillResult.failed('Màn hình đã đóng');
+      }
       if (!saved) {
         state = state.copyWith(isFinalizing: false);
         return const FinalizeBillResult.failed('Không thể lưu bản nháp');
@@ -1201,6 +1360,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
         groupId: state.bill.groupId,
         version: state.bill.version,
       );
+      if (!mounted) {
+        return const FinalizeBillResult.failed('Màn hình đã đóng');
+      }
 
       final reviewSuccess = reviewResult.match(
         (failure) {
@@ -1258,6 +1420,14 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       version: currentVersion,
       idempotencyKey: effectiveIdempotencyKey,
     );
+    // Chốt sổ đã ghi nợ xong trên server; màn hình đóng giữa chừng không làm
+    // điều đó chưa xảy ra, nên vẫn báo thành công cho người gọi.
+    if (!mounted) {
+      return finalizeResult.match(
+        (failure) => FinalizeBillResult.failed(failure.message),
+        (_) => const FinalizeBillResult.success(),
+      );
+    }
 
     return finalizeResult.match(
       (failure) {
@@ -1306,6 +1476,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       billId: state.bill.id,
       groupId: state.bill.groupId,
     );
+    if (!mounted) return false;
     return billResult.match(
       (failure) {
         state = state.copyWith(
@@ -1362,6 +1533,9 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       billId: state.bill.id,
       groupId: state.bill.groupId,
     );
+    // Xóa đã xảy ra thật trên server; màn hình đóng giữa chừng không hoàn tác
+    // được nó, nên kết quả trả về người gọi vẫn theo phản hồi của server.
+    if (!mounted) return result.isRight();
 
     return result.match(
       (failure) {
@@ -1395,6 +1569,7 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
       version: state.bill.version,
       reason: reason.trim(),
     );
+    if (!mounted) return result.isRight();
 
     return result.match(
       (failure) {
@@ -1437,8 +1612,14 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   }
 }
 
+/// `autoDispose` có chủ đích: khóa của family là chính `BillDetailEntity` khởi
+/// tạo, nên mỗi lần mở màn chi tiết — kể cả mỗi lần quét OCR, vì lần nào cũng
+/// dựng một entity mới — là một entry mới trong family. Không có autoDispose thì
+/// không entry nào bị gỡ: notifier sống tới hết phiên, và hai realtime interest
+/// nó đăng ký cũng vậy, nên mỗi frame realtime lại kéo theo một lượt
+/// `loadBillDetail` cho từng màn hình đã đóng từ lâu.
 final billDetailNotifierProvider =
-    StateNotifierProvider.family<
+    StateNotifierProvider.autoDispose.family<
       BillDetailNotifier,
       BillDetailState,
       BillDetailEntity

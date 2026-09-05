@@ -19,6 +19,13 @@ abstract class BillRepository {
     required List<CapturedBillPhoto> photos,
   });
 
+  /// Chạy lại OCR trên một hóa đơn đã có trên server (không tạo hóa đơn mới).
+  Future<Either<Failure, BillDetailEntity>> retryOcr({
+    required String billId,
+    required String groupId,
+    List<CapturedBillPhoto> photos,
+  });
+
   Future<Either<Failure, BillDetailEntity>> createManualBill({
     required String groupId,
     required String merchantName,

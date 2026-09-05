@@ -152,5 +152,24 @@ void main() {
 
       expect(bill.toGroupBill().dateText, '25/08 · 09:30');
     });
+    test('ba trạng thái OCR cho ra ba cách hiển thị khác nhau trên thẻ', () {
+      // Ba tình huống này đều mang bills.status = 'draft'; nếu thẻ chỉ nhìn
+      // status thì hóa đơn OCR hỏng lẫn hẳn vào bản nháp chờ gán món.
+      final scanning = billWith(
+        BillStatus.draft,
+      ).copyWith(ocrStatus: OcrJobStatus.processing).toGroupBill();
+      expect(scanning.isScanningOcr, isTrue);
+      expect(scanning.ocrFailed, isFalse);
+
+      final failed = billWith(
+        BillStatus.draft,
+      ).copyWith(ocrStatus: OcrJobStatus.failed).toGroupBill();
+      expect(failed.isScanningOcr, isFalse);
+      expect(failed.ocrFailed, isTrue);
+
+      final manual = billWith(BillStatus.draft).toGroupBill();
+      expect(manual.isScanningOcr, isFalse);
+      expect(manual.ocrFailed, isFalse);
+    });
   });
 }

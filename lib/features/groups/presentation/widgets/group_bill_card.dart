@@ -158,6 +158,29 @@ class GroupBillCard extends StatelessWidget {
                     ),
                   ],
                 )
+              // Bóc tách AI hỏng: hóa đơn vẫn là draft trống, nên nếu không nói
+              // ra thì nó lẫn hoàn toàn vào những bản nháp chờ gán món.
+              else if (bill.ocrFailed && bill.status == GroupBillStatus.draft)
+                Row(
+                  children: [
+                    const Icon(
+                      HugeIcons.strokeRoundedAlert02,
+                      size: 13,
+                      color: AppColors.danger,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Bóc tách AI thất bại — mở để thử lại hoặc nhập tay',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.danger,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
               // Tiến độ thanh toán chỉ tồn tại sau khi chốt sổ
               else if (bill.status == GroupBillStatus.finalized && bill.memberCount > 0) ...[
                 _PaidProgressBar(ratio: bill.paidRatio),
@@ -295,7 +318,9 @@ class _MyShareBlock extends StatelessWidget {
       _ => switch (bill.status) {
         GroupBillStatus.voided => 'Hóa đơn đã hủy',
         GroupBillStatus.finalized => 'Bạn không có phần trong hóa đơn này',
-        _ => bill.isScanningOcr ? 'Chờ AI bóc tách' : 'Chờ phân bổ món',
+        _ => bill.isScanningOcr
+            ? 'Chờ AI bóc tách'
+            : (bill.ocrFailed ? 'AI bóc tách lỗi' : 'Chờ phân bổ món'),
       },
     };
 

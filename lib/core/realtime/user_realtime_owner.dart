@@ -300,6 +300,11 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
           groupId: groupId,
           billId: billId,
         ),
+        // Tab hóa đơn của nhóm hiện spinner "Đang quét..." dựa trên `ocr_status`
+        // của từng dòng. Job OCR xong không đụng gì tới bảng `bills`, nên
+        // `ocr.updated` là sự kiện DUY NHẤT báo spinner phải tắt: bỏ surface này
+        // ra thì người tạo hóa đơn rời màn OCR là thẻ quay vòng tới hết phiên.
+        ...registry.matching(surface: 'group.bills', groupId: groupId),
       ];
     }
     final type = frame.data['type'] as String? ?? '';
