@@ -156,6 +156,9 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                       hintText: 'user@example.com',
                       icon: HugeIcons.strokeRoundedMail01,
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.email],
+                      onSubmitted: (_) => _submit(),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
                           return 'Vui lòng nhập email';

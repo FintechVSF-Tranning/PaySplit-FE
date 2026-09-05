@@ -174,6 +174,12 @@ class _GroupSettingsBottomSheetState extends State<GroupSettingsBottomSheet> {
           child: TextFormField(
             controller: controller,
             autofocus: true,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.of(ctx).pop(controller.text.trim());
+              }
+            },
             maxLength: 100,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14.5,

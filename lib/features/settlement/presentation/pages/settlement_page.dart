@@ -457,6 +457,10 @@ class _SettlementPageState extends ConsumerState<SettlementPage> {
                                     controller: _searchController,
                                     focusNode: _searchFocusNode,
                                     autofocus: true,
+                                    // Danh sách lọc ngay theo onChanged, nên phím Search chỉ cần
+                                    // thu bàn phím lại để người dùng thấy kết quả.
+                                    textInputAction: TextInputAction.search,
+                                    onSubmitted: (_) => FocusScope.of(context).unfocus(),
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,

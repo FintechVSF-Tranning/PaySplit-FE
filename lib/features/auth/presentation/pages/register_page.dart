@@ -31,6 +31,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  // Node của các ô phía sau, để phím Next của ô trước nhảy đúng thứ tự.
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
+
   bool _agreeTerms = true;
   bool _isLoading = false;
   String _passwordInput = '';
@@ -41,6 +46,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _phoneFocusNode.dispose();
     super.dispose();
   }
 
@@ -149,6 +157,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       label: 'Họ và tên',
                       hintText: 'Nguyễn Văn A',
                       icon: HugeIcons.strokeRoundedUser,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.name],
+                      onSubmitted: (_) => _emailFocusNode.requestFocus(),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) return 'Vui lòng nhập họ và tên';
                         if (val.trim().length < 2) return 'Họ tên quá ngắn';
@@ -165,6 +176,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       hintText: 'user@example.com',
                       icon: HugeIcons.strokeRoundedMail01,
                       keyboardType: TextInputType.emailAddress,
+                      focusNode: _emailFocusNode,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.email],
+                      onSubmitted: (_) => _passwordFocusNode.requestFocus(),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) return 'Vui lòng nhập email';
                         if (!val.contains('@') || !val.contains('.')) return 'Email không hợp lệ';
@@ -184,6 +199,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           hintText: '••••••••',
                           icon: HugeIcons.strokeRoundedLockPassword,
                           isPassword: true,
+                          focusNode: _passwordFocusNode,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.newPassword],
+                          onSubmitted: (_) => _phoneFocusNode.requestFocus(),
                           onChanged: (val) {
                             setState(() {
                               _passwordInput = val;
@@ -214,6 +233,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       hintText: '0901234567',
                       icon: HugeIcons.strokeRoundedCall,
                       keyboardType: TextInputType.phone,
+                      focusNode: _phoneFocusNode,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.telephoneNumber],
+                      onSubmitted: (_) => _submit(),
                       maxLength: 11,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (val) {

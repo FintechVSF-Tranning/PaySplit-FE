@@ -736,6 +736,10 @@ class _AdjustmentInput extends StatelessWidget {
             keyboardType: TextInputType.numberWithOptions(
               decimal: mode == AmountInputUnit.percent,
             ),
+            // Giá trị đã áp dụng ngay qua onChanged; Done chỉ để đóng bàn phím
+            // đang che mất phần tổng tiền bên dưới.
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => FocusScope.of(context).unfocus(),
             inputFormatters: mode == AmountInputUnit.vnd
                 ? const [VndTextInputFormatter()]
                 : const [PercentTextInputFormatter()],

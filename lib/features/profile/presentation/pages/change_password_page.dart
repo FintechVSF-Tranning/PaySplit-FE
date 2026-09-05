@@ -23,6 +23,10 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  // Node của các ô phía sau, để phím Next của ô trước nhảy đúng thứ tự.
+  final _newPasswordFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
+
   bool _obscureCurrent = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
@@ -44,6 +48,8 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
+    _newPasswordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
   }
 
@@ -155,6 +161,10 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                     TextFormField(
                       controller: _currentPasswordController,
                       obscureText: _obscureCurrent,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.password],
+                      onFieldSubmitted: (_) =>
+                          _newPasswordFocusNode.requestFocus(),
                       style: GoogleFonts.plusJakartaSans(fontSize: 14.5, color: textMain),
                       decoration: _buildInputDecoration(
                         hint: 'Nhập mật khẩu hiện tại',
@@ -176,7 +186,12 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                     _buildFieldLabel('Mật khẩu mới', textMuted),
                     TextFormField(
                       controller: _newPasswordController,
+                      focusNode: _newPasswordFocusNode,
                       obscureText: _obscureNew,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.newPassword],
+                      onFieldSubmitted: (_) =>
+                          _confirmPasswordFocusNode.requestFocus(),
                       style: GoogleFonts.plusJakartaSans(fontSize: 14.5, color: textMain),
                       decoration: _buildInputDecoration(
                         hint: 'Nhập mật khẩu mới',
@@ -218,7 +233,11 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                     _buildFieldLabel('Xác nhận mật khẩu mới', textMuted),
                     TextFormField(
                       controller: _confirmPasswordController,
+                      focusNode: _confirmPasswordFocusNode,
                       obscureText: _obscureConfirm,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.newPassword],
+                      onFieldSubmitted: (_) => _onSubmit(),
                       style: GoogleFonts.plusJakartaSans(fontSize: 14.5, color: textMain),
                       decoration: _buildInputDecoration(
                         hint: 'Nhập lại mật khẩu mới',

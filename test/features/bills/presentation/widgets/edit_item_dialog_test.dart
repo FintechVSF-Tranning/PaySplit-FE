@@ -92,4 +92,39 @@ void main() {
     await tester.pump();
     expect(tester.widget<TextField>(discount).controller?.text, '77.000');
   });
+  testWidgets('phím Next đi đúng chuỗi tên → SL → đơn giá → giảm giá, Done lưu', (
+    tester,
+  ) async {
+    // Bốn ô nằm trên hai hàng khác nhau, nên không có chuỗi focus thì mỗi lần
+    // nhập một món là bốn lần với tay chạm vào từng ô.
+    BillItemEntity? savedItem;
+    await pumpDialog(tester, onSave: (item) => savedItem = item);
+
+    final fields = find.byType(TextField);
+    expect(fields, findsNWidgets(4));
+
+    bool hasFocusAt(int index) =>
+        tester.widget<TextField>(fields.at(index)).focusNode?.hasFocus ?? false;
+
+    await tester.tap(fields.at(0));
+    await tester.pumpAndSettle();
+
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pumpAndSettle();
+    expect(hasFocusAt(1), isTrue, reason: 'tên → số lượng');
+
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pumpAndSettle();
+    expect(hasFocusAt(2), isTrue, reason: 'số lượng → đơn giá');
+    expect(hasFocusAt(1), isFalse);
+
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pumpAndSettle();
+    expect(hasFocusAt(3), isTrue, reason: 'đơn giá → giảm giá');
+
+    // Ô cuối: Done lưu luôn thay vì bắt cuộn xuống tìm nút.
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(savedItem, isNotNull);
+  });
 }

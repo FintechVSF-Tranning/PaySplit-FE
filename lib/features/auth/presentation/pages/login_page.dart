@@ -30,6 +30,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  /// Giữ node của ô mật khẩu để phím Next của ô email nhảy thẳng sang được.
+  final _passwordFocusNode = FocusNode();
+
   bool _isUnverified = false;
   int _rateLimitSeconds = 0;
   Timer? _rateLimitTimer;
@@ -38,6 +41,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     _rateLimitTimer?.cancel();
     super.dispose();
   }
@@ -301,6 +305,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       hintText: 'user@email.com',
                       icon: HugeIcons.strokeRoundedMail01,
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.email],
+                      onSubmitted: (_) => _passwordFocusNode.requestFocus(),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) return 'Vui lòng nhập email';
                         if (!val.contains('@') || !val.contains('.')) return 'Email không hợp lệ';
@@ -317,6 +324,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       hintText: '••••••••',
                       icon: HugeIcons.strokeRoundedLockPassword,
                       isPassword: true,
+                      focusNode: _passwordFocusNode,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.password],
+                      onSubmitted: (_) => _submit(),
                       validator: (val) {
                         if (val == null || val.isEmpty) return 'Vui lòng nhập mật khẩu';
                         return null;

@@ -140,6 +140,9 @@ class _EditItemDialogState extends State<EditItemDialog> {
     _qtyController.dispose();
     _priceController.dispose();
     _discountController.dispose();
+    _qtyFocusNode.dispose();
+    _priceFocusNode.dispose();
+    _discountFocusNode.dispose();
     super.dispose();
   }
 
@@ -194,6 +197,11 @@ class _EditItemDialogState extends State<EditItemDialog> {
       }
     });
   }
+
+  // Node của các ô phía sau, để phím Next đi đúng thứ tự tên → SL → giá → giảm.
+  final _qtyFocusNode = FocusNode();
+  final _priceFocusNode = FocusNode();
+  final _discountFocusNode = FocusNode();
 
   void _handleSave() {
     final name = _nameController.text.trim();
@@ -728,6 +736,8 @@ class _EditItemDialogState extends State<EditItemDialog> {
         TextField(
           controller: _nameController,
           autofocus: !isEditing,
+          textInputAction: TextInputAction.next,
+          onSubmitted: (_) => _qtyFocusNode.requestFocus(),
           maxLength: 80,
           buildCounter:
               (
@@ -798,9 +808,12 @@ class _EditItemDialogState extends State<EditItemDialog> {
                   const SizedBox(height: 6),
                   TextField(
                     controller: _qtyController,
+                    focusNode: _qtyFocusNode,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    textInputAction: TextInputAction.next,
+                    onSubmitted: (_) => _priceFocusNode.requestFocus(),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                       LengthLimitingTextInputFormatter(4),
@@ -848,7 +861,10 @@ class _EditItemDialogState extends State<EditItemDialog> {
                   TextField(
                     key: const Key('item-price-field'),
                     controller: _priceController,
+                    focusNode: _priceFocusNode,
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    onSubmitted: (_) => _discountFocusNode.requestFocus(),
                     inputFormatters: const [VndTextInputFormatter()],
                     onChanged: _handlePriceChanged,
                     style: GoogleFonts.plusJakartaSans(
@@ -892,9 +908,12 @@ class _EditItemDialogState extends State<EditItemDialog> {
         TextField(
           key: const Key('item-discount-field'),
           controller: _discountController,
+          focusNode: _discountFocusNode,
           keyboardType: TextInputType.numberWithOptions(
             decimal: _discountInputMode == AmountInputUnit.percent,
           ),
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _handleSave(),
           inputFormatters: _discountInputMode == AmountInputUnit.vnd
               ? const [VndTextInputFormatter()]
               : const [PercentTextInputFormatter()],

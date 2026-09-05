@@ -99,5 +99,53 @@ void main() {
         expect(find.text('Cập nhật mật khẩu'), findsOneWidget);
       },
     );
+    testWidgets(
+      'ChangePasswordPage: phím Next đi đúng chuỗi 3 ô, Done gửi form',
+      (tester) async {
+        // Không có textInputAction + onFieldSubmitted thì phím hành động của
+        // bàn phím là ngõ cụt: người dùng phải chạm tay vào từng ô một.
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 2.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+        addTearDown(() => tester.view.resetDevicePixelRatio());
+
+        await tester.pumpWidget(
+          const ProviderScope(child: MaterialApp(home: ChangePasswordPage())),
+        );
+        await tester.pumpAndSettle();
+
+        final fields = find.byType(TextField);
+        expect(fields, findsNWidgets(3));
+
+        bool hasFocusAt(int index) =>
+            tester.widget<TextField>(fields.at(index)).focusNode?.hasFocus ??
+            false;
+
+        // Mật khẩu hiện tại -> mật khẩu mới
+        await tester.tap(fields.at(0));
+        await tester.pumpAndSettle();
+        await tester.testTextInput.receiveAction(TextInputAction.next);
+        await tester.pumpAndSettle();
+        expect(hasFocusAt(1), isTrue);
+
+        // Mật khẩu mới -> xác nhận
+        await tester.testTextInput.receiveAction(TextInputAction.next);
+        await tester.pumpAndSettle();
+        expect(hasFocusAt(2), isTrue);
+        expect(hasFocusAt(1), isFalse);
+
+        // Ô cuối: Done gọi thẳng _onSubmit. Mật khẩu còn trống nên form dừng ở
+        // bước kiểm tra và báo lỗi — chính cái báo lỗi đó chứng minh Done đã
+        // chạy submit chứ không phải rơi vào hư không.
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            'Vui lòng đáp ứng đầy đủ các yêu cầu bảo mật mật khẩu',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

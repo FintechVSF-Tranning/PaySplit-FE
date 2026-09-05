@@ -30,6 +30,10 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  // Node của các ô phía sau, để phím Next của ô trước nhảy đúng thứ tự.
+  final _passwordFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
+
   bool _isLoading = false;
   String _passwordInput = '';
 
@@ -38,6 +42,8 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
     _otpController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
   }
 
@@ -203,6 +209,9 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                       maxLength: 6,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      onSubmitted: (_) => _passwordFocusNode.requestFocus(),
                       validator: (val) {
                         if (val == null || val.trim().length != 6) {
                           return 'Vui lòng nhập đủ 6 chữ số OTP';
@@ -223,6 +232,11 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                           hintText: '••••••••',
                           icon: HugeIcons.strokeRoundedLockPassword,
                           isPassword: true,
+                          focusNode: _passwordFocusNode,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.newPassword],
+                          onSubmitted: (_) =>
+                              _confirmPasswordFocusNode.requestFocus(),
                           onChanged: (val) {
                             setState(() {
                               _passwordInput = val;
@@ -257,6 +271,10 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                       hintText: '••••••••',
                       icon: HugeIcons.strokeRoundedLockPassword,
                       isPassword: true,
+                      focusNode: _confirmPasswordFocusNode,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.newPassword],
+                      onSubmitted: (_) => _submit(),
                       validator: (val) {
                         if (val == null || val.isEmpty) {
                           return 'Vui lòng xác nhận mật khẩu mới';

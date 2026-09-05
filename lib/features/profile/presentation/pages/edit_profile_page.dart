@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -46,8 +47,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _phoneFocusNode.dispose();
     super.dispose();
   }
+
+  /// Node của ô số điện thoại, để phím Next của ô họ tên nhảy sang được.
+  final _phoneFocusNode = FocusNode();
 
   Future<void> _onSave() async {
     if (_isLoading) return;
@@ -155,6 +160,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     _buildFieldLabel('Họ và tên', textMuted),
                     TextFormField(
                       controller: _nameController,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.name],
+                      onFieldSubmitted: (_) => _phoneFocusNode.requestFocus(),
                       style: GoogleFonts.plusJakartaSans(fontSize: 14.5, color: textMain, fontWeight: FontWeight.w600),
                       decoration: _buildInputDecoration('Ví dụ: Nguyen Van A', isDark),
                       validator: (val) => (val == null || val.trim().isEmpty) ? 'Vui lòng nhập họ và tên' : null,
@@ -165,7 +173,16 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     _buildFieldLabel('Số điện thoại', textMuted),
                     TextFormField(
                       controller: _phoneController,
+                      focusNode: _phoneFocusNode,
                       keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.telephoneNumber],
+                      onFieldSubmitted: (_) => _onSave(),
+                      // Giữ cả '+' vì validator chấp nhận dạng +84.
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                        LengthLimitingTextInputFormatter(12),
+                      ],
                       style: GoogleFonts.jetBrainsMono(fontSize: 14.5, color: textMain, fontWeight: FontWeight.w600),
                       decoration: _buildInputDecoration('Ví dụ: 0123456789', isDark),
                       validator: (val) {
