@@ -36,6 +36,7 @@ class BillDetailState {
   final BillDetailEntity bill;
   final List<BillShareBreakdownEntity> breakdown;
   final bool isLoading;
+  final bool isRefreshing;
   final bool isSaving;
   final bool isFinalizing;
   final bool isCalculatingBreakdown;
@@ -55,6 +56,7 @@ class BillDetailState {
     required this.bill,
     this.breakdown = const [],
     this.isLoading = false,
+    this.isRefreshing = false,
     this.isSaving = false,
     this.isFinalizing = false,
     this.isCalculatingBreakdown = false,
@@ -75,6 +77,7 @@ class BillDetailState {
     BillDetailEntity? bill,
     List<BillShareBreakdownEntity>? breakdown,
     bool? isLoading,
+    bool? isRefreshing,
     bool? isSaving,
     bool? isFinalizing,
     bool? isCalculatingBreakdown,
@@ -96,6 +99,7 @@ class BillDetailState {
       bill: bill ?? this.bill,
       breakdown: breakdown ?? this.breakdown,
       isLoading: isLoading ?? this.isLoading,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
       isSaving: isSaving ?? this.isSaving,
       isFinalizing: isFinalizing ?? this.isFinalizing,
       isCalculatingBreakdown:
@@ -395,101 +399,75 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   }
 
   /// Tải dữ liệu hoá đơn và danh sách thành viên nhóm từ API
+  Future<void>? _loadInFlight;
+
+  int get resourceVersion => state.bill.version;
+
   Future<void> loadBillDetail({
     required String billId,
     required String groupId,
-  }) async {
-    state = state.copyWith(isLoading: true);
-
-    // 1. Tải danh sách thành viên nhóm
-    final membersResult = await _repository.getGroupMembers(groupId: groupId);
-    if (!mounted) return;
-    List<BillMemberEntity> members = [];
-    membersResult.match((failure) => null, (mList) => members = mList);
-
-    // 2. Nếu là hoá đơn mới chưa lưu trên DB (billId rỗng hoặc bắt đầu bằng draft-):
-    // Chỉ cập nhật danh sách thành viên nhóm để gán người ăn, KHÔNG gọi GET bill lên server
-    if (billId.isEmpty || billId.startsWith('draft-')) {
-      final effectiveMembers = members.isNotEmpty
-          ? members
-          : state.bill.members;
-      final splitMethod = state.bill.splitMethod.isNotEmpty
-          ? state.bill.splitMethod
-          : 'item_ratio';
-      final isEven = splitMethod == 'even';
-
-      // Tự động gán Chủ chi (Creditor) là user hiện tại hoặc Captain nhóm
-      String creditorId = state.bill.creditorMemberId;
-      String creditorName = state.bill.creditorName;
-
-      final currentMember = effectiveMembers
-          .cast<BillMemberEntity?>()
-          .firstWhere(
-            (m) =>
-                m?.userId.isNotEmpty == true &&
-                m?.userId == state.currentUserId,
-            orElse: () => null,
-          );
-      final captainMember = effectiveMembers
-          .cast<BillMemberEntity?>()
-          .firstWhere((m) => m?.role == 'captain', orElse: () => null);
-
-      final selectedCreditor =
-          currentMember ??
-          captainMember ??
-          (effectiveMembers.isNotEmpty ? effectiveMembers.first : null);
-      if (selectedCreditor != null &&
-          (creditorId.isEmpty ||
-              !effectiveMembers.any((m) => m.memberId == creditorId))) {
-        creditorId = selectedCreditor.memberId;
-        creditorName = selectedCreditor.displayName;
-      }
-
-      final processedItems = state.bill.items.map((item) {
-        if (isEven && item.assignments.isEmpty) {
-          return item.copyWith(
-            assignments: _buildEvenAssignments(effectiveMembers),
-          );
-        }
-        return item;
-      }).toList();
-
-      final syncedBill = _syncBillWithItems(
-        state.bill.copyWith(
-          members: effectiveMembers,
-          creditorMemberId: creditorId,
-          creditorName: creditorName,
-          splitMethod: splitMethod,
-        ),
-        processedItems,
-      );
-
-      state = state.copyWith(
-        bill: syncedBill,
-        isLoading: false,
-        isDirty: state.bill.items.isNotEmpty,
-      );
-      return;
-    }
-
-    // 3. Tải chi tiết hoá đơn đã lưu từ server (khi billId là UUID thực tế)
-    final billResult = await _repository.getBillDetail(
+    bool background = false,
+  }) {
+    return _loadInFlight ??= _loadBillDetail(
       billId: billId,
       groupId: groupId,
-    );
-    if (!mounted) return;
-    billResult.match(
-      (failure) {
-        state = state.copyWith(isLoading: false, errorMessage: failure.message);
-      },
-      (bill) {
-        final effectiveMembers = members.isNotEmpty ? members : bill.members;
-        final splitMethod = bill.splitMethod.isNotEmpty
-            ? bill.splitMethod
+      background: background,
+    ).whenComplete(() => _loadInFlight = null);
+  }
+
+  Future<void> _loadBillDetail({
+    required String billId,
+    required String groupId,
+    required bool background,
+  }) async {
+    final previousBill = state.bill;
+    state = state.copyWith(isLoading: !background, isRefreshing: background);
+    try {
+      // 1. Tải danh sách thành viên nhóm
+      final membersResult = await _repository.getGroupMembers(groupId: groupId);
+      if (!mounted) return;
+      List<BillMemberEntity> members = [];
+      membersResult.match((failure) => null, (mList) => members = mList);
+
+      // 2. Nếu là hoá đơn mới chưa lưu trên DB (billId rỗng hoặc bắt đầu bằng draft-):
+      // Chỉ cập nhật danh sách thành viên nhóm để gán người ăn, KHÔNG gọi GET bill lên server
+      if (billId.isEmpty || billId.startsWith('draft-')) {
+        final effectiveMembers = members.isNotEmpty
+            ? members
+            : state.bill.members;
+        final splitMethod = state.bill.splitMethod.isNotEmpty
+            ? state.bill.splitMethod
             : 'item_ratio';
         final isEven = splitMethod == 'even';
 
-        final processedItems = bill.items.map((item) {
+        // Tự động gán Chủ chi (Creditor) là user hiện tại hoặc Captain nhóm
+        String creditorId = state.bill.creditorMemberId;
+        String creditorName = state.bill.creditorName;
+
+        final currentMember = effectiveMembers
+            .cast<BillMemberEntity?>()
+            .firstWhere(
+              (m) =>
+                  m?.userId.isNotEmpty == true &&
+                  m?.userId == state.currentUserId,
+              orElse: () => null,
+            );
+        final captainMember = effectiveMembers
+            .cast<BillMemberEntity?>()
+            .firstWhere((m) => m?.role == 'captain', orElse: () => null);
+
+        final selectedCreditor =
+            currentMember ??
+            captainMember ??
+            (effectiveMembers.isNotEmpty ? effectiveMembers.first : null);
+        if (selectedCreditor != null &&
+            (creditorId.isEmpty ||
+                !effectiveMembers.any((m) => m.memberId == creditorId))) {
+          creditorId = selectedCreditor.memberId;
+          creditorName = selectedCreditor.displayName;
+        }
+
+        final processedItems = state.bill.items.map((item) {
           if (isEven && item.assignments.isEmpty) {
             return item.copyWith(
               assignments: _buildEvenAssignments(effectiveMembers),
@@ -498,31 +476,10 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
           return item;
         }).toList();
 
-        String creditorName = bill.creditorName;
-        if (creditorName.isEmpty || creditorName == 'Chủ hoá đơn') {
-          final matchedCreditor = effectiveMembers
-              .cast<BillMemberEntity?>()
-              .firstWhere(
-                (m) =>
-                    m?.memberId == bill.creditorMemberId ||
-                    (state.currentUserId != null &&
-                        m?.userId == state.currentUserId),
-                orElse: () =>
-                    effectiveMembers.cast<BillMemberEntity?>().firstWhere(
-                      (m) => m?.role == 'captain',
-                      orElse: () => effectiveMembers.isNotEmpty
-                          ? effectiveMembers.first
-                          : null,
-                    ),
-              );
-          if (matchedCreditor != null) {
-            creditorName = matchedCreditor.displayName;
-          }
-        }
-
         final syncedBill = _syncBillWithItems(
-          bill.copyWith(
+          state.bill.copyWith(
             members: effectiveMembers,
+            creditorMemberId: creditorId,
             creditorName: creditorName,
             splitMethod: splitMethod,
           ),
@@ -531,16 +488,99 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 
         state = state.copyWith(
           bill: syncedBill,
-          breakdown: _enrichBreakdown(
-            bill.breakdown,
-            effectiveMembers,
-            syncedBill.creditorMemberId,
-          ),
           isLoading: false,
-          isDirty: false,
+          isDirty: state.bill.items.isNotEmpty,
         );
-      },
-    );
+        return;
+      }
+
+      // 3. Tải chi tiết hoá đơn đã lưu từ server (khi billId là UUID thực tế)
+      final billResult = await _repository.getBillDetail(
+        billId: billId,
+        groupId: groupId,
+      );
+      if (!mounted) return;
+      billResult.match(
+        (failure) {
+          state = state.copyWith(
+            isLoading: false,
+            errorMessage: failure.message,
+          );
+        },
+        (bill) {
+          // A background response must not overwrite edits or a newer save.
+          if (background &&
+              (state.isDirty || !identical(state.bill, previousBill))) {
+            return;
+          }
+          final effectiveMembers = members.isNotEmpty ? members : bill.members;
+          final splitMethod = bill.splitMethod.isNotEmpty
+              ? bill.splitMethod
+              : 'item_ratio';
+          final isEven = splitMethod == 'even';
+
+          final processedItems = bill.items.map((item) {
+            if (isEven && item.assignments.isEmpty) {
+              return item.copyWith(
+                assignments: _buildEvenAssignments(effectiveMembers),
+              );
+            }
+            return item;
+          }).toList();
+
+          String creditorName = bill.creditorName;
+          if (creditorName.isEmpty || creditorName == 'Chủ hoá đơn') {
+            final matchedCreditor = effectiveMembers
+                .cast<BillMemberEntity?>()
+                .firstWhere(
+                  (m) =>
+                      m?.memberId == bill.creditorMemberId ||
+                      (state.currentUserId != null &&
+                          m?.userId == state.currentUserId),
+                  orElse: () =>
+                      effectiveMembers.cast<BillMemberEntity?>().firstWhere(
+                        (m) => m?.role == 'captain',
+                        orElse: () => effectiveMembers.isNotEmpty
+                            ? effectiveMembers.first
+                            : null,
+                      ),
+                );
+            if (matchedCreditor != null) {
+              creditorName = matchedCreditor.displayName;
+            }
+          }
+
+          final syncedBill = _syncBillWithItems(
+            bill.copyWith(
+              members: effectiveMembers,
+              creditorName: creditorName,
+              splitMethod: splitMethod,
+            ),
+            processedItems,
+          );
+
+          state = state.copyWith(
+            bill: syncedBill,
+            breakdown: _enrichBreakdown(
+              bill.breakdown,
+              effectiveMembers,
+              syncedBill.creditorMemberId,
+            ),
+            isLoading: false,
+            isDirty: false,
+          );
+        },
+      );
+    } finally {
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          isRefreshing: false,
+          errorMessage: state.errorMessage,
+          successMessage: state.successMessage,
+        );
+      }
+    }
   }
 
   /// Kích hoạt tiến trình tải ảnh & gọi AI OCR
@@ -651,7 +691,10 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
   /// Bấm "Thử lại" mà gọi lại [runOcrProcess] thì mỗi lần thử đẻ ra một bill
   /// draft mới trong nhóm; và với hóa đơn mở lại từ danh sách thì trong tay
   /// không còn bytes ảnh nên [runOcrProcess] im lặng không làm gì cả.
-  Future<void> retryOcr({required String groupId, required String billId}) async {
+  Future<void> retryOcr({
+    required String groupId,
+    required String billId,
+  }) async {
     if (state.isProcessing || billId.isEmpty) return;
 
     state = state.copyWith(
@@ -743,7 +786,8 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
           // và đã bị dọn để hóa đơn này chạy lại được.
           'stale_timeout' =>
             'Lần bóc tách trước bị gián đoạn và đã dừng hẳn. Hãy thử lại.',
-          _ => 'Bóc tách hóa đơn bằng AI thất bại. Hãy thử lại, hoặc tự nhập tay.',
+          _ =>
+            'Bóc tách hóa đơn bằng AI thất bại. Hãy thử lại, hoặc tự nhập tay.',
         };
     }
   }
@@ -1615,15 +1659,14 @@ class BillDetailNotifier extends StateNotifier<BillDetailState> {
 /// `autoDispose` có chủ đích: khóa của family là chính `BillDetailEntity` khởi
 /// tạo, nên mỗi lần mở màn chi tiết — kể cả mỗi lần quét OCR, vì lần nào cũng
 /// dựng một entity mới — là một entry mới trong family. Không có autoDispose thì
-/// không entry nào bị gỡ: notifier sống tới hết phiên, và hai realtime interest
+/// không entry nào bị gỡ: notifier sống tới hết phiên, và realtime interest
 /// nó đăng ký cũng vậy, nên mỗi frame realtime lại kéo theo một lượt
 /// `loadBillDetail` cho từng màn hình đã đóng từ lâu.
-final billDetailNotifierProvider =
-    StateNotifierProvider.autoDispose.family<
-      BillDetailNotifier,
-      BillDetailState,
-      BillDetailEntity
-    >((ref, initialBill) {
+final billDetailNotifierProvider = StateNotifierProvider.autoDispose
+    .family<BillDetailNotifier, BillDetailState, BillDetailEntity>((
+      ref,
+      initialBill,
+    ) {
       ref.watch(sessionRevisionProvider);
       final repository = getIt<BillRepository>();
       final notifier = BillDetailNotifier(repository, initialBill);
@@ -1633,17 +1676,11 @@ final billDetailNotifierProvider =
           initialBill.groupId,
           initialBill.id,
         ),
+        resourceVersion: () => notifier.resourceVersion,
         refresh: () => notifier.loadBillDetail(
           billId: initialBill.id,
           groupId: initialBill.groupId,
-        ),
-      );
-      registerRealtimeInterest(
-        ref,
-        key: RealtimeInterestKey.ocrWaiter(initialBill.groupId, initialBill.id),
-        refresh: () => notifier.loadBillDetail(
-          billId: initialBill.id,
-          groupId: initialBill.groupId,
+          background: true,
         ),
       );
       return notifier;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:paysplit/core/error/failures.dart';
+import 'package:paysplit/core/realtime/user_realtime_owner.dart';
 import 'package:paysplit/di/injection.dart';
 import 'package:paysplit/features/bills/domain/entities/bill_detail_entity.dart';
 import 'package:paysplit/features/bills/domain/entities/captured_bill_photo.dart';
@@ -136,6 +138,65 @@ void main() {
   });
 
   group('BillDetailNotifier Unit Tests', () {
+    test(
+      'bill detail registers one refresh interest and removes it on close',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final subscription = container.listen(
+          billDetailNotifierProvider(sampleBill),
+          (_, _) {},
+        );
+        final registry = container.read(realtimeInterestRegistryProvider);
+        expect(registry.matching(surface: 'bill.detail').length, 1);
+        expect(registry.matching(surface: 'ocr.waiter'), isEmpty);
+        subscription.close();
+        await container.pump();
+        expect(registry.matching(surface: 'bill.detail'), isEmpty);
+      },
+    );
+
+    test(
+      'background refresh keeps content and shares concurrent requests',
+      () async {
+        final repository = MockBillRepository();
+        final pending = Completer<Either<Failure, BillDetailEntity>>();
+        when(
+          () => repository.getGroupMembers(groupId: 'group-1'),
+        ).thenAnswer((_) async => Right(sampleMembers));
+        when(
+          () =>
+              repository.getBillDetail(billId: 'bill-123', groupId: 'group-1'),
+        ).thenAnswer((_) => pending.future);
+        final notifier = BillDetailNotifier(repository, sampleBill);
+        addTearDown(notifier.dispose);
+        final refresh = notifier.loadBillDetail(
+          billId: 'bill-123',
+          groupId: 'group-1',
+          background: true,
+        );
+        final duplicate = notifier.loadBillDetail(
+          billId: 'bill-123',
+          groupId: 'group-1',
+          background: true,
+        );
+        expect(notifier.state.isLoading, isFalse);
+        expect(notifier.state.isRefreshing, isTrue);
+        expect(notifier.state.bill.items, isNotEmpty);
+        notifier.toggleMemberAssignment('item-1', 'm-3');
+        pending.complete(Right(sampleBill));
+        await Future.wait([refresh, duplicate]);
+        expect(notifier.state.isRefreshing, isFalse);
+        expect(notifier.state.isDirty, isTrue);
+        expect(notifier.state.bill.items.first.assignments.length, 3);
+        verify(
+          () =>
+              repository.getBillDetail(billId: 'bill-123', groupId: 'group-1'),
+        ).called(1);
+        verify(() => repository.getGroupMembers(groupId: 'group-1')).called(1);
+      },
+    );
+
     test('computes live math and allocation breakdown correctly', () {
       final notifier = BillDetailNotifier(mockRepository, sampleBill);
 

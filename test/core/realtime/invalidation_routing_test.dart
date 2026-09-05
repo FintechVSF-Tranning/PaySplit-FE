@@ -79,6 +79,66 @@ const _allEventTypes = <String>[
 ];
 
 void main() {
+  test('bill version filters echoes without suppressing dependent changes', () {
+    final registry = _fullRegistry();
+    var currentVersion = 5;
+    registry.register(
+      RealtimeInterest(
+        key: RealtimeInterestKey.billDetail(_groupId, _billId),
+        resourceVersion: () => currentVersion,
+      ),
+    );
+    Set<String> targets(
+      String type, {
+      int? version,
+      String event = 'invalidate',
+    }) => UserRealtimeOwner()
+        .targetsFor(
+          SseFrame(
+            event: event,
+            data: {
+              'type': type,
+              'group_id': _groupId,
+              'resource_id': _billId,
+              'bill_id': _billId,
+              'resource_version': ?version,
+            },
+          ),
+          registryOverride: registry,
+        )
+        .map((i) => i.key.surface)
+        .toSet();
+    for (final version in [4, 5]) {
+      expect(
+        targets('bill.content_changed', version: version),
+        isNot(contains('bill.detail')),
+      );
+      expect(
+        targets('bill.content_changed', version: version),
+        contains('group.bills'),
+      );
+    }
+    expect(
+      targets('bill.content_changed', version: 6),
+      contains('bill.detail'),
+    );
+    currentVersion = 6;
+    expect(
+      targets('bill.content_changed', version: 6),
+      isNot(contains('bill.detail')),
+    );
+    expect(targets('bill.content_changed'), contains('bill.detail'));
+    expect(targets('bill.deleted', version: 6), contains('bill.detail'));
+    expect(
+      targets('bill.settlement_changed', version: 6),
+      contains('bill.detail'),
+    );
+    expect(
+      targets('', event: 'ocr.updated', version: 6),
+      contains('bill.detail'),
+    );
+  });
+
   group('bảng định tuyến invalidation', () {
     test('mọi mutation làm đổi số bill mở đều làm mới danh sách nhóm', () {
       // covers: AC-18, AC-22

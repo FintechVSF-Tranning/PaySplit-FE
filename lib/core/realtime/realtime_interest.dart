@@ -46,9 +46,13 @@ class RealtimeInterest {
     this.refresh,
     this.applyRoster,
     this.patchGroup,
+    this.resourceVersion,
   });
 
   final RealtimeInterestKey key;
+
+  /// Current persisted resource version, read when routing an invalidation.
+  final int Function()? resourceVersion;
 
   /// Làm mới toàn bộ surface. Luôn được dùng sau `ready` và khi tràn bộ đếm.
   final Future<void> Function()? refresh;

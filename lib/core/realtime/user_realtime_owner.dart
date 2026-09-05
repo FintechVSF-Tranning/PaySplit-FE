@@ -310,16 +310,25 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
     final type = frame.data['type'] as String? ?? '';
     final groupId = frame.data['group_id'] as String?;
     final resourceId = frame.data['resource_id'] as String?;
+    final version = frame.data['resource_version'];
+    final billDetails = registry
+        .matching(surface: 'bill.detail', groupId: groupId, billId: resourceId)
+        .where((interest) {
+          // Deletion and settlement can change without advancing bill.version.
+          if (type == 'bill.deleted' || type == 'bill.settlement_changed') {
+            return true;
+          }
+          final currentVersion = interest.resourceVersion?.call();
+          return version is! int ||
+              currentVersion == null ||
+              version > currentVersion;
+        });
     switch (type) {
       case 'bill.created':
       case 'bill.content_changed':
       case 'bill.reviewed':
         return [
-          ...registry.matching(
-            surface: 'bill.detail',
-            groupId: groupId,
-            billId: resourceId,
-          ),
+          ...billDetails,
           ...registry.matching(surface: 'group.bills', groupId: groupId),
           ..._groupSummaryLists(registry),
           ...registry.matching(surface: 'home.activities'),
@@ -328,11 +337,7 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
       case 'bill.finalized':
       case 'bill.voided':
         return [
-          ...registry.matching(
-            surface: 'bill.detail',
-            groupId: groupId,
-            billId: resourceId,
-          ),
+          ...billDetails,
           ...registry.matching(surface: 'group.bills', groupId: groupId),
           ...registry.matching(surface: 'group.debts', groupId: groupId),
           ...registry.matching(surface: 'group.detail', groupId: groupId),
@@ -358,11 +363,7 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
         ];
       case 'bill.settlement_changed':
         return [
-          ...registry.matching(
-            surface: 'bill.detail',
-            groupId: groupId,
-            billId: resourceId,
-          ),
+          ...billDetails,
           ...registry.matching(surface: 'group.bills', groupId: groupId),
         ];
       case 'settlement.payment_changed':
