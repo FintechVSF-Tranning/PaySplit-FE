@@ -281,14 +281,13 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                                   key: const Key('vietqr-image'),
                                   fit: BoxFit.contain,
                                   semanticLabel: 'Mã VietQR thanh toán',
-                                  errorBuilder:
-                                      (context, error, stackTrace) =>
-                                          const Center(
-                                            child: Text(
-                                              'Không tải được mã VietQR',
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Center(
+                                        child: Text(
+                                          'Không tải được mã VietQR',
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
                                 ),
                               ),
                               Positioned(
@@ -414,7 +413,9 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                               : const Color(0xFFF0FDFA),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: const Color(0xFF0F766E).withValues(alpha: 0.35),
+                            color: const Color(
+                              0xFF0F766E,
+                            ).withValues(alpha: 0.35),
                           ),
                         ),
                         child: Column(
@@ -423,7 +424,9 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                                color: const Color(
+                                  0xFF0F766E,
+                                ).withValues(alpha: 0.12),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -489,11 +492,14 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                                     errorBuilder:
                                         (context, error, stackTrace) =>
                                             Container(
-                                      width: 48,
-                                      height: 48,
-                                      color: Colors.grey.shade300,
-                                      child: const Icon(Icons.image, size: 20),
-                                    ),
+                                              width: 48,
+                                              height: 48,
+                                              color: Colors.grey.shade300,
+                                              child: const Icon(
+                                                Icons.image,
+                                                size: 20,
+                                              ),
+                                            ),
                                   ),
                                 ),
                                 Positioned(
@@ -502,7 +508,9 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                                   child: Container(
                                     padding: const EdgeInsets.all(2),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.65),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.65,
+                                      ),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: const Icon(
@@ -533,7 +541,8 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                                   Row(
                                     children: [
                                       const Icon(
-                                        HugeIcons.strokeRoundedCheckmarkCircle02,
+                                        HugeIcons
+                                            .strokeRoundedCheckmarkCircle02,
                                         size: 13,
                                         color: Color(0xFF059669),
                                       ),
@@ -564,7 +573,9 @@ class _DynamicVietQrSheetState extends State<DynamicVietQrSheet> {
                                     ),
                                   ),
                                   Text(
-                                    _formatFileSize(_selectedProof!.bytes.length),
+                                    _formatFileSize(
+                                      _selectedProof!.bytes.length,
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.plusJakartaSans(

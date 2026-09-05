@@ -62,7 +62,10 @@ void main() {
       ),
     );
     registry.unregister(key);
-    expect(registry.matching(surface: 'bill.detail', groupId: 'g1', billId: 'b1'), isEmpty);
+    expect(
+      registry.matching(surface: 'bill.detail', groupId: 'g1', billId: 'b1'),
+      isEmpty,
+    );
     expect(hits, 0);
   });
 
@@ -77,11 +80,7 @@ void main() {
     final targets = UserRealtimeOwner().targetsFor(
       const SseFrame(
         event: 'invalidate',
-        data: {
-          'type': 'bill.deleted',
-          'group_id': 'g1',
-          'resource_id': 'b1',
-        },
+        data: {'type': 'bill.deleted', 'group_id': 'g1', 'resource_id': 'b1'},
       ),
       registryOverride: registry,
     );

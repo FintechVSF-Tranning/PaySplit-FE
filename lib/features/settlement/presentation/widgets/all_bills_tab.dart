@@ -51,14 +51,19 @@ class AllBillsTab extends StatelessWidget {
               onTap: onScanBill,
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: isDark
                       ? const Color(0xFF0F766E).withValues(alpha: 0.2)
                       : const Color(0xFF0F766E).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E),
+                    color: isDark
+                        ? const Color(0xFF14B8A6)
+                        : const Color(0xFF0F766E),
                   ),
                 ),
                 child: Row(
@@ -66,7 +71,9 @@ class AllBillsTab extends StatelessWidget {
                     Icon(
                       HugeIcons.strokeRoundedCamera01,
                       size: 13,
-                      color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E),
+                      color: isDark
+                          ? const Color(0xFF14B8A6)
+                          : const Color(0xFF0F766E),
                     ),
                     const SizedBox(width: 5),
                     Text(
@@ -74,7 +81,9 @@ class AllBillsTab extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E),
+                        color: isDark
+                            ? const Color(0xFF14B8A6)
+                            : const Color(0xFF0F766E),
                       ),
                     ),
                   ],
@@ -116,7 +125,10 @@ class AllBillsTab extends StatelessWidget {
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: onClearSearch,
-                      icon: const Icon(HugeIcons.strokeRoundedCancel01, size: 14),
+                      icon: const Icon(
+                        HugeIcons.strokeRoundedCancel01,
+                        size: 14,
+                      ),
                       label: const Text('Xóa tìm kiếm để xem tất cả'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF0F766E),
@@ -159,7 +171,9 @@ class AllBillsTab extends StatelessWidget {
                             width: 28,
                             height: 28,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0F766E).withValues(alpha: 0.1),
+                              color: const Color(
+                                0xFF0F766E,
+                              ).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(7),
                             ),
                             child: const Icon(
