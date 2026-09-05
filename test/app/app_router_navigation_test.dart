@@ -71,7 +71,7 @@ void main() {
     );
   });
 
-  testWidgets('settings routes stay inside the persistent navigation shell', (
+  testWidgets('settings routes are registered outside the navigation shell', (
     tester,
   ) async {
     final container = ProviderContainer(
@@ -102,15 +102,11 @@ void main() {
       3,
     );
 
-    router.go(AppRoutes.bankSettings);
+    router.push(AppRoutes.bankSettings);
     await tester.pumpAndSettle();
 
     expect(find.byType(BankSettingsPage), findsOneWidget);
-    expect(find.byType(AppBottomNavBar), findsOneWidget);
-    expect(
-      tester.widget<AppBottomNavBar>(find.byType(AppBottomNavBar)).currentIndex,
-      3,
-    );
+    expect(find.byType(AppBottomNavBar), findsNothing);
   });
 
   testWidgets(

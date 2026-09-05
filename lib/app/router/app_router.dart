@@ -168,21 +168,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.profile,
                 builder: (context, state) => const ProfilePage(),
               ),
-              GoRoute(
-                path: AppRoutes.editProfile,
-                builder: (context, state) => const EditProfilePage(),
-              ),
-              GoRoute(
-                path: AppRoutes.bankSettings,
-                builder: (context, state) => const BankSettingsPage(),
-              ),
-              GoRoute(
-                path: AppRoutes.changePassword,
-                builder: (context, state) => const ChangePasswordPage(),
-              ),
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: AppRoutes.editProfile,
+        builder: (context, state) => const EditProfilePage(),
+      ),
+      GoRoute(
+        path: AppRoutes.bankSettings,
+        builder: (context, state) => const BankSettingsPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.changePassword,
+        builder: (context, state) => const ChangePasswordPage(),
       ),
       // Các màn hình con dạng Stack của tab Nhóm: đặt ngoài shell để hiển thị
       // full-screen (ẩn bottom navigation bar) và không làm lệch tab active.
