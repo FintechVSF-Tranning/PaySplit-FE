@@ -51,6 +51,28 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
 
     _accountController.addListener(() => setState(() {}));
     _holderController.addListener(() => setState(() {}));
+    _holderFocusNode.addListener(_normalizeHolderOnBlur);
+  }
+
+  /// Chuẩn hóa tên chủ tài khoản khi rời ô.
+  ///
+  /// [BankHolderInputFormatter] cố ý đứng yên khi bộ gõ còn preedit mở, và với
+  /// IBus/Unikey thì preedit có thể còn mở cho tới lúc rời ô — bấm ra ngoài
+  /// không sinh thêm lượt cập nhật nào, nên từ cuối nằm lại nguyên dạng vừa gõ.
+  /// Đây là lượt chuẩn hóa còn thiếu.
+  ///
+  /// Ghi thẳng vào controller ở đây là an toàn, khác hẳn lúc đang gõ: focus đã
+  /// rời đi nên không còn kết nối bàn phím nào để mà lệch pha.
+  void _normalizeHolderOnBlur() {
+    if (_holderFocusNode.hasFocus) return;
+    final normalized = VietnameseUtils.toBankHolderFormat(
+      _holderController.text,
+    );
+    if (normalized == _holderController.text) return;
+    _holderController.value = TextEditingValue(
+      text: normalized,
+      selection: TextSelection.collapsed(offset: normalized.length),
+    );
   }
 
   String? _normalizeBankCode(String? code) {
@@ -72,6 +94,7 @@ class _BankSettingsPageState extends ConsumerState<BankSettingsPage> {
 
   @override
   void dispose() {
+    _holderFocusNode.removeListener(_normalizeHolderOnBlur);
     _holderFocusNode.dispose();
     _accountController.dispose();
     _holderController.dispose();

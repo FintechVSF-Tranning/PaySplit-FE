@@ -147,5 +147,41 @@ void main() {
         );
       },
     );
+    testWidgets(
+      'BankSettingsPage: rời ô tên chủ tài khoản thì chuẩn hóa nốt từ cuối',
+      (tester) async {
+        // BankHolderInputFormatter cố ý đứng yên khi bộ gõ còn preedit mở, mà
+        // IBus/Unikey giữ preedit tới tận lúc rời ô: bấm ra ngoài không sinh
+        // thêm lượt cập nhật nào nên từ cuối nằm lại nguyên dạng vừa gõ.
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 2.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+        addTearDown(() => tester.view.resetDevicePixelRatio());
+
+        await tester.pumpWidget(
+          const ProviderScope(child: MaterialApp(home: BankSettingsPage())),
+        );
+        await tester.pumpAndSettle();
+
+        final holderFinder = find.byType(TextFormField).last;
+        final holder = tester.widget<TextFormField>(holderFinder);
+        final controller = holder.controller!;
+
+        await tester.tap(holderFinder);
+        await tester.pumpAndSettle();
+
+        // Trạng thái bộ gõ vừa chốt nhưng chưa qua formatter: chữ thường, còn
+        // dấu, còn khoảng trắng thừa.
+        controller.text = 'PHAM LE HOANG nam ';
+        await tester.pumpAndSettle();
+        expect(controller.text, 'PHAM LE HOANG nam ');
+
+        // Bấm sang ô khác — đúng thao tác "ấn ra bên ngoài" của người dùng.
+        await tester.tap(find.byType(TextFormField).first);
+        await tester.pumpAndSettle();
+
+        expect(controller.text, 'PHAM LE HOANG NAM');
+      },
+    );
   });
 }
