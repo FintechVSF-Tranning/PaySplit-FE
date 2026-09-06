@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 
@@ -269,16 +272,23 @@ class SettlementRepositoryImpl implements SettlementRepository {
     required ProofUploadEntity image,
     String? note,
   }) {
+    final trimmedNote = note?.trim();
+    final normalizedNote = trimmedNote == null || trimmedNote.isEmpty
+        ? null
+        : trimmedNote;
     return _guard(
       () => _remoteDataSource.submitProof(
         groupId: groupId,
         paymentId: paymentId,
         imageName: image.name,
         imageBytes: image.bytes,
-        note: note,
-        // Sử dụng UUIDv4 ngẫu nhiên cho mỗi lần gửi minh chứng để tránh lỗi
-        // IDEMPOTENCY_KEY_REUSED khi người dùng chọn ảnh khác hoặc gửi lại thông tin mới.
-        idempotencyKey: _uuid.v4(),
+        note: normalizedNote,
+        // Retry cùng nội dung phải replay được kể cả khi mất phản hồi thành
+        // công. Đổi ảnh, ghi chú hoặc payment thì dùng key mới để tránh conflict.
+        // Hash bytes thay vì tên file, khớp cách BE nhận diện nội dung ảnh.
+        idempotencyKey: _idempotencyKey(
+          'proof:${jsonEncode([groupId, paymentId, sha256.convert(image.bytes).toString(), normalizedNote])}',
+        ),
       ),
     );
   }

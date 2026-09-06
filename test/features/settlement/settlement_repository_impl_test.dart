@@ -1,12 +1,18 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:paysplit/core/error/failures.dart';
 import 'package:paysplit/features/settlement/data/datasources/settlement_remote_data_source.dart';
 import 'package:paysplit/features/settlement/data/repositories/settlement_repository_impl.dart';
+import 'package:paysplit/features/settlement/domain/entities/settlement_entities.dart';
 
 class _MockRemoteDataSource extends Mock
     implements SettlementRemoteDataSource {}
 
 void main() {
+  setUpAll(() => registerFallbackValue(Uint8List(0)));
   group('SettlementRepositoryImpl', () {
     late _MockRemoteDataSource remote;
     late SettlementRepositoryImpl repository;
@@ -332,6 +338,141 @@ void main() {
       // 4 nhóm song song, mỗi nhóm 2 request (debts + bills) = trần 8.
       expect(peak, lessThanOrEqualTo(8));
       expect(peak, lessThan(groupCount));
+    });
+
+    test('replays a committed proof after its response is lost', () async {
+      String? completedKey;
+      var submissions = 0;
+      when(
+        () => remote.submitProof(
+          groupId: any(named: 'groupId'),
+          paymentId: any(named: 'paymentId'),
+          imageName: any(named: 'imageName'),
+          imageBytes: any(named: 'imageBytes'),
+          note: any(named: 'note'),
+          idempotencyKey: any(named: 'idempotencyKey'),
+        ),
+      ).thenAnswer((invocation) async {
+        final key = invocation.namedArguments[#idempotencyKey]! as String;
+        final request = RequestOptions(path: '/proof');
+        if (completedKey == null) {
+          completedKey = key;
+          submissions++;
+          throw DioException(
+            requestOptions: request,
+            type: DioExceptionType.receiveTimeout,
+          );
+        }
+        // The server replays completed keys before checking payment status.
+        if (key != completedKey) {
+          throw DioException(
+            requestOptions: request,
+            type: DioExceptionType.badResponse,
+            response: Response<dynamic>(
+              requestOptions: request,
+              statusCode: 409,
+              data: {
+                'error': {'code': 'PAYMENT_NOT_PENDING_PROOF'},
+              },
+            ),
+          );
+        }
+      });
+      final image = ProofUploadEntity(
+        name: 'receipt.jpg',
+        bytes: Uint8List.fromList([1, 2, 3]),
+      );
+      await expectLater(
+        repository.submitProof(
+          groupId: 'group-1',
+          paymentId: 'payment-1',
+          image: image,
+        ),
+        throwsA(isA<Failure>()),
+      );
+      // Reopening the screen/recreating the repository must also preserve retry.
+      await SettlementRepositoryImpl(
+        remote,
+      ).submitProof(groupId: 'group-1', paymentId: 'payment-1', image: image);
+      expect(submissions, 1);
+    });
+
+    test(
+      'proof keys follow payment, image bytes and normalized note',
+      () async {
+        final keys = <String>[];
+        when(
+          () => remote.submitProof(
+            groupId: any(named: 'groupId'),
+            paymentId: any(named: 'paymentId'),
+            imageName: any(named: 'imageName'),
+            imageBytes: any(named: 'imageBytes'),
+            note: any(named: 'note'),
+            idempotencyKey: any(named: 'idempotencyKey'),
+          ),
+        ).thenAnswer((invocation) async {
+          keys.add(invocation.namedArguments[#idempotencyKey]! as String);
+        });
+        Future<void> submit({
+          String group = 'group-1',
+          String payment = 'payment-1',
+          String name = 'receipt.jpg',
+          List<int> bytes = const [1, 2, 3],
+          String? note = 'Paid',
+        }) => repository.submitProof(
+          groupId: group,
+          paymentId: payment,
+          note: note,
+          image: ProofUploadEntity(
+            name: name,
+            bytes: Uint8List.fromList(bytes),
+          ),
+        );
+
+        await submit();
+        await submit(name: 'renamed.jpg', note: '  Paid  ');
+        await submit(bytes: [3, 2, 1]);
+        await submit(note: 'Updated');
+        await submit(payment: 'payment-2');
+        await submit(group: 'group-2');
+        await submit(note: null);
+        await submit(note: '');
+        await submit(note: '   ');
+        expect(keys[1], keys[0]);
+        expect({keys[0], ...keys.sublist(2, 7)}, hasLength(6));
+        expect(keys[7], keys[6]);
+        expect(keys[8], keys[6]);
+      },
+    );
+
+    test('creates a fresh QR after rejection for the same debts', () async {
+      final cached = <String, Map<String, dynamic>>{};
+      var rejected = false;
+      when(
+        () => remote.generatePaymentQr(
+          groupId: 'group-1',
+          creditorId: 'creditor-1',
+          debtIds: const ['debt-1'],
+          idempotencyKey: any(named: 'idempotencyKey'),
+        ),
+      ).thenAnswer((invocation) async {
+        final key = invocation.namedArguments[#idempotencyKey]! as String;
+        return cached.putIfAbsent(
+          key,
+          () => {
+            ..._payment(status: 'pending_proof'),
+            'id': rejected ? 'payment-2' : 'payment-1',
+          },
+        );
+      });
+      Future<PaymentQrEntity> generate() => repository.generatePaymentQr(
+        groupId: 'group-1',
+        creditorId: 'creditor-1',
+        debtIds: const ['debt-1'],
+      );
+      expect((await generate()).id, 'payment-1');
+      rejected = true;
+      expect((await generate()).id, 'payment-2');
     });
 
     test('Idempotency-Key ổn định khi lặp lại cùng một thao tác', () async {
