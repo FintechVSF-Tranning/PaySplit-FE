@@ -33,7 +33,7 @@ class SessionRefresher {
   final String? baseUrlOverride;
 
   Future<bool>? _inFlight;
-  bool _endNotified = false;
+  Future<void>? _ending;
 
   String get baseUrl => baseUrlOverride ?? EnvConfig.apiBaseUrl;
 
@@ -78,8 +78,6 @@ class SessionRefresher {
       }
 
       await _tokens.saveTokens(accessToken: access, refreshToken: refresh);
-      // Làm mới được nghĩa là phiên vẫn sống: lần mất phiên sau phải được báo lại.
-      _endNotified = false;
       return true;
     } on DioException {
       return false;
@@ -91,13 +89,15 @@ class SessionRefresher {
   /// Nhiều đường cùng chết vì một phiên hỏng (vài request REST song song cộng
   /// thêm stream realtime), nên nếu không chặn, UI nhận cả loạt sự kiện cho
   /// cùng một sự việc.
-  Future<void> endSession() async {
+  Future<void> endSession() {
+    return _ending ??= _endSession().whenComplete(() => _ending = null);
+  }
+
+  Future<void> _endSession() async {
     final hadToken =
         (await _tokens.refreshToken)?.isNotEmpty == true ||
         (await _tokens.accessToken)?.isNotEmpty == true;
     await _tokens.clear();
-    if (_endNotified) return;
-    _endNotified = true;
     if (hadToken) {
       _sessionEvents?.notifyExpired();
     }

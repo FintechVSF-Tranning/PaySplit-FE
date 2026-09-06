@@ -133,6 +133,49 @@ void main() {
 
   setUp(() => RealtimeTransportMode.instance.setLegacyFallback(false));
 
+  test(
+    'session ended clears tokens immediately without reconnecting',
+    () async {
+      final script = StreamController<SseFrame>.broadcast();
+      final source = _FakeStreamSource([script]);
+      final h = _harness(scripts: [script], source: source);
+      var expired = 0;
+      final subscription = h.events.onExpired.listen((_) => expired++);
+      addTearDown(subscription.cancel);
+      h.owner.handleLifecycle(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+      script.add(
+        const SseFrame(event: 'close', data: {'reason': 'session_ended'}),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(h.tokens.cleared, isTrue);
+      expect(expired, 1);
+      expect(
+        h.container.read(userRealtimeOwnerProvider).transport,
+        RealtimeTransport.signedOut,
+      );
+      expect(source.opened, 1);
+      await script.close();
+    },
+  );
+
+  test('each new login can expire, concurrent endings notify once', () async {
+    final tokens = _FakeTokenStorage();
+    final events = SessionEvents();
+    final refresher = SessionRefresher(tokens, events);
+    var expired = 0;
+    final subscription = events.onExpired.listen((_) => expired++);
+    addTearDown(subscription.cancel);
+    addTearDown(events.dispose);
+    await Future.wait([refresher.endSession(), refresher.endSession()]);
+    await Future<void>.delayed(Duration.zero);
+    expect(expired, 1);
+    await tokens.saveTokens(accessToken: 'access-2', refreshToken: 'refresh-2');
+    await refresher.endSession();
+    await Future<void>.delayed(Duration.zero);
+    expect(expired, 2);
+  });
+
   test('ready refetches every mounted interest and reports live', () async {
     // covers: AC-17, AC-18
     final script = StreamController<SseFrame>.broadcast();

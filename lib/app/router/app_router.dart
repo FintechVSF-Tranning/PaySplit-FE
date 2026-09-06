@@ -29,6 +29,7 @@ import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/settlement/presentation/pages/settlement_page.dart';
 import '../../features/settlement/presentation/providers/settlement_controller.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
+import '../session/session_scope.dart';
 import 'app_routes.dart';
 import 'group_detail_route_args.dart';
 import 'main_navigation_shell.dart';
@@ -73,6 +74,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (!isAuth) {
+        if (ref.read(sessionExpiredProvider) &&
+            (!isGoingToAuth ||
+                isGoingToSplash ||
+                state.matchedLocation == AppRoutes.welcome)) {
+          return AppRoutes.login;
+        }
         if (isGoingToSplash) {
           return AppRoutes.welcome;
         }

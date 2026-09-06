@@ -29,10 +29,11 @@ class AuthController extends _$AuthController {
   @override
   FutureOr<UserEntity?> build() async {
     // Phiên bị thu hồi / refresh token hỏng: đưa app về trạng thái chưa đăng
-    // nhập để router tự chuyển ra màn chào, thay vì để người dùng kẹt lại trong
+    // nhập để router tự chuyển ra màn đăng nhập, thay vì để người dùng kẹt lại trong
     // màn hình cũ với mọi API trả 401.
     final subscription = getIt<SessionEvents>().onExpired.listen((_) {
       if (state.hasValue && state.valueOrNull != null) {
+        ref.read(sessionExpiredProvider.notifier).state = true;
         state = const AsyncData(null);
       }
     });

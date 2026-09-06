@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 
 import '../../../../app/router/app_routes.dart';
+import '../../../../app/session/session_scope.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/error/failures.dart';
@@ -204,6 +205,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     const SizedBox(height: 36),
 
                     // Success Alert after Password Reset
+                    if (ref.watch(sessionExpiredProvider)) ...[
+                      Semantics(
+                        liveRegion: true,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.danger.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Phiên đăng nhập đã kết thúc. Tài khoản có thể đã '
+                            'được đăng nhập trên thiết bị khác. '
+                            'Vui lòng đăng nhập lại.',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     if (widget.resetSuccess) ...[
                       Container(
                         padding: const EdgeInsets.all(12),

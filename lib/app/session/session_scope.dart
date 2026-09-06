@@ -12,7 +12,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// dùng và bắn một loạt request thừa ngay lúc chuyển tài khoản.
 final sessionRevisionProvider = StateProvider<int>((ref) => 0);
 
+/// Giữ cảnh báo trên màn đăng nhập cho tới khi bắt đầu phiên mới.
+final sessionExpiredProvider = StateProvider<bool>((ref) => false);
+
 /// Đánh dấu bắt đầu một phiên mới: gọi ngay sau khi đăng nhập thành công.
 void beginNewSession(Ref ref) {
+  ref.read(sessionExpiredProvider.notifier).state = false;
   ref.read(sessionRevisionProvider.notifier).state++;
 }

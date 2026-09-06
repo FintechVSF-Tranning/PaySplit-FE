@@ -215,7 +215,10 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
         unawaited(_readyRefetch());
       case 'close':
         final reason = frame.data['reason'] as String?;
-        if (reason == 'max_connection_age') {
+        if (reason == 'session_ended') {
+          _close();
+          unawaited(ref.read(realtimeSessionRefresherProvider).endSession());
+        } else if (reason == 'max_connection_age') {
           unawaited(_connect());
         } else {
           _scheduleReconnect();
