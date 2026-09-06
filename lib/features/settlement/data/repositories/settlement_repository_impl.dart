@@ -239,16 +239,13 @@ class SettlementRepositoryImpl implements SettlementRepository {
     if (debtIds.isEmpty) {
       throw ArgumentError.value(debtIds, 'debtIds', 'Must not be empty');
     }
-    // Key bám theo nội dung thao tác: bấm lại đúng nhóm nợ đó sẽ replay kết quả
-    // cũ thay vì tạo payment thứ hai.
-    final sortedDebtIds = [...debtIds]..sort();
     final payment = await _remoteDataSource.generatePaymentQr(
       groupId: groupId,
       creditorId: creditorId,
       debtIds: debtIds,
-      idempotencyKey: _idempotencyKey(
-        'qr:$groupId:$creditorId:${sortedDebtIds.join(",")}',
-      ),
+      // Dùng UUIDv4 ngẫu nhiên cho mỗi lượt tạo QR để tránh việc BE replay lại
+      // payment cũ đã bị rejected/confirmed khi thanh toán lại cùng khoản nợ.
+      idempotencyKey: _uuid.v4(),
     );
     final recipient = _map(payment['recipient']);
     return PaymentQrEntity(
@@ -279,9 +276,9 @@ class SettlementRepositoryImpl implements SettlementRepository {
         imageName: image.name,
         imageBytes: image.bytes,
         note: note,
-        // Mỗi payment chỉ nhận đúng một biên lai; bị từ chối thì BE tạo payment
-        // mới nên key theo paymentId là đủ và an toàn khi retry.
-        idempotencyKey: _idempotencyKey('proof:$groupId:$paymentId'),
+        // Sử dụng UUIDv4 ngẫu nhiên cho mỗi lần gửi minh chứng để tránh lỗi
+        // IDEMPOTENCY_KEY_REUSED khi người dùng chọn ảnh khác hoặc gửi lại thông tin mới.
+        idempotencyKey: _uuid.v4(),
       ),
     );
   }
