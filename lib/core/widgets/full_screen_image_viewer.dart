@@ -249,8 +249,8 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer>
       return Image.network(
         widget.imageUrl!,
         fit: BoxFit.contain,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
+        frameBuilder: (context, child, frame, syncLoaded) {
+          if (syncLoaded || frame != null) return child;
           return const Center(
             child: CircularProgressIndicator(color: Colors.white),
           );

@@ -1,11 +1,54 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:paysplit/core/widgets/full_screen_image_viewer.dart';
 import 'package:paysplit/features/settlement/domain/entities/settlement_entities.dart';
 import 'package:paysplit/features/settlement/presentation/widgets/proof_review_sheet.dart';
 
+class _PendingImageClient extends Mock implements HttpClient {}
+
 void main() {
   group('ProofReviewSheet', () {
+    testWidgets('shows loading before the image server sends any bytes', (
+      tester,
+    ) async {
+      final client = _PendingImageClient();
+      final pending = Completer<HttpClientRequest>();
+      when(
+        () => client.getUrl(Uri.parse('https://example.com/pending.webp')),
+      ).thenAnswer((_) => pending.future);
+      debugNetworkImageHttpClientProvider = () => client;
+      addTearDown(() => debugNetworkImageHttpClientProvider = null);
+      final proof = ProofDetailEntity(
+        id: 'proof-pending',
+        groupId: 'group-1',
+        groupName: 'Nhóm',
+        paymentId: 'payment-1',
+        debtorName: 'Người trả',
+        debtorAvatar: '',
+        creditorName: 'Người nhận',
+        amount: 100000,
+        targetBank: 'VCB',
+        targetAccount: '123',
+        referenceCode: 'PAY123',
+        submittedAt: DateTime(2026, 9, 6),
+        proofImageUrl: 'https://example.com/pending.webp',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ProofReviewSheet(proof: proof)),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Đang tải ảnh biên lai…'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      debugNetworkImageHttpClientProvider = null;
+    });
+
     testWidgets('renders proof details and tapping image opens FullScreenImageViewer', (
       tester,
     ) async {

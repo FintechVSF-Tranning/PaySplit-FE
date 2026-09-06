@@ -187,15 +187,19 @@ class _ProofReviewSheetState extends State<ProofReviewSheet> {
                                     (context, child, frame, syncLoaded) {
                                       if (syncLoaded || frame != null) {
                                         _markImageLoaded();
+                                        return child;
                                       }
-                                      return child;
+                                      return const Center(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            CircularProgressIndicator(),
+                                            SizedBox(height: 12),
+                                            Text('Đang tải ảnh biên lai…'),
+                                          ],
+                                        ),
+                                      );
                                     },
-                                loadingBuilder: (context, child, progress) {
-                                  if (progress == null) return child;
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                },
                                 errorBuilder: (context, error, stackTrace) {
                                   _markImageFailed();
                                   return _proofError(
