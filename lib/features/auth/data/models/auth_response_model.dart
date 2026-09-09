@@ -8,8 +8,11 @@ part 'auth_response_model.g.dart';
 @freezed
 class AuthResponseModel with _$AuthResponseModel {
   const factory AuthResponseModel({
-    @JsonKey(name: 'access_token') required String accessToken,
-    @JsonKey(name: 'refresh_token') required String refreshToken,
+    /// Credential duy nhất — chuỗi đục 43 ký tự, gửi kèm mọi request qua
+    /// header `Authorization: Bearer <sessionId>`. Không phải JWT: không mang
+    /// thông tin gì, chỉ server tra được.
+    @JsonKey(name: 'session_id') required String sessionId,
+    @JsonKey(name: 'expires_at') required DateTime expiresAt,
     required UserModel user,
   }) = _AuthResponseModel;
 

@@ -7,7 +7,6 @@ abstract class ApiEndpoints {
   static const String resendVerification = '/auth/resend-verification';
   static const String forgotPassword = '/auth/forgot-password';
   static const String resetPassword = '/auth/reset-password';
-  static const String refreshToken = '/auth/refresh';
   static const String signOut = '/auth/sign-out';
   static const String me = '/users/me';
   static const String userEvents = '/users/me/events';

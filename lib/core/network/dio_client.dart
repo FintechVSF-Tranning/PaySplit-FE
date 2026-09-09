@@ -4,24 +4,13 @@ import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 import '../config/env_config.dart';
 import 'interceptors/auth_interceptor.dart';
-import 'session_events.dart';
-import 'session_refresher.dart';
+import 'session_terminator.dart';
 import 'token_storage.dart';
 
 @module
 abstract class NetworkModule {
   @lazySingleton
-  SessionRefresher sessionRefresher(
-    TokenStorage tokenStorage,
-    SessionEvents sessionEvents,
-  ) => SessionRefresher(tokenStorage, sessionEvents);
-
-  @lazySingleton
-  Dio dio(
-    TokenStorage tokenStorage,
-    SessionEvents sessionEvents,
-    SessionRefresher sessionRefresher,
-  ) {
+  Dio dio(TokenStorage tokenStorage, SessionTerminator sessionTerminator) {
     final dio = Dio(
       BaseOptions(
         baseUrl: EnvConfig.apiBaseUrl,
@@ -33,12 +22,7 @@ abstract class NetworkModule {
     );
 
     dio.interceptors.add(
-      AuthInterceptor(
-        tokenStorage,
-        EnvConfig.apiBaseUrl,
-        sessionEvents: sessionEvents,
-        refresher: sessionRefresher,
-      ),
+      AuthInterceptor(tokenStorage, sessionTerminator: sessionTerminator),
     );
 
     if (!EnvConfig.isProduction) {

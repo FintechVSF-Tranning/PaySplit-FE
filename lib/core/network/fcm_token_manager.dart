@@ -7,7 +7,7 @@ import '../../di/injection.dart';
 import '../constants/api_endpoints.dart';
 import 'token_storage.dart';
 
-typedef AccessTokenReader = Future<String?> Function();
+typedef CredentialReader = Future<String?> Function();
 typedef FCMTokenUploader = Future<int?> Function(String token);
 typedef FirebaseTokenDeleter = Future<void> Function();
 
@@ -18,11 +18,11 @@ typedef FirebaseTokenDeleter = Future<void> Function();
 /// - Dọn dẹp / hủy token khi đăng xuất.
 class FCMTokenManager {
   FCMTokenManager._({
-    AccessTokenReader? readAccessToken,
+    CredentialReader? readCredential,
     FCMTokenUploader? uploadToken,
     FirebaseTokenDeleter? deleteToken,
     this._retryDelays = _defaultRetryDelays,
-  }) : _readAccessToken = readAccessToken ?? _defaultReadAccessToken,
+  }) : _readCredential = readCredential ?? _defaultReadCredential,
        _uploadToken = uploadToken ?? _defaultUploadToken,
        _deleteToken = deleteToken ?? _defaultDeleteToken;
 
@@ -30,12 +30,12 @@ class FCMTokenManager {
 
   @visibleForTesting
   factory FCMTokenManager.forTesting({
-    required AccessTokenReader readAccessToken,
+    required CredentialReader readCredential,
     required FCMTokenUploader uploadToken,
     required FirebaseTokenDeleter deleteToken,
     List<Duration> retryDelays = _defaultRetryDelays,
   }) => FCMTokenManager._(
-    readAccessToken: readAccessToken,
+    readCredential: readCredential,
     uploadToken: uploadToken,
     deleteToken: deleteToken,
     retryDelays: retryDelays,
@@ -47,7 +47,7 @@ class FCMTokenManager {
     Duration(minutes: 5),
   ];
 
-  final AccessTokenReader _readAccessToken;
+  final CredentialReader _readCredential;
   final FCMTokenUploader _uploadToken;
   final FirebaseTokenDeleter _deleteToken;
   final List<Duration> _retryDelays;
@@ -63,8 +63,8 @@ class FCMTokenManager {
   @visibleForTesting
   bool get hasPendingRetry => _pendingToken != null || _retryTimer != null;
 
-  static Future<String?> _defaultReadAccessToken() async {
-    return getIt<TokenStorage>().accessToken;
+  static Future<String?> _defaultReadCredential() async {
+    return getIt<TokenStorage>().sessionId;
   }
 
   static Future<int?> _defaultUploadToken(String token) async {
@@ -131,8 +131,8 @@ class FCMTokenManager {
   Future<bool> syncTokenWithBackend([String? token]) async {
     String? fcmToken = token;
     try {
-      final accessToken = await _readAccessToken();
-      if (accessToken == null || accessToken.isEmpty) {
+      final credential = await _readCredential();
+      if (credential == null || credential.isEmpty) {
         // Chưa đăng nhập, không cần gửi lên server
         return false;
       }

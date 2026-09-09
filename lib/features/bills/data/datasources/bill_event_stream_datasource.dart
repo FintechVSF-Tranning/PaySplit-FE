@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
-import '../../../../core/network/session_refresher.dart';
 import '../../../../core/network/token_storage.dart';
 import '../../../../core/realtime/sse_frame.dart';
 import '../../../../core/realtime/sse_transport.dart';
@@ -19,11 +18,8 @@ typedef BillSseFrame = SseFrame;
 /// `GroupEventStreamDataSource` về lý do không dùng `ResponseType.stream`.
 @lazySingleton
 class BillEventStreamDataSource {
-  BillEventStreamDataSource(
-    Dio dio,
-    TokenStorage tokens,
-    SessionRefresher refresher,
-  ) : _transport = SseTransport(dio, tokens, refresher);
+  BillEventStreamDataSource(Dio dio, TokenStorage tokens)
+    : _transport = SseTransport(dio, tokens);
 
   final SseTransport _transport;
 

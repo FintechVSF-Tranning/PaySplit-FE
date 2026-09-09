@@ -100,7 +100,7 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
   final Dio _dio;
 
   /// Chỉ dùng ở chế độ legacy. Nullable để test dựng data source mà không phải
-  /// kéo theo cả TokenStorage và SessionRefresher.
+  /// kéo theo cả TokenStorage và Dio.
   final BillEventStreamDataSource? _eventStreamDataSource;
 
   BillRemoteDataSourceImpl(this._dio, [this._eventStreamDataSource]);
@@ -211,7 +211,6 @@ class BillRemoteDataSourceImpl implements BillRemoteDataSource {
       message: 'Phản hồi tạo hóa đơn không hợp lệ',
     );
   }
-
 
   @override
   Future<BillDetailEntity> retryOcr({

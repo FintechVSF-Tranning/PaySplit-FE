@@ -7,7 +7,7 @@ void main() {
     () async {
       var uploadAttempts = 0;
       final manager = FCMTokenManager.forTesting(
-        readAccessToken: () async => 'access-token',
+        readCredential: () async => 'access-token',
         uploadToken: (token) async {
           uploadAttempts++;
           return uploadAttempts == 1 ? 503 : 204;
@@ -28,7 +28,7 @@ void main() {
   test('logout hủy retry đang chờ và xóa token Firebase', () async {
     var deleteCalls = 0;
     final manager = FCMTokenManager.forTesting(
-      readAccessToken: () async => 'access-token',
+      readCredential: () async => 'access-token',
       uploadToken: (_) async => 503,
       deleteToken: () async {
         deleteCalls++;

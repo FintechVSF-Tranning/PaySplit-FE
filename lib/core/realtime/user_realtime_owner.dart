@@ -176,11 +176,11 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
     if (error is DioException) {
       final status = error.response?.statusCode;
       if (status == 401) {
-        // `SseTransport` đã làm mới token và mở lại đúng một lần trước khi lỗi
-        // này tới đây, nên 401 còn sót lại nghĩa là phiên hỏng thật. Không kết
-        // nối lại: nếu không, kết nối realtime duy nhất sẽ chết lặng ở trạng
-        // thái `connecting` trong khi UI vẫn tưởng người dùng đã đăng nhập.
-        await ref.read(realtimeSessionRefresherProvider).endSession();
+        // Session ID không xoay vòng, nên 401 nghĩa là phiên đã chết thật
+        // (thu hồi, hết hạn, đăng nhập nơi khác). Không kết nối lại: nếu
+        // không, kết nối realtime duy nhất sẽ chết lặng ở trạng thái
+        // `connecting` trong khi UI vẫn tưởng người dùng đã đăng nhập.
+        await ref.read(realtimeSessionTerminatorProvider).endSession();
         _close();
         return;
       }
@@ -217,7 +217,7 @@ class UserRealtimeOwner extends Notifier<UserRealtimeState> {
         final reason = frame.data['reason'] as String?;
         if (reason == 'session_ended') {
           _close();
-          unawaited(ref.read(realtimeSessionRefresherProvider).endSession());
+          unawaited(ref.read(realtimeSessionTerminatorProvider).endSession());
         } else if (reason == 'max_connection_age') {
           unawaited(_connect());
         } else {

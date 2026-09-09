@@ -11,9 +11,11 @@ class TokenStorage {
   final FlutterSecureStorage _storage;
   static const _uuid = Uuid();
 
-  Future<String?> get accessToken => _storage.read(key: StorageKeys.accessToken);
-
-  Future<String?> get refreshToken => _storage.read(key: StorageKeys.refreshToken);
+  /// Credential duy nhất: một session ID đục do `POST /auth/sign-in` cấp, gửi
+  /// kèm mọi request qua header `Authorization: Bearer <sessionId>`. Server tự
+  /// gia hạn phiên mỗi request (TTL trượt trên Redis), nên không có refresh
+  /// token nào để lưu song song.
+  Future<String?> get sessionId => _storage.read(key: StorageKeys.sessionId);
 
   Future<String> getOrCreateDeviceId() async {
     final existing = await _storage.read(key: StorageKeys.deviceId);
@@ -25,17 +27,11 @@ class TokenStorage {
     return newId;
   }
 
-  Future<void> saveTokens({required String accessToken, required String refreshToken}) async {
-    await Future.wait([
-      _storage.write(key: StorageKeys.accessToken, value: accessToken),
-      _storage.write(key: StorageKeys.refreshToken, value: refreshToken),
-    ]);
+  Future<void> saveSession(String sessionId) {
+    return _storage.write(key: StorageKeys.sessionId, value: sessionId);
   }
 
-  Future<void> clear() async {
-    await Future.wait([
-      _storage.delete(key: StorageKeys.accessToken),
-      _storage.delete(key: StorageKeys.refreshToken),
-    ]);
+  Future<void> clear() {
+    return _storage.delete(key: StorageKeys.sessionId);
   }
 }

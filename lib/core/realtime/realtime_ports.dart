@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../di/injection.dart';
 import '../network/session_events.dart';
-import '../network/session_refresher.dart';
+import '../network/session_terminator.dart';
 import '../network/token_storage.dart';
 import 'sse_frame.dart';
 import 'user_event_stream_datasource.dart';
@@ -23,8 +23,8 @@ final realtimeSessionEventsProvider = Provider<SessionEvents>((ref) {
   return getIt<SessionEvents>();
 });
 
-final realtimeSessionRefresherProvider = Provider<SessionRefresher>((ref) {
-  return getIt<SessionRefresher>();
+final realtimeSessionTerminatorProvider = Provider<SessionTerminator>((ref) {
+  return getIt<SessionTerminator>();
 });
 
 /// Mở stream sự kiện của phiên. Tách thành cổng để test dựng được owner mà
@@ -33,11 +33,7 @@ typedef UserEventStreamOpener =
     Stream<SseFrame> Function({CancelToken? cancelToken});
 
 final userEventStreamOpenerProvider = Provider<UserEventStreamOpener>((ref) {
-  final source = UserEventStreamDataSource(
-    getIt<Dio>(),
-    getIt<TokenStorage>(),
-    ref.read(realtimeSessionRefresherProvider),
-  );
+  final source = UserEventStreamDataSource(getIt<Dio>(), getIt<TokenStorage>());
   return ({CancelToken? cancelToken}) =>
       source.stream(cancelToken: cancelToken);
 });

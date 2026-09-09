@@ -40,10 +40,7 @@ class AuthRepositoryImpl implements AuthRepository {
       }
       final response = await _remoteDataSource.login(loginBody);
       final auth = response.requireData;
-      await _tokenStorage.saveTokens(
-        accessToken: auth.accessToken,
-        refreshToken: auth.refreshToken,
-      );
+      await _tokenStorage.saveSession(auth.sessionId);
       unawaited(FCMTokenManager.instance.initialize());
       return Right(auth.user.toEntity());
     } on DioException catch (e) {
@@ -61,17 +58,30 @@ class AuthRepositoryImpl implements AuthRepository {
     String? phoneNumber,
   }) async {
     try {
-      final body = <String, dynamic>{'display_name': name, 'email': email, 'password': password};
+      final body = <String, dynamic>{
+        'display_name': name,
+        'email': email,
+        'password': password,
+      };
       if (phoneNumber != null && phoneNumber.isNotEmpty) {
         body['phone_number'] = phoneNumber;
       }
       final response = await _remoteDataSource.register(body);
-      final userJson = (response.data as Map<String, dynamic>?)?['user'] as Map<String, dynamic>?;
+      final userJson =
+          (response.data as Map<String, dynamic>?)?['user']
+              as Map<String, dynamic>?;
       if (userJson != null) {
         final userModel = UserModel.fromJson(userJson);
         return Right(userModel.toEntity());
       }
-      return Right(UserEntity(id: 'temp', name: name, email: email, phoneNumber: phoneNumber));
+      return Right(
+        UserEntity(
+          id: 'temp',
+          name: name,
+          email: email,
+          phoneNumber: phoneNumber,
+        ),
+      );
     } on DioException catch (e) {
       return Left(mapDioError(e));
     } catch (_) {
@@ -80,7 +90,10 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> verifyEmail({required String email, required String otp}) async {
+  Future<Either<Failure, void>> verifyEmail({
+    required String email,
+    required String otp,
+  }) async {
     try {
       await _remoteDataSource.verifyEmail({'email': email, 'otp': otp});
       return const Right(null);
@@ -90,7 +103,9 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> resendVerification({required String email}) async {
+  Future<Either<Failure, void>> resendVerification({
+    required String email,
+  }) async {
     try {
       await _remoteDataSource.resendVerification({'email': email});
       return const Right(null);
@@ -133,7 +148,9 @@ class AuthRepositoryImpl implements AuthRepository {
       final response = await _remoteDataSource.getCurrentUser();
       final data = response.data;
       final userJson =
-          (data is Map<String, dynamic> ? data['user'] as Map<String, dynamic>? : null) ??
+          (data is Map<String, dynamic>
+              ? data['user'] as Map<String, dynamic>?
+              : null) ??
           data as Map<String, dynamic>;
       final model = UserModel.fromJson(userJson);
       return Right(model.toEntity());
@@ -183,7 +200,9 @@ class AuthRepositoryImpl implements AuthRepository {
       final response = await _remoteDataSource.patchProfile(body);
       final data = response.data;
       final userJson =
-          (data is Map<String, dynamic> ? data['user'] as Map<String, dynamic>? : null) ??
+          (data is Map<String, dynamic>
+              ? data['user'] as Map<String, dynamic>?
+              : null) ??
           data as Map<String, dynamic>;
       final model = UserModel.fromJson(userJson);
       return Right(model.toEntity());
@@ -244,8 +263,8 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, void>> logout() async {
     // Thu hồi session phía máy chủ trước, nhưng không để lỗi mạng giữ người
-    // dùng lại trong app: refresh token vẫn sống 7 ngày nếu bước này thất bại,
-    // còn token trên máy thì luôn phải bị xóa.
+    // dùng lại trong app: nếu bước này thất bại thì credential vẫn sống tới
+    // hết TTL trên Redis, còn credential trên máy thì luôn phải bị xóa ngay.
     try {
       await _remoteDataSource.signOut();
     } catch (_) {

@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paysplit/core/network/session_events.dart';
-import 'package:paysplit/core/network/session_refresher.dart';
+import 'package:paysplit/core/network/session_terminator.dart';
 import 'package:paysplit/core/network/token_storage.dart';
 import 'package:paysplit/core/realtime/realtime_interest.dart';
 import 'package:paysplit/core/realtime/realtime_interest_registry.dart';
@@ -16,33 +16,24 @@ import 'package:paysplit/core/realtime/user_realtime_owner.dart';
 
 /// TokenStorage trong bộ nhớ, không chạm tới FlutterSecureStorage.
 class _FakeTokenStorage implements TokenStorage {
-  String? access = 'access-1';
-  String? refresh = 'refresh-1';
+  String? session = 'sess-1';
   bool cleared = false;
 
   @override
-  Future<String?> get accessToken async => access;
-
-  @override
-  Future<String?> get refreshToken async => refresh;
+  Future<String?> get sessionId async => session;
 
   @override
   Future<String> getOrCreateDeviceId() async => 'device-1';
 
   @override
-  Future<void> saveTokens({
-    required String accessToken,
-    required String refreshToken,
-  }) async {
-    access = accessToken;
-    refresh = refreshToken;
+  Future<void> saveSession(String sessionId) async {
+    session = sessionId;
   }
 
   @override
   Future<void> clear() async {
     cleared = true;
-    access = null;
-    refresh = null;
+    session = null;
   }
 }
 
@@ -106,8 +97,8 @@ _harness({
     overrides: [
       realtimeSignedInProvider.overrideWithValue(true),
       realtimeSessionEventsProvider.overrideWithValue(events),
-      realtimeSessionRefresherProvider.overrideWithValue(
-        SessionRefresher(tokens, events, baseUrlOverride: 'http://test'),
+      realtimeSessionTerminatorProvider.overrideWithValue(
+        SessionTerminator(tokens, events),
       ),
       userEventStreamOpenerProvider.overrideWithValue(built.open),
     ],
@@ -162,16 +153,16 @@ void main() {
   test('each new login can expire, concurrent endings notify once', () async {
     final tokens = _FakeTokenStorage();
     final events = SessionEvents();
-    final refresher = SessionRefresher(tokens, events);
+    final terminator = SessionTerminator(tokens, events);
     var expired = 0;
     final subscription = events.onExpired.listen((_) => expired++);
     addTearDown(subscription.cancel);
     addTearDown(events.dispose);
-    await Future.wait([refresher.endSession(), refresher.endSession()]);
+    await Future.wait([terminator.endSession(), terminator.endSession()]);
     await Future<void>.delayed(Duration.zero);
     expect(expired, 1);
-    await tokens.saveTokens(accessToken: 'access-2', refreshToken: 'refresh-2');
-    await refresher.endSession();
+    await tokens.saveSession('sess-2');
+    await terminator.endSession();
     await Future<void>.delayed(Duration.zero);
     expect(expired, 2);
   });

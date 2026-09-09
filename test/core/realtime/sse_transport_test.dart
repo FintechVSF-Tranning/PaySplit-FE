@@ -1,41 +1,27 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:paysplit/core/network/session_events.dart';
-import 'package:paysplit/core/network/session_refresher.dart';
 import 'package:paysplit/core/network/token_storage.dart';
 import 'package:paysplit/core/realtime/sse_transport.dart';
 
 class _FakeTokenStorage implements TokenStorage {
-  String? access = 'expired';
-  String? refresh = 'refresh-1';
-  bool cleared = false;
+  String? session = 'sess-abc';
 
   @override
-  Future<String?> get accessToken async => access;
-
-  @override
-  Future<String?> get refreshToken async => refresh;
+  Future<String?> get sessionId async => session;
 
   @override
   Future<String> getOrCreateDeviceId() async => 'device-1';
 
   @override
-  Future<void> saveTokens({
-    required String accessToken,
-    required String refreshToken,
-  }) async {
-    access = accessToken;
-    refresh = refreshToken;
+  Future<void> saveSession(String sessionId) async {
+    session = sessionId;
   }
 
   @override
   Future<void> clear() async {
-    cleared = true;
-    access = null;
-    refresh = null;
+    session = null;
   }
 }
 
@@ -84,133 +70,71 @@ const _oneReadyFrame =
     'event: ready\ndata: {"stream_id":"s1","timestamp":"2026-09-03T00:00:00Z"}\n\n';
 
 void main() {
-  test('every stream carries Accept and X-App-Version', () async {
+  test(
+    'every stream carries Accept, X-App-Version and the Bearer credential',
+    () async {
+      // covers: AC-23
+      final adapter = _RecordingAdapter((_) => _sseBody(_oneReadyFrame));
+      final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+        ..httpClientAdapter = adapter;
+
+      await SseTransport(
+        dio,
+        _FakeTokenStorage(),
+      ).open('/groups/g1/events', queryParameters: {'since': 0}).toList();
+
+      final request = adapter.requests.single;
+      expect(request.headers['Accept'], 'text/event-stream');
+      expect(
+        request.headers['X-App-Version'],
+        isNotNull,
+        reason: 'thiếu header này thì telemetry rollout đếm legacy là unknown',
+      );
+      expect(request.headers['Authorization'], 'Bearer sess-abc');
+      expect(request.queryParameters['since'], 0);
+    },
+  );
+
+  test('không có session thì không gắn header Authorization', () async {
+    final adapter = _RecordingAdapter((_) => _sseBody(_oneReadyFrame));
+    final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+      ..httpClientAdapter = adapter;
+    final tokens = _FakeTokenStorage()..session = null;
+
+    await SseTransport(dio, tokens).open('/users/me/events').toList();
+
+    expect(adapter.requests.single.headers['Authorization'], isNull);
+  });
+
+  test('a stream 401 is surfaced as-is — session ID does not rotate, so there is '
+      'nothing to refresh and no retry', () async {
     // covers: AC-23
+    final adapter = _RecordingAdapter((options) => _status(401));
+    final dio = Dio(BaseOptions(baseUrl: 'http://test'))
+      ..httpClientAdapter = adapter;
+
+    await expectLater(
+      SseTransport(dio, _FakeTokenStorage()).open('/users/me/events').toList(),
+      throwsA(isA<DioException>()),
+    );
+    expect(
+      adapter.requests,
+      hasLength(1),
+      reason:
+          'không có lần mở lại nào — quyết định kết thúc phiên thuộc về tầng gọi',
+    );
+  });
+
+  test('parses frames delivered on the first attempt', () async {
     final adapter = _RecordingAdapter((_) => _sseBody(_oneReadyFrame));
     final dio = Dio(BaseOptions(baseUrl: 'http://test'))
       ..httpClientAdapter = adapter;
 
-    await SseTransport(
+    final frames = await SseTransport(
       dio,
       _FakeTokenStorage(),
-    ).open('/groups/g1/events', queryParameters: {'since': 0}).toList();
+    ).open('/users/me/events').toList();
 
-    final request = adapter.requests.single;
-    expect(request.headers['Accept'], 'text/event-stream');
-    expect(
-      request.headers['X-App-Version'],
-      isNotNull,
-      reason: 'thiếu header này thì telemetry rollout đếm legacy là unknown',
-    );
-    expect(request.queryParameters['since'], 0);
-  });
-
-  test(
-    'a stream 401 refreshes once and reopens with the rotated token',
-    () async {
-      // covers: AC-23
-      var streamAttempts = 0;
-      var refreshCalls = 0;
-      final adapter = _RecordingAdapter((options) {
-        if (options.path == '/auth/refresh') {
-          refreshCalls++;
-          return _status(
-            200,
-            body:
-                '{"data":{"access_token":"fresh","refresh_token":"refresh-2"}}',
-          );
-        }
-        streamAttempts++;
-        if (options.headers['Authorization'] == 'Bearer fresh') {
-          return _sseBody(_oneReadyFrame);
-        }
-        return _status(401);
-      });
-      final dio = Dio(BaseOptions(baseUrl: 'http://test'))
-        ..httpClientAdapter = adapter;
-      final tokens = _FakeTokenStorage();
-      final refresher = SessionRefresher(
-        tokens,
-        SessionEvents(),
-        dioFactory: (o) => Dio(o)..httpClientAdapter = adapter,
-        baseUrlOverride: 'http://test',
-      );
-
-      final frames = await SseTransport(
-        dio,
-        tokens,
-        refresher,
-      ).open('/users/me/events').toList();
-
-      expect(frames.single.event, 'ready');
-      expect(refreshCalls, 1);
-      expect(
-        streamAttempts,
-        2,
-        reason: 'mở lại đúng một lần, không lặp vô hạn',
-      );
-      expect(tokens.cleared, isFalse);
-    },
-  );
-
-  test('a stream 401 whose refresh fails clears the session', () async {
-    // covers: AC-23
-    final events = SessionEvents();
-    var expired = 0;
-    final sub = events.onExpired.listen((_) => expired++);
-    addTearDown(sub.cancel);
-
-    final adapter = _RecordingAdapter((options) {
-      if (options.path == '/auth/refresh') return _status(401);
-      return _status(401);
-    });
-    final dio = Dio(BaseOptions(baseUrl: 'http://test'))
-      ..httpClientAdapter = adapter;
-    final tokens = _FakeTokenStorage();
-    final refresher = SessionRefresher(
-      tokens,
-      events,
-      dioFactory: (o) => Dio(o)..httpClientAdapter = adapter,
-      baseUrlOverride: 'http://test',
-    );
-
-    await expectLater(
-      SseTransport(dio, tokens, refresher).open('/users/me/events').toList(),
-      throwsA(isA<DioException>()),
-    );
-    await Future<void>.delayed(Duration.zero);
-    expect(tokens.cleared, isTrue);
-    expect(expired, 1);
-  });
-
-  test('concurrent refreshes share one rotation', () async {
-    // covers: AC-23
-    // Refresh token dùng một lần: hai lần xoay song song bị backend coi là tái
-    // sử dụng và thu hồi cả họ token.
-    var refreshCalls = 0;
-    final adapter = _RecordingAdapter((options) {
-      if (options.path == '/auth/refresh') {
-        refreshCalls++;
-        return _status(
-          200,
-          body: '{"data":{"access_token":"fresh","refresh_token":"refresh-2"}}',
-        );
-      }
-      return _status(401);
-    });
-    final refresher = SessionRefresher(
-      _FakeTokenStorage(),
-      SessionEvents(),
-      dioFactory: (o) => Dio(o)..httpClientAdapter = adapter,
-      baseUrlOverride: 'http://test',
-    );
-
-    final results = await Future.wait([
-      refresher.refresh(),
-      refresher.refresh(),
-    ]);
-
-    expect(results, [true, true]);
-    expect(refreshCalls, 1);
+    expect(frames.single.event, 'ready');
   });
 }
